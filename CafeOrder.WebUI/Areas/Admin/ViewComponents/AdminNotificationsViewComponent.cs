@@ -1,0 +1,28 @@
+using CafeOrder.BusinessLayer.Services.Notifications;
+using CafeOrder.DtoLayer.Dtos.NotificationDtos;
+using CafeOrder.EntityLayer.Enums;
+using Microsoft.AspNetCore.Mvc;
+
+namespace CafeOrder.WebUI.Areas.Admin.ViewComponents;
+
+/// <summary>
+/// Üst çubuktaki zil: son 6 admin bildirimi ve okunmamış sayısı.
+/// _AdminLayout içinde çağrılır, yani her admin sayfasında çalışır.
+/// View: Areas/Admin/Views/Shared/Components/AdminNotifications/Default.cshtml
+/// </summary>
+public class AdminNotificationsViewComponent : ViewComponent
+{
+    private readonly INotificationService _notificationService;
+
+    public AdminNotificationsViewComponent(INotificationService notificationService)
+    {
+        _notificationService = notificationService;
+    }
+
+    public async Task<IViewComponentResult> InvokeAsync()
+    {
+        ViewBag.UnreadCount = await _notificationService.CountUnreadAsync(NotificationTarget.Admin);
+        List<ResultNotificationDto> latest = await _notificationService.GetLatestAsync(NotificationTarget.Admin, 6);
+        return View(latest);
+    }
+}

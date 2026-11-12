@@ -1,0 +1,38 @@
+@model List<ResultCustomerDto>
+@{
+    ViewData["Title"] = "Customers · CafeFlow Management Studio";
+    ViewData["AdminPage"] = "customers";
+    ViewData["Crumb"] = "Customers";
+}
+
+<div class="adm-page-head">
+  <div>
+    <h1 class="adm-page-title">Customers</h1>
+    <p class="adm-page-sub">Created automatically from delivery and pickup orders.</p>
+  </div>
+</div>
+
+<section class="adm-card">
+  <form class="adm-toolbar" method="get" action="/admin/customers">
+    <input type="search" class="adm-input" name="q" value="@ViewBag.Search" placeholder="Name or phone..." />
+    <button type="submit" class="adm-btn adm-btn-light">Search</button>
+    <span class="adm-counter"><strong>@Model.Count</strong> customers</span>
+  </form>
+  <div class="adm-table-wrap">
+    <table class="adm-table">
+      <thead><tr><th>Customer</th><th>Phone</th><th class="num">Orders</th><th class="end">Total spent</th><th>Last order</th></tr></thead>
+      <tbody>
+        @foreach (var c in Model)
+        {
+          <tr>
+            <td><strong>@c.FullName</strong></td>
+            <td class="pg-mono">@c.Phone</td>
+            <td class="num">@c.OrderCount</td>
+            <td class="end">@AdminDisplay.Money(c.TotalSpent)</td>
+            <td>@(c.LastOrderDate == null ? "—" : c.LastOrderDate.Value.ToString("dd MMM yyyy, HH:mm"))</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>

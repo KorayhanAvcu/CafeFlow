@@ -1,0 +1,70 @@
+@model ResultOrderDto
+@{
+    var returnUrl = Context.Request.Path + Context.Request.QueryString;
+}
+<div class="offcanvas offcanvas-end cf-cart-drawer" tabindex="-1" id="cartDrawer" aria-labelledby="cartTitle">
+  <div class="offcanvas-header">
+    <h5 class="offcanvas-title" id="cartTitle"><i class="bi bi-bag-heart"></i> Your Sweet Cart</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body d-flex flex-column">
+    @if (Model.Details.Count == 0)
+    {
+      <div class="cf-cart-empty">
+        <span class="cf-cat-icon"><i class="bi bi-bag-heart"></i></span>
+        <h6>Your cart is feeling light</h6>
+        <p>Add a latte or a little slice of happiness.</p>
+        <button type="button" class="btn cf-btn-outline" data-bs-dismiss="offcanvas">Browse the menu</button>
+      </div>
+    }
+    else
+    {
+      <ul class="cf-cart-items">
+        @for (var i = 0; i < Model.Details.Count; i++)
+        {
+          var line = Model.Details[i];
+          <li class="cf-cart-line">
+            <a href="/products/@line.ProductId" class="cf-cart-thumb">
+              <img src="@line.ProductImageUrl" alt="@line.ProductName" data-fallback="@line.ProductCategorySlug" />
+            </a>
+            <div>
+              <div class="cf-cart-line-top">
+                <h6>@line.ProductName</h6>
+              </div>
+              <div class="cf-cart-opts">
+                @if (line.Options.Count > 0)
+                {
+                  @string.Join(" · ", line.Options.Select(o => Display.OptionText(o.GroupKey, o.Value)))
+                }
+                else
+                {
+                  @(Display.Money(line.UnitPrice) + " each")
+                }
+              </div>
+              <div class="cf-cart-line-bottom">
+                <form method="post" asp-controller="Cart" asp-action="Update" class="cf-stepper">
+                  <input type="hidden" name="index" value="@i" />
+                  <input type="hidden" name="returnUrl" value="@returnUrl" />
+                  <button type="submit" name="quantity" value="@(line.Quantity - 1)" aria-label="Decrease"><i class="bi bi-dash"></i></button>
+                  <span>@line.Quantity</span>
+                  <button type="submit" name="quantity" value="@(line.Quantity + 1)" aria-label="Increase"><i class="bi bi-plus"></i></button>
+                </form>
+                <span class="cf-line-price">@Display.Money(line.LineTotal)</span>
+              </div>
+            </div>
+          </li>
+        }
+      </ul>
+
+      <div class="cf-cart-footer">
+        <ul class="cf-cart-summary">
+          <li><span>Items</span><span>@Model.Details.Sum(d => d.Quantity)</span></li>
+          <li class="cf-sum-total"><span>Subtotal</span><strong>@Display.Money(Model.Subtotal)</strong></li>
+        </ul>
+        <div class="d-grid gap-2">
+          <a href="/cart" class="btn cf-btn-primary cf-btn-lg">View Cart &amp; Checkout <i class="bi bi-arrow-right"></i></a>
+        </div>
+      </div>
+    }
+  </div>
+</div>

@@ -1,0 +1,83 @@
+/* =====================================================================
+   DASHBOARD, PRODUCTS, TABLES, CUSTOMERS, NOTIFICATIONS, SETTINGS
+   Built only from the admin design tokens in admin.css.
+   ===================================================================== */
+a.adm-stat { color: inherit; text-decoration: none; }
+a.adm-stat.active { border-color: var(--adm-primary); box-shadow: 0 0 0 4px var(--adm-primary-ring); }
+
+.pg-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 16px 20px; border-bottom: 1px solid var(--adm-border); flex-wrap: wrap; }
+.pg-card-head h2 { font-size: 1rem; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 8px; }
+.pg-card-head h2 i { color: var(--adm-primary-deep); }
+.pg-card-body { padding: 18px 20px; }
+.pg-muted { color: var(--adm-text-2); }
+.pg-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 700; white-space: nowrap; }
+.pg-num { font-variant-numeric: tabular-nums; font-weight: 700; }
+
+/* Stat tiles with a small helper line */
+.pg-stat-note { font-size: .76rem; color: var(--adm-text-3); margin-top: 2px; }
+
+/* Labelled meter rows (status and channel breakdown). The number is always written next to the bar. */
+.pg-meters { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.pg-meter-top { display: flex; justify-content: space-between; gap: 10px; font-size: .88rem; margin-bottom: 6px; }
+.pg-meter-top span { display: inline-flex; align-items: center; gap: 8px; color: var(--adm-text); font-weight: 600; }
+.pg-meter-top strong { font-variant-numeric: tabular-nums; }
+.pg-meter-top small { color: var(--adm-text-3); font-weight: 500; margin-left: 4px; }
+.pg-meter { height: 8px; border-radius: 999px; background: var(--adm-bg); border: 1px solid var(--adm-border); overflow: hidden; }
+.pg-meter > span { display: block; height: 100%; border-radius: 999px; background: var(--adm-primary); min-width: 0; }
+
+.pg-rank { width: 26px; height: 26px; border-radius: 8px; display: inline-grid; place-items: center; background: var(--adm-primary-soft); color: var(--adm-primary-deep); font-weight: 700; font-size: .8rem; }
+
+.pg-shortcuts { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+.pg-shortcut { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 1px solid var(--adm-border); border-radius: 14px; color: var(--adm-text); text-decoration: none; font-weight: 600; font-size: .88rem; transition: all .2s; background: #fff; }
+.pg-shortcut:hover { border-color: var(--adm-primary); box-shadow: 0 0 0 4px var(--adm-primary-ring); color: var(--adm-primary-deep); }
+.pg-shortcut i { font-size: 1.1rem; color: var(--adm-primary-deep); }
+
+/* Inline forms inside table cells */
+.pg-inline { display: inline; margin: 0; }
+.pg-actions { display: inline-flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+
+/* Product form */
+.pg-preview { width: 100%; aspect-ratio: 4 / 3; border-radius: 16px; border: 1px dashed var(--adm-border-strong); background: var(--adm-bg); display: grid; place-items: center; overflow: hidden; color: var(--adm-text-3); font-size: 2rem; }
+.pg-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pg-toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-radius: 14px; background: var(--adm-bg); border: 1px solid var(--adm-border); }
+.pg-toggle-row strong { display: block; font-size: .9rem; }
+.pg-toggle-row small { color: var(--adm-text-2); }
+.pg-form-foot { display: flex; gap: 10px; justify-content: flex-end; padding: 16px 20px; border-top: 1px solid var(--adm-border); flex-wrap: wrap; }
+.pg-price { position: relative; }
+.pg-price span { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--adm-text-2); font-weight: 600; }
+.pg-price .adm-input { padding-left: 32px; }
+
+/* Tables (QR) */
+.pg-qr-box { display: grid; place-items: center; padding: 18px; background: #fff; border-radius: 16px; border: 1px solid var(--adm-border); }
+.pg-qr-box canvas, .pg-qr-box img { width: 220px; height: 220px; image-rendering: pixelated; }
+.pg-qr-url { font-size: .78rem; word-break: break-all; color: var(--adm-text-2); text-align: center; margin-top: 10px; }
+.pg-sticky { position: sticky; top: 90px; }
+
+/* Customers */
+.pg-avatar { width: 36px; height: 36px; border-radius: 12px; display: inline-grid; place-items: center; background: var(--adm-primary-soft); color: var(--adm-primary-deep); font-weight: 700; font-size: .82rem; flex-shrink: 0; }
+
+/* Notifications */
+.pg-notes { list-style: none; margin: 0; padding: 0; }
+.pg-note { display: flex; gap: 14px; align-items: flex-start; padding: 14px 20px; border-bottom: 1px solid var(--adm-border); }
+.pg-note:last-child { border-bottom: none; }
+.pg-note.unread { background: var(--adm-primary-soft); }
+.pg-note-icon { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; flex-shrink: 0; }
+.pg-note-body { flex: 1; min-width: 0; }
+.pg-note-body p { margin: 0 0 4px; color: var(--adm-text); font-weight: 600; font-size: .9rem; word-break: break-word; }
+.pg-note-meta { display: flex; gap: 10px; flex-wrap: wrap; font-size: .78rem; color: var(--adm-text-2); align-items: center; }
+.pg-note-meta a { color: var(--adm-primary-deep); font-weight: 600; text-decoration: none; }
+.pg-unread-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--adm-primary); margin-top: 8px; flex-shrink: 0; }
+
+.pg-segment a { height: 32px; padding: 0 12px; border-radius: 9px; color: var(--adm-text-2); font-weight: 600; font-size: .84rem; display: inline-flex; align-items: center; text-decoration: none; transition: all .2s; }
+.pg-segment a.active { background: #fff; color: var(--adm-primary-deep); box-shadow: var(--adm-shadow-sm); }
+.pg-segment a:not(.active):hover { color: var(--adm-text); }
+
+/* Settings */
+.pg-dl { display: grid; grid-template-columns: 1fr auto; gap: 12px 16px; margin: 0; font-size: .9rem; }
+.pg-dl dt { color: var(--adm-text-2); font-weight: 600; }
+.pg-dl dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+
+@media (max-width: 1199.98px) {
+  .pg-sticky { position: static; }
+}
+

@@ -1,0 +1,53 @@
+@model List<ResultNotificationDto>
+@{
+    ViewData["Title"] = "Notifications · CafeFlow Management Studio";
+    ViewData["AdminPage"] = "notifications";
+    ViewData["Crumb"] = "Notifications";
+    NotificationTarget? target = ViewBag.Target;
+    Dictionary<string, int> unread = ViewBag.UnreadCounts;
+}
+
+<div class="adm-page-head">
+  <div>
+    <h1 class="adm-page-title">Notifications</h1>
+    <p class="adm-page-sub">Written by the Observer pattern when an order is placed or its status changes.</p>
+  </div>
+  <form method="post" action="/admin/notifications/mark-read">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="target" value="@target" />
+    <button type="submit" class="adm-btn adm-btn-light">Mark as read</button>
+  </form>
+</div>
+
+<partial name="_Flash" model="null" />
+
+<section class="adm-stats">
+  <a href="/admin/notifications" class="adm-stat text-decoration-none"><div><div class="adm-stat-value">@unread["All"]</div><div class="adm-stat-label">Unread · all</div></div></a>
+  @foreach (var t in Enum.GetValues<NotificationTarget>())
+  {
+    <a href="/admin/notifications?target=@t" class="adm-stat text-decoration-none"><div><div class="adm-stat-value">@unread[t.ToString()]</div><div class="adm-stat-label">Unread · @t</div></div></a>
+  }
+</section>
+
+<section class="adm-card">
+  <div class="adm-toolbar">
+    <a href="/admin/notifications?target=@target" class="adm-btn adm-btn-light">All</a>
+    <a href="/admin/notifications?target=@target&unread=true" class="adm-btn adm-btn-light">Unread only</a>
+    <span class="adm-counter"><strong>@Model.Count</strong> notifications</span>
+  </div>
+  <ul class="pg-notes">
+    @foreach (var n in Model)
+    {
+      <li class="pg-note@(n.IsRead ? "" : " unread")">
+        <div class="pg-note-body">
+          <p>@n.Message</p>
+          <div class="pg-note-meta">
+            <span class="adm-badge adm-badge-neutral">@n.Target</span>
+            <span>@n.CreatedAt.ToString("dd MMM, HH:mm")</span>
+            @if (n.OrderId != null) { <a href="/admin/orders/@n.OrderId">@n.OrderNo</a> }
+          </div>
+        </div>
+      </li>
+    }
+  </ul>
+</section>

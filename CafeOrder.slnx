@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="CafeOrder.BusinessLayer/CafeOrder.BusinessLayer.csproj" />
+  <Project Path="CafeOrder.DataAccessLayer/CafeOrder.DataAccessLayer.csproj" />
+  <Project Path="CafeOrder.DtoLayer/CafeOrder.DtoLayer.csproj" />
+  <Project Path="CafeOrder.EntityLayer/CafeOrder.EntityLayer.csproj" />
+  <Project Path="CafeOrder.WebUI/CafeOrder.WebUI.csproj" />
+</Solution>

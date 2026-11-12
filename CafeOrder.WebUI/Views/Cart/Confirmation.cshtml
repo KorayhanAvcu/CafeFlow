@@ -1,0 +1,102 @@
+@using CafeOrder.EntityLayer.Enums
+@model ResultOrderDto
+@{
+    ViewData["Title"] = $"Order {Model.OrderNo} — CafeFlow";
+    ViewData["Description"] = "Your CafeFlow order has been received.";
+    ViewData["NavPage"] = "other";
+
+    // Sipariş türüne göre teslim bilgisi
+    string channelText;
+    if (Model.Channel == OrderChannel.Delivery)
+    {
+        channelText = "Delivery to your door";
+    }
+    else if (Model.Channel == OrderChannel.Pickup)
+    {
+        channelText = "Pickup at 24 Blossom Street · " + Model.PickupTime?.ToString("dd MMM, HH:mm");
+    }
+    else
+    {
+        channelText = "Dine-in · Table " + Model.TableNumber + " · " + Model.TableArea;
+    }
+
+    // Yeni sipariş her zaman "Received" durumundadır.
+    string statusText = Model.Status == OrderStatus.Received ? "Received — the kitchen has been notified" : Model.Status.ToString();
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/inner.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/cart.css" asp-append-version="true" />
+}
+<header class="cf-page-header">
+  <div class="cf-blob cf-blob-1"></div>
+  <div class="cf-blob cf-blob-2"></div>
+  <div class="container position-relative">
+    <nav aria-label="Breadcrumb">
+      <div class="cf-breadcrumb">
+        <a href="/"><i class="bi bi-house-heart"></i> Home</a>
+        <i class="bi bi-chevron-right"></i>
+        <span aria-current="page">Order confirmed</span>
+      </div>
+    </nav>
+    <h1 class="cf-page-title">Thank you, it's <em>brewing</em>!</h1>
+    <p class="cf-page-sub">
+      Your order number is <strong>@Model.OrderNo</strong>. Keep it handy in case you need to reach us.
+    </p>
+  </div>
+</header>
+
+<main class="cf-cart-section">
+  <div class="container">
+    <div class="row g-4 justify-content-center">
+      <div class="col-lg-7">
+        <section class="cf-panel" aria-labelledby="orderTitle">
+          <div class="cf-panel-head">
+            <h2 class="cf-panel-title" id="orderTitle"><span class="cf-step"><i class="bi bi-check2"></i></span> Order @Model.OrderNo</h2>
+          </div>
+
+          <div class="cf-notice mb-4">
+            <i class="bi bi-receipt"></i>
+            <div>
+              <strong>@channelText</strong>
+              Status: @statusText.
+            </div>
+          </div>
+
+          <ul class="cf-sum-rows">
+            @foreach (var line in Model.Details)
+            {
+              <li>
+                <span>
+                  @line.Quantity × @line.ProductName
+                  @if (line.Options.Count > 0)
+                  {
+                    <small class="d-block text-muted">@string.Join(" · ", line.Options.Select(o => $"{o.GroupKey}: {o.Value}"))</small>
+                  }
+                </span>
+                <span>@Display.Money(line.LineTotal)</span>
+              </li>
+            }
+          </ul>
+
+          <ul class="cf-sum-rows">
+            <li><span>Subtotal</span><span>@Display.Money(Model.Subtotal)</span></li>
+            @if (Model.Channel == OrderChannel.Delivery)
+            {
+              <li><span>Delivery fee</span><span class="@(Model.DeliveryFee == 0 ? "cf-free" : "")">@(Model.DeliveryFee == 0 ? "Free" : Display.Money(Model.DeliveryFee))</span></li>
+            }
+          </ul>
+
+          <div class="cf-grand">
+            <span>Total<small>Paid at the café or on delivery</small></span>
+            <strong>@Display.Money(Model.Total)</strong>
+          </div>
+
+          <div class="d-flex flex-wrap gap-2">
+            <a href="/products" class="btn cf-btn-primary cf-btn-lg">Order something else <i class="bi bi-arrow-right"></i></a>
+            <a href="/" class="btn cf-btn-outline cf-btn-lg">Back to home</a>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+</main>

@@ -1,0 +1,63 @@
+@model List<ResultProductDto>
+@{
+    ViewData["Title"] = "Products · CafeFlow Management Studio";
+    ViewData["AdminPage"] = "products";
+    ViewData["Crumb"] = "Products";
+    List<ResultCategoryDto> categories = ViewBag.Categories;
+    int? selected = ViewBag.Category;
+}
+
+<div class="adm-page-head">
+  <div>
+    <h1 class="adm-page-title">Product Management</h1>
+    <p class="adm-page-sub">@Model.Count products</p>
+  </div>
+  <a href="/admin/products/new" class="adm-btn adm-btn-primary"><i class="bi bi-plus-lg"></i> Add Product</a>
+</div>
+
+<partial name="_Flash" model="null" />
+
+<section class="adm-card">
+  <form class="adm-toolbar" method="get" action="/admin/products">
+    <input type="search" class="adm-input" name="q" value="@ViewBag.Search" placeholder="Search by name..." />
+    <select class="adm-select" name="category">
+      <option value="">All Categories</option>
+      @foreach (var c in categories)
+      {
+        <option value="@c.Id" selected="@(selected == c.Id)">@c.Name</option>
+      }
+    </select>
+    <button type="submit" class="adm-btn adm-btn-light">Filter</button>
+  </form>
+
+  <div class="adm-table-wrap">
+    <table class="adm-table">
+      <thead><tr><th>Product</th><th>Category</th><th class="end">Price</th><th>Badge</th><th>Status</th><th class="end"></th></tr></thead>
+      <tbody>
+        @foreach (var p in Model)
+        {
+          <tr>
+            <td><strong>@p.Name</strong></td>
+            <td>@p.CategoryName</td>
+            <td class="end">@AdminDisplay.Money(p.BasePrice)</td>
+            <td>@p.Badge</td>
+            <td>
+              <form method="post" action="/admin/products/@p.Id/status" class="pg-inline">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="active" value="@(p.IsActive ? "false" : "true")" />
+                <button type="submit" class="adm-badge @(p.IsActive ? "adm-badge-success" : "adm-badge-inactive") border-0">@(p.IsActive ? "Active" : "Inactive")</button>
+              </form>
+            </td>
+            <td class="end">
+              <a href="/admin/products/@p.Id/edit" class="adm-btn adm-btn-ghost adm-btn-sm">Edit</a>
+              <form method="post" action="/admin/products/@p.Id/delete" class="pg-inline" onsubmit="return confirm('Delete this product?');">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="adm-btn adm-btn-ghost adm-btn-sm"><i class="bi bi-trash3"></i></button>
+              </form>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>

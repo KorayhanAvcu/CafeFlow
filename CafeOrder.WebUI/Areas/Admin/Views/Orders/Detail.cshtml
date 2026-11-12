@@ -1,0 +1,171 @@
+@model ResultOrderDto
+@{
+    var order = Model;
+    List<OrderStatus> allowedNext = ViewBag.AllowedNext;
+    ViewData["Title"] = $"{order.OrderNo} · CafeFlow Management Studio";
+    ViewData["AdminPage"] = "orders";
+    ViewData["Crumb"] = $"Orders / {order.OrderNo}";
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/admin-orders.css" asp-append-version="true" />
+}
+
+<div class="adm-page-head">
+  <div>
+    <a href="/admin/orders" class="adm-btn adm-btn-ghost adm-btn-sm mb-2"><i class="bi bi-arrow-left"></i> All orders</a>
+    <h1 class="adm-page-title">Order @order.OrderNo</h1>
+    <p class="adm-page-sub"><i class="bi @AdminDisplay.ChannelIcon(order.Channel)"></i> @AdminDisplay.ChannelLabel(order.Channel) · placed @AdminDisplay.Date(order.CreatedAt)</p>
+  </div>
+  <span class="adm-badge @AdminDisplay.StatusBadge(order.Status)" style="font-size:.9rem;padding:8px 14px">@AdminDisplay.StatusLabel(order.Status)</span>
+</div>
+
+<partial name="_Flash" model="null" />
+
+<div class="row g-4">
+  <div class="col-xl-8">
+    <section class="adm-card mb-4" aria-labelledby="itemsTitle">
+      <div class="ord-card-head">
+        <h2 id="itemsTitle"><i class="bi bi-cup-hot"></i> Items</h2>
+        <span class="adm-counter m-0"><strong>@order.Details.Sum(d => d.Quantity)</strong> item(s)</span>
+      </div>
+      <div class="adm-table-wrap">
+        <table class="adm-table">
+          <thead>
+            <tr>
+              <th scope="col">Product</th>
+              <th scope="col" class="end">Unit price</th>
+              <th scope="col" class="num">Qty</th>
+              <th scope="col" class="end">Line total</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var line in order.Details)
+            {
+              <tr>
+                <td class="cell-main" data-label="Product">
+                  <strong>@line.ProductName</strong>
+                  @if (line.Options.Count > 0)
+                  {
+                    <span class="ord-options">@string.Join(" · ", line.Options.Select(o => $"{o.GroupKey}: {o.Value} (+{AdminDisplay.Money(o.PriceDelta)})"))</span>
+                  }
+                  else
+                  {
+                    <span class="ord-options">Base price @AdminDisplay.Money(line.BasePrice)</span>
+                  }
+                </td>
+                <td data-label="Unit price" class="end">@AdminDisplay.Money(line.UnitPrice)</td>
+                <td data-label="Qty" class="num"><span class="adm-pill-num">@line.Quantity</span></td>
+                <td data-label="Line total" class="end"><span class="ord-total">@AdminDisplay.Money(line.LineTotal)</span></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <ul class="ord-totals">
+        <li><span>Subtotal</span><span>@AdminDisplay.Money(order.Subtotal)</span></li>
+        @if (order.Channel == OrderChannel.Delivery)
+        {
+          <li><span>Delivery fee</span><span>@(order.DeliveryFee == 0 ? "Free" : AdminDisplay.Money(order.DeliveryFee))</span></li>
+        }
+        <li class="grand"><span>Total</span><span>@AdminDisplay.Money(order.Total)</span></li>
+      </ul>
+    </section>
+
+    <section class="adm-card" aria-labelledby="historyTitle">
+      <div class="ord-card-head">
+        <h2 id="historyTitle"><i class="bi bi-clock-history"></i> Status history</h2>
+      </div>
+      <div class="ord-card-body">
+        <ul class="ord-timeline">
+          @foreach (var h in order.StatusHistories.OrderBy(h => h.ChangedAt).ThenBy(h => h.Id))
+          {
+            <li>
+              <strong>@(h.FromStatus is null ? "Order received" : $"{AdminDisplay.StatusLabel(h.FromStatus.Value)} → {AdminDisplay.StatusLabel(h.ToStatus)}")</strong>
+              <small>@AdminDisplay.Date(h.ChangedAt)</small>
+              @if (!string.IsNullOrEmpty(h.Note))
+              {
+                <p>“@h.Note”</p>
+              }
+            </li>
+          }
+        </ul>
+      </div>
+    </section>
+  </div>
+
+  <div class="col-xl-4">
+    <section class="adm-card mb-4" aria-labelledby="statusTitle">
+      <div class="ord-card-head">
+        <h2 id="statusTitle"><i class="bi bi-arrow-repeat"></i> Update status</h2>
+      </div>
+      <div class="ord-card-body">
+        @if (allowedNext.Count == 0)
+        {
+          <div class="adm-callout info m-0">
+            <i class="bi bi-lock"></i>
+            <span>This order is <strong>@AdminDisplay.StatusLabel(order.Status).ToLowerInvariant()</strong>, so its status can't change anymore.</span>
+          </div>
+        }
+        else
+        {
+          <form method="post" asp-area="Admin" asp-controller="Orders" asp-action="ChangeStatus" asp-route-id="@order.Id">
+            @* asp-action makes the form tag helper add the antiforgery token automatically. *@
+            <label class="adm-label" for="note">Note <span class="opt">(optional)</span></label>
+            <textarea class="adm-textarea" id="note" name="note" maxlength="300" placeholder="e.g. Customer asked for extra napkins"></textarea>
+            <div class="ord-actions">
+              @foreach (OrderStatus target in allowedNext)
+              {
+                if (target == OrderStatus.Cancelled)
+                {
+                  <button type="submit" name="target" value="@target" class="adm-btn @AdminDisplay.ActionButtonClass(target)" onclick="return confirm('Cancel this order?');">
+                    <i class="bi @AdminDisplay.ActionIcon(target)"></i> @AdminDisplay.ActionLabel(target)
+                  </button>
+                }
+                else
+                {
+                  <button type="submit" name="target" value="@target" class="adm-btn @AdminDisplay.ActionButtonClass(target)">
+                    <i class="bi @AdminDisplay.ActionIcon(target)"></i> @AdminDisplay.ActionLabel(target)
+                  </button>
+                }
+              }
+            </div>
+            <p class="adm-hint mt-3 mb-0">Only the next allowed steps are shown. Changes notify the kitchen, cashier and admin.</p>
+          </form>
+        }
+      </div>
+    </section>
+
+    <section class="adm-card" aria-labelledby="customerTitle">
+      <div class="ord-card-head">
+        <h2 id="customerTitle"><i class="bi bi-person"></i> @(order.Channel == OrderChannel.Table ? "Table" : "Customer")</h2>
+      </div>
+      <div class="ord-card-body">
+        <dl class="ord-dl">
+          @if (order.Channel == OrderChannel.Table)
+          {
+            <dt>Table</dt><dd>@order.TableNumber</dd>
+            <dt>Area</dt><dd>@order.TableArea</dd>
+          }
+          else
+          {
+            <dt>Name</dt><dd>@order.CustomerFullName</dd>
+            <dt>Phone</dt><dd>@order.CustomerPhone</dd>
+          }
+          @if (order.Channel == OrderChannel.Delivery)
+          {
+            <dt>Address</dt><dd>@order.Address</dd>
+            @if (!string.IsNullOrEmpty(order.AddressNotes))
+            {
+              <dt>Address note</dt><dd>@order.AddressNotes</dd>
+            }
+          }
+          @if (order.Channel == OrderChannel.Pickup && order.PickupTime is not null)
+          {
+            <dt>Pickup time</dt><dd>@AdminDisplay.Date(order.PickupTime.Value)</dd>
+          }
+          <dt>Order note</dt><dd>@(string.IsNullOrEmpty(order.Note) ? "—" : order.Note)</dd>
+        </dl>
+      </div>
+    </section>
+  </div>
+</div>

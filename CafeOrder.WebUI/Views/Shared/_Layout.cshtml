@@ -1,0 +1,45 @@
+@{
+    var description = ViewData["Description"] as string
+        ?? "CafeFlow is a boutique café serving handcrafted coffee and desserts.";
+    // After "Add to cart" the cart drawer opens once (site.js reads this attribute).
+    var openCart = TempData["OpenCart"] is true;
+    var page = ViewData["NavPage"] as string ?? "other";
+    // Sepet paneli sadece ana sayfa, menü ve ürün detayında var.
+    bool hasDrawer = page == "home" || page == "menu" || page == "detail";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>@ViewData["Title"]</title>
+  <meta name="description" content="@description" />
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+  @await RenderSectionAsync("Styles", required: false)
+</head>
+@* "!" turns off the tag helper for this element so the homepage can add its scroll-spy attributes. *@
+<!body @Html.Raw(ViewData["BodyAttributes"] as string) data-open-cart="@(openCart && hasDrawer ? "true" : null)">
+  <partial name="_Navbar" />
+
+  @RenderBody()
+
+  <partial name="_Footer" />
+
+  @if (hasDrawer)
+  {
+    @await Component.InvokeAsync("CartDrawer")
+  }
+  <partial name="_CartToast" />
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="~/js/site.js" asp-append-version="true"></script>
+  @await RenderSectionAsync("Scripts", required: false)
+</!body>
+</html>

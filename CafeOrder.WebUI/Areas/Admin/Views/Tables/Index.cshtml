@@ -1,0 +1,82 @@
+@model List<ResultTableDto>
+@{
+    ViewData["Title"] = "Tables · CafeFlow Management Studio";
+    ViewData["AdminPage"] = "tables";
+    ViewData["Crumb"] = "Tables";
+    UpdateTableDto form = ViewBag.Form;
+}
+
+<div class="adm-page-head">
+  <div>
+    <h1 class="adm-page-title">Tables &amp; QR Codes</h1>
+    <p class="adm-page-sub">A guest scans the QR card and the order is linked to that table.</p>
+  </div>
+</div>
+
+<partial name="_Flash" model="@((string?)ViewBag.Error)" />
+
+<div class="row g-4">
+  <div class="col-xl-8">
+    <section class="adm-card">
+      <div class="adm-table-wrap">
+        <table class="adm-table">
+          <thead><tr><th>Table</th><th>QR code</th><th class="num">Orders</th><th>Status</th><th class="end"></th></tr></thead>
+          <tbody>
+            @foreach (var t in Model)
+            {
+              <tr>
+                <td><strong>Table @t.Number</strong><br /><small class="pg-muted">@t.Area</small></td>
+                <td class="pg-mono"><a href="/cart?qr=@t.QrToken" target="_blank" title="QR kartın açtığı adres">@t.QrToken</a></td>
+                <td class="num">@t.OrderCount</td>
+                <td>
+                  <form method="post" action="/admin/tables/@t.Id/status" class="pg-inline">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="active" value="@(t.IsActive ? "false" : "true")" />
+                    <button type="submit" class="adm-badge @(t.IsActive ? "adm-badge-success" : "adm-badge-inactive") border-0">@(t.IsActive ? "Active" : "Inactive")</button>
+                  </form>
+                </td>
+                <td class="end">
+                  <a href="/admin/tables?edit=@t.Id" class="adm-btn adm-btn-ghost adm-btn-sm">Edit</a>
+                  <form method="post" action="/admin/tables/@t.Id/regenerate" class="pg-inline" onsubmit="return confirm('The old QR card will stop working. Continue?');">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="adm-btn adm-btn-ghost adm-btn-sm" title="New QR code"><i class="bi bi-arrow-repeat"></i></button>
+                  </form>
+                  <form method="post" action="/admin/tables/@t.Id/delete" class="pg-inline" onsubmit="return confirm('Delete this table?');">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="adm-btn adm-btn-ghost adm-btn-sm"><i class="bi bi-trash3"></i></button>
+                  </form>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <div class="col-xl-4">
+    <form method="post" action="/admin/tables/save" class="adm-card">
+      @Html.AntiForgeryToken()
+      <input type="hidden" name="Id" value="@form.Id" />
+      <div class="pg-card-head"><h2>@(form.Id == 0 ? "Add a table" : $"Edit Table {form.Number}")</h2></div>
+      <div class="pg-card-body row g-3">
+        <div class="col-5">
+          <label class="adm-label" for="number">Number</label>
+          <input class="adm-input" id="number" name="Number" type="number" value="@form.Number" />
+        </div>
+        <div class="col-7">
+          <label class="adm-label" for="area">Area</label>
+          <input class="adm-input" id="area" name="Area" value="@form.Area" placeholder="Garden Corner" />
+        </div>
+        <div class="col-12">
+          <label><input type="checkbox" name="IsActive" value="true" checked="@form.IsActive" /> Accepts QR orders</label>
+          <input type="hidden" name="IsActive" value="false" />
+        </div>
+      </div>
+      <div class="pg-form-foot">
+        @if (form.Id != 0) { <a href="/admin/tables" class="adm-btn adm-btn-light">New instead</a> }
+        <button type="submit" class="adm-btn adm-btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>

@@ -1,0 +1,31 @@
+@model ErrorViewModel
+@{
+    ViewData["Title"] = "Something went wrong — CafeFlow";
+    ViewData["NavPage"] = "other";
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/inner.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/cart.css" asp-append-version="true" />
+}
+<header class="cf-page-header">
+  <div class="cf-blob cf-blob-1"></div>
+  <div class="cf-blob cf-blob-2"></div>
+  <div class="container position-relative">
+    <h1 class="cf-page-title">Oops, <em>a hiccup</em></h1>
+    <p class="cf-page-sub">Something went wrong on our side. Your order details were not changed.</p>
+  </div>
+</header>
+
+<main class="cf-cart-section">
+  <div class="container">
+    <div class="cf-empty-cart">
+      <span class="cf-cat-icon"><i class="bi bi-cup-hot"></i></span>
+      <h2>Let's try that again</h2>
+      @if (Model.ShowRequestId)
+      {
+        <p>Reference: <code>@Model.RequestId</code></p>
+      }
+      <a href="/" class="btn cf-btn-primary cf-btn-lg">Back to home <i class="bi bi-arrow-right"></i></a>
+    </div>
+  </div>
+</main>

@@ -1,0 +1,65 @@
+@model AccountViewModel
+@{
+    ViewData["Title"] = "My Account · CafeFlow Management Studio";
+    ViewData["AdminPage"] = "account";
+    ViewData["Crumb"] = "My Account";
+    string? error = Model.Errors.Count > 0 ? string.Join(" ", Model.Errors) : null;
+}
+
+<div class="adm-page-head">
+  <div>
+    <h1 class="adm-page-title">My Account</h1>
+    <p class="adm-page-sub">Your sign-in details and password.</p>
+  </div>
+  <form method="post" action="/admin/logout" class="m-0">
+    @Html.AntiForgeryToken()
+    <button type="submit" class="adm-btn adm-btn-light"><i class="bi bi-box-arrow-right"></i> Log out</button>
+  </form>
+</div>
+
+<partial name="_Flash" model="error" />
+
+<div class="row g-4">
+  <div class="col-xl-5">
+    <section class="adm-card" aria-labelledby="profileTitle">
+      <div class="pg-card-head"><h2 id="profileTitle"><i class="bi bi-person"></i> Profile</h2><span class="adm-badge adm-badge-info">Admin</span></div>
+      <div class="pg-card-body">
+        <div class="adm-entity mb-3">
+          <span class="pg-avatar">@AdminDisplay.Initials(Model.FullName)</span>
+          <div><strong>@Model.FullName</strong><small>@Model.Email</small></div>
+        </div>
+        <dl class="pg-dl">
+          <dt>Session</dt><dd>30 days, renewed while you use the panel</dd>
+          <dt>Wrong password limit</dt><dd>5 tries, then 5 min wait</dd>
+        </dl>
+      </div>
+    </section>
+  </div>
+
+  <div class="col-xl-7">
+    <form method="post" action="/admin/account/password" class="adm-card" novalidate>
+      @Html.AntiForgeryToken()
+      <div class="pg-card-head"><h2><i class="bi bi-key"></i> Change password</h2></div>
+      <div class="pg-card-body">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="adm-label" for="cur">Current password</label>
+            <input type="password" class="adm-input" id="cur" name="Password.CurrentPassword" autocomplete="current-password" required />
+          </div>
+          <div class="col-md-6">
+            <label class="adm-label" for="new">New password</label>
+            <input type="password" class="adm-input" id="new" name="Password.NewPassword" autocomplete="new-password" minlength="8" required />
+          </div>
+          <div class="col-md-6">
+            <label class="adm-label" for="rep">Repeat new password</label>
+            <input type="password" class="adm-input" id="rep" name="Password.ConfirmPassword" autocomplete="new-password" minlength="8" required />
+          </div>
+        </div>
+        <div class="adm-hint mt-3">At least 8 characters, with an uppercase letter, a lowercase letter, a digit and a symbol.</div>
+      </div>
+      <div class="pg-form-foot">
+        <button type="submit" class="adm-btn adm-btn-primary"><i class="bi bi-check2"></i> Change Password</button>
+      </div>
+    </form>
+  </div>
+</div>

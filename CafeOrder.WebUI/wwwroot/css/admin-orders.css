@@ -1,0 +1,36 @@
+/* =====================================================================
+   ORDER MANAGEMENT — page-specific styles (built on the admin design system)
+   ===================================================================== */
+a.adm-stat { color: inherit; text-decoration: none; }
+a.adm-stat.active { border-color: var(--adm-primary); box-shadow: 0 0 0 4px var(--adm-primary-ring); }
+
+.ord-no { font-weight: 700; color: var(--adm-text); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; }
+.ord-channel { display: inline-flex; align-items: center; gap: 6px; color: var(--adm-text-2); font-weight: 600; }
+.ord-total { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.ord-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 16px 20px; border-bottom: 1px solid var(--adm-border); }
+.ord-card-head h2 { font-size: 1rem; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 8px; }
+.ord-card-head h2 i { color: var(--adm-primary-deep); }
+.ord-card-body { padding: 18px 20px; }
+
+.ord-options { display: block; font-size: .78rem; color: var(--adm-text-2); margin-top: 2px; }
+.ord-totals { list-style: none; margin: 0; padding: 14px 20px 18px; border-top: 1px solid var(--adm-border); }
+.ord-totals li { display: flex; justify-content: space-between; padding: 4px 0; color: var(--adm-text-2); font-variant-numeric: tabular-nums; }
+.ord-totals li.grand { margin-top: 8px; padding-top: 12px; border-top: 1px dashed var(--adm-border-strong); color: var(--adm-text); font-weight: 700; font-size: 1.1rem; }
+
+.ord-actions { display: grid; gap: 8px; margin-top: 12px; }
+.ord-actions .adm-btn { width: 100%; }
+
+.ord-dl { display: grid; grid-template-columns: 110px 1fr; gap: 10px 12px; margin: 0; font-size: .9rem; }
+.ord-dl dt { color: var(--adm-text-2); font-weight: 600; }
+.ord-dl dd { margin: 0; color: var(--adm-text); word-break: break-word; }
+
+.ord-timeline { list-style: none; margin: 0; padding: 0; position: relative; }
+.ord-timeline li { position: relative; padding: 0 0 18px 26px; }
+.ord-timeline li::before { content: ""; position: absolute; left: 6px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--adm-primary); box-shadow: 0 0 0 4px var(--adm-primary-soft); }
+.ord-timeline li::after { content: ""; position: absolute; left: 10px; top: 20px; bottom: 0; width: 2px; background: var(--adm-border); }
+.ord-timeline li:last-child { padding-bottom: 0; }
+.ord-timeline li:last-child::after { display: none; }
+.ord-timeline strong { display: block; font-size: .9rem; }
+.ord-timeline small { color: var(--adm-text-2); }
+.ord-timeline p { margin: 4px 0 0; font-size: .85rem; color: var(--adm-text-2); }

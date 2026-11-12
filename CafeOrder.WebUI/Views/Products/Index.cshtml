@@ -1,0 +1,120 @@
+@model List<ResultProductDto>
+@{
+    ViewData["Title"] = "Our Menu — CafeFlow";
+    ViewData["Description"] = "Explore CafeFlow's handcrafted coffees, signature drinks, cakes, bakery treats and snacks. Order online in a few taps.";
+    ViewData["NavPage"] = "menu";
+
+    List<ResultCategoryDto> categories = ViewBag.Categories;
+    string? selected = ViewBag.Category;
+    var isFiltered = selected != null || !string.IsNullOrEmpty(ViewBag.Search);
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/inner.css" asp-append-version="true" />
+}
+
+  <!-- ============ PAGE HEADER ============ -->
+  <header class="cf-page-header">
+    <div class="cf-blob cf-blob-1"></div>
+    <div class="cf-blob cf-blob-2"></div>
+    <span class="cf-deco cf-deco-1" aria-hidden="true"><i class="bi bi-cup-hot"></i></span>
+    <span class="cf-deco cf-deco-2" aria-hidden="true"><i class="bi bi-flower1"></i></span>
+    <span class="cf-deco cf-deco-3" aria-hidden="true"><i class="bi bi-cake2"></i></span>
+    <span class="cf-deco cf-deco-4" aria-hidden="true"><i class="bi bi-heart"></i></span>
+
+    <div class="container position-relative">
+      <nav aria-label="Breadcrumb">
+        <div class="cf-breadcrumb">
+          <a href="/"><i class="bi bi-house-heart"></i> Home</a>
+          <i class="bi bi-chevron-right"></i>
+          <span aria-current="page">Our Menu</span>
+        </div>
+      </nav>
+      <h1 class="cf-page-title">A Little Something <em>Delicious</em></h1>
+      <p class="cf-page-sub">
+        Explore our handcrafted coffees, delightful desserts, refreshing drinks, and freshly prepared treats.
+      </p>
+    </div>
+  </header>
+
+  <!-- ============ MENU: CATEGORIES, TOOLBAR, GRID ============ -->
+  <main class="cf-menu-section">
+    <div class="container">
+
+      <!-- Kategoriler: her biri bir link, filtre adres çubuğunda durur -->
+      <nav class="cf-cat-scroll" id="categoryBar" aria-label="Product categories">
+        <a href="/products" class="cf-pill@(selected == null ? " active" : "")">
+          <i class="bi bi-grid"></i>All Products <span class="cf-pill-count">@categories.Sum(c => c.ProductCount)</span>
+        </a>
+        @foreach (var category in categories)
+        {
+          <a href="/products?category=@category.Slug" class="cf-pill@(selected == category.Slug ? " active" : "")">
+            <i class="bi @(category.Icon ?? "bi-tag")"></i>@category.Name <span class="cf-pill-count">@category.ProductCount</span>
+          </a>
+        }
+      </nav>
+
+      <!-- Arama: GET formu, filtrelemeyi sunucu yapar -->
+      <form class="cf-toolbar" method="get" action="/products">
+        @if (selected != null)
+        {
+          <input type="hidden" name="category" value="@selected" />
+        }
+        <div class="cf-search">
+          <i class="bi bi-search"></i>
+          <input type="search" id="searchInput" name="q" value="@ViewBag.Search" placeholder="Search for your favorite treat..." aria-label="Search products" autocomplete="off" />
+        </div>
+      </form>
+
+      <div class="cf-results-bar">
+        <span id="resultCount">Showing <strong>@Model.Count</strong> delicious @(Model.Count == 1 ? "treat" : "treats")</span>
+        @if (isFiltered)
+        {
+          <a href="/products" class="cf-reset-link show"><i class="bi bi-arrow-counterclockwise"></i> Reset filters</a>
+        }
+      </div>
+
+      @if (Model.Count == 0)
+      {
+        <div class="cf-empty-state">
+          <span class="cf-cat-icon"><i class="bi bi-search-heart"></i></span>
+          <h3>No treats found</h3>
+          <p>Try another search or clear the filters to see the full menu.</p>
+          <a href="/products" class="btn cf-btn-outline">Show all products</a>
+        </div>
+      }
+
+      <div class="row g-4" id="menuGrid">
+        @foreach (var product in Model)
+        {
+          <div class="col-12 col-sm-6 col-lg-4 col-xl-3 cf-grid-item">
+            <partial name="_ProductCard" model="product" />
+          </div>
+        }
+      </div>
+
+      <!-- ============ PROMO BANNER ============ -->
+      <section class="cf-promo mt-5" aria-labelledby="promoTitle">
+        <div class="row align-items-center g-4">
+          <div class="col-lg-7">
+            <span class="cf-offer-pill"><i class="bi bi-heart"></i> Perfect pairing</span>
+            <h2 class="cf-promo-title" id="promoTitle">Your Coffee Deserves Something Sweet!</h2>
+            <p class="cf-promo-text">Pair any handcrafted coffee with your favorite slice of cake.</p>
+            <a href="/products?category=cakes#categoryBar" class="btn cf-btn-dark cf-btn-lg">
+              Explore Combos <i class="bi bi-arrow-right"></i>
+            </a>
+          </div>
+          <div class="col-lg-5">
+            <div class="cf-promo-photos position-relative">
+              <div class="cf-promo-photo">
+                <img src="https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=500&q=80" alt="Latte with latte art" data-fallback="coffee" loading="lazy" />
+              </div>
+              <span class="cf-promo-plus" aria-hidden="true"><i class="bi bi-plus-lg"></i></span>
+              <div class="cf-promo-photo">
+                <img src="https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=500&q=80" alt="Slice of layered cake" data-fallback="cake" loading="lazy" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>

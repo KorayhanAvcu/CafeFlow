@@ -1,0 +1,47 @@
+@model UpdateCategoryDto
+@{
+    var isNew = Model.Id == 0;
+    ViewData["Title"] = (isNew ? "New Category" : Model.Name) + " · CafeFlow Management Studio";
+    ViewData["AdminPage"] = "categories";
+    ViewData["Crumb"] = isNew ? "New Category" : "Edit Category";
+}
+
+<div class="adm-page-head">
+  <div>
+    <a href="/admin/categories" class="adm-btn adm-btn-ghost adm-btn-sm mb-2"><i class="bi bi-arrow-left"></i> All categories</a>
+    <h1 class="adm-page-title">@(isNew ? "New category" : Model.Name)</h1>
+  </div>
+</div>
+
+<partial name="_Flash" model="@((string?)ViewBag.Error)" />
+
+<form method="post" action="/admin/categories/save" class="adm-card">
+  @Html.AntiForgeryToken()
+  <input type="hidden" name="Id" value="@Model.Id" />
+  <div class="pg-card-body row g-3">
+    <div class="col-md-8">
+      <label class="adm-label" for="name">Name</label>
+      <input class="adm-input" id="name" name="Name" value="@Model.Name" />
+    </div>
+    <div class="col-md-4">
+      <label class="adm-label" for="order">Display Order (empty = last)</label>
+      <input class="adm-input" id="order" name="DisplayOrder" type="number" value="@(Model.DisplayOrder == 0 ? "" : Model.DisplayOrder)" />
+    </div>
+    <div class="col-12">
+      <label class="adm-label" for="description">Description</label>
+      <textarea class="adm-textarea" id="description" name="Description" rows="3">@Model.Description</textarea>
+    </div>
+    <div class="col-12">
+      <label class="adm-label" for="image">Image URL</label>
+      <input class="adm-input" id="image" name="ImageUrl" value="@Model.ImageUrl" />
+    </div>
+    <div class="col-12">
+      <label><input type="checkbox" name="IsActive" value="true" checked="@Model.IsActive" /> Active (visible on the menu)</label>
+      <input type="hidden" name="IsActive" value="false" />
+    </div>
+  </div>
+  <div class="pg-form-foot">
+    <a href="/admin/categories" class="adm-btn adm-btn-light">Cancel</a>
+    <button type="submit" class="adm-btn adm-btn-primary">Save</button>
+  </div>
+</form>
