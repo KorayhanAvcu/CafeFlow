@@ -1,27 +1,27 @@
 @using CafeOrder.EntityLayer.Enums
 @model ResultOrderDto
 @{
-    ViewData["Title"] = $"Order {Model.OrderNo} — CafeFlow";
-    ViewData["Description"] = "Your CafeFlow order has been received.";
+    ViewData["Title"] = $"Sipariş {Model.OrderNo} — CafeFlow";
+    ViewData["Description"] = "CafeFlow siparişiniz alındı.";
     ViewData["NavPage"] = "other";
 
     // Sipariş türüne göre teslim bilgisi
     string channelText;
     if (Model.Channel == OrderChannel.Delivery)
     {
-        channelText = "Delivery to your door";
+        channelText = "Adresinize teslimat";
     }
     else if (Model.Channel == OrderChannel.Pickup)
     {
-        channelText = "Pickup at 24 Blossom Street · " + Model.PickupTime?.ToString("dd MMM, HH:mm");
+        channelText = "Gel-al · Gül Sokak No:24 · " + (Model.PickupTime == null ? "" : Display.DateTimeText(Model.PickupTime.Value));
     }
     else
     {
-        channelText = "Dine-in · Table " + Model.TableNumber + " · " + Model.TableArea;
+        channelText = "Masada · Masa " + Model.TableNumber + " · " + Model.TableArea;
     }
 
-    // Yeni sipariş her zaman "Received" durumundadır.
-    string statusText = Model.Status == OrderStatus.Received ? "Received — the kitchen has been notified" : Model.Status.ToString();
+    // Yeni sipariş her zaman "Alındı" durumundadır.
+    string statusText = Model.Status == OrderStatus.Received ? "Alındı — mutfağa haber verildi" : Model.Status.ToText();
 }
 @section Styles {
     <link rel="stylesheet" href="~/css/inner.css" asp-append-version="true" />
@@ -31,16 +31,16 @@
   <div class="cf-blob cf-blob-1"></div>
   <div class="cf-blob cf-blob-2"></div>
   <div class="container position-relative">
-    <nav aria-label="Breadcrumb">
+    <nav aria-label="Sayfa yolu">
       <div class="cf-breadcrumb">
-        <a href="/"><i class="bi bi-house-heart"></i> Home</a>
+        <a href="/"><i class="bi bi-house-heart"></i> Ana Sayfa</a>
         <i class="bi bi-chevron-right"></i>
-        <span aria-current="page">Order confirmed</span>
+        <span aria-current="page">Sipariş onaylandı</span>
       </div>
     </nav>
-    <h1 class="cf-page-title">Thank you, it's <em>brewing</em>!</h1>
+    <h1 class="cf-page-title">Teşekkürler, siparişiniz <em>hazırlanıyor</em>!</h1>
     <p class="cf-page-sub">
-      Your order number is <strong>@Model.OrderNo</strong>. Keep it handy in case you need to reach us.
+      Sipariş numaranız <strong>@Model.OrderNo</strong>. Bize ulaşmanız gerekirse diye not edin.
     </p>
   </div>
 </header>
@@ -51,14 +51,14 @@
       <div class="col-lg-7">
         <section class="cf-panel" aria-labelledby="orderTitle">
           <div class="cf-panel-head">
-            <h2 class="cf-panel-title" id="orderTitle"><span class="cf-step"><i class="bi bi-check2"></i></span> Order @Model.OrderNo</h2>
+            <h2 class="cf-panel-title" id="orderTitle"><span class="cf-step"><i class="bi bi-check2"></i></span> Sipariş @Model.OrderNo</h2>
           </div>
 
           <div class="cf-notice mb-4">
             <i class="bi bi-receipt"></i>
             <div>
               <strong>@channelText</strong>
-              Status: @statusText.
+              Durum: @statusText.
             </div>
           </div>
 
@@ -70,7 +70,7 @@
                   @line.Quantity × @line.ProductName
                   @if (line.Options.Count > 0)
                   {
-                    <small class="d-block text-muted">@string.Join(" · ", line.Options.Select(o => $"{o.GroupKey}: {o.Value}"))</small>
+                    <small class="d-block text-muted">@string.Join(" · ", line.Options.Select(o => Display.OptionText(o.GroupKey, o.Value)))</small>
                   }
                 </span>
                 <span>@Display.Money(line.LineTotal)</span>
@@ -79,21 +79,21 @@
           </ul>
 
           <ul class="cf-sum-rows">
-            <li><span>Subtotal</span><span>@Display.Money(Model.Subtotal)</span></li>
+            <li><span>Ara toplam</span><span>@Display.Money(Model.Subtotal)</span></li>
             @if (Model.Channel == OrderChannel.Delivery)
             {
-              <li><span>Delivery fee</span><span class="@(Model.DeliveryFee == 0 ? "cf-free" : "")">@(Model.DeliveryFee == 0 ? "Free" : Display.Money(Model.DeliveryFee))</span></li>
+              <li><span>Teslimat ücreti</span><span class="@(Model.DeliveryFee == 0 ? "cf-free" : "")">@(Model.DeliveryFee == 0 ? "Ücretsiz" : Display.Money(Model.DeliveryFee))</span></li>
             }
           </ul>
 
           <div class="cf-grand">
-            <span>Total<small>Paid at the café or on delivery</small></span>
+            <span>Toplam<small>Kafede veya teslimatta ödenir</small></span>
             <strong>@Display.Money(Model.Total)</strong>
           </div>
 
           <div class="d-flex flex-wrap gap-2">
-            <a href="/products" class="btn cf-btn-primary cf-btn-lg">Order something else <i class="bi bi-arrow-right"></i></a>
-            <a href="/" class="btn cf-btn-outline cf-btn-lg">Back to home</a>
+            <a href="/products" class="btn cf-btn-primary cf-btn-lg">Başka bir şey sipariş et <i class="bi bi-arrow-right"></i></a>
+            <a href="/" class="btn cf-btn-outline cf-btn-lg">Ana sayfaya dön</a>
           </div>
         </section>
       </div>

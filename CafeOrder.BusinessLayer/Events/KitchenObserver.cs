@@ -14,16 +14,18 @@ public class KitchenObserver : IOrderObserver
         _notificationRepository = notificationRepository;
     }
 
+    /// <summary>Yeni siparişte mutfağa hazırlanacak toplam ürün adedini bildirir.</summary>
     public async Task OrderPlacedAsync(Order order)
     {
-        await SendAsync(order, $"New order {order.OrderNo}: {order.Details.Sum(d => d.Quantity)} item(s) to prepare.");
+        await SendAsync(order, $"Yeni sipariş {order.OrderNo}: hazırlanacak {order.Details.Sum(d => d.Quantity)} ürün.");
     }
 
+    /// <summary>Sadece sipariş iptal edildiğinde mutfağa "hazırlamayı durdurun" der; diğer durum değişikliklerini yok sayar.</summary>
     public async Task StatusChangedAsync(Order order, OrderStatus previous)
     {
         if (order.Status == OrderStatus.Cancelled)
         {
-            await SendAsync(order, $"Order {order.OrderNo} was cancelled. Stop preparing it.");
+            await SendAsync(order, $"{order.OrderNo} siparişi iptal edildi. Hazırlamayı durdurun.");
         }
     }
 

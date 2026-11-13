@@ -28,7 +28,7 @@ public class CustomerService : ICustomerService
             query = query.Where(c => c.FullName.Contains(search) || c.Phone.Contains(search));
         }
 
-        List<Customer> customers = await query.OrderBy(c => c.FullName).ToListAsync();
+        var customers = await query.OrderBy(c => c.FullName).ToListAsync();
         return _mapper.Map<List<ResultCustomerDto>>(customers);
     }
 }

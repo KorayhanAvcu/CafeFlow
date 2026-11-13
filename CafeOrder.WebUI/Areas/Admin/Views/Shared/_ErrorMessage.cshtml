@@ -1,0 +1,10 @@
+@* Sayfanın hata mesajını sarı kutu içinde gösterir. Model: mesaj (yoksa null, kutu çizilmez).
+   Controller hata olunca mesajı ViewBag.Error'a koyup sayfayı doğrudan çizer; yönlendirme ve TempData kullanılmaz. *@
+@model string?
+@if (!string.IsNullOrEmpty(Model))
+{
+  <div class="adm-callout warn mb-4" role="alert">
+    <i class="bi bi-exclamation-triangle"></i>
+    <span>@Model</span>
+  </div>
+}

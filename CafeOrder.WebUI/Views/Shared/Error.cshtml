@@ -1,6 +1,7 @@
-@model ErrorViewModel
+@* Model: hatayı sunucu loglarında bulmaya yarayan istek numarası (HomeController.Error verir). *@
+@model string?
 @{
-    ViewData["Title"] = "Something went wrong — CafeFlow";
+    ViewData["Title"] = "Bir şeyler ters gitti — CafeFlow";
     ViewData["NavPage"] = "other";
 }
 @section Styles {
@@ -11,8 +12,8 @@
   <div class="cf-blob cf-blob-1"></div>
   <div class="cf-blob cf-blob-2"></div>
   <div class="container position-relative">
-    <h1 class="cf-page-title">Oops, <em>a hiccup</em></h1>
-    <p class="cf-page-sub">Something went wrong on our side. Your order details were not changed.</p>
+    <h1 class="cf-page-title">Hay aksi, <em>bir aksilik oldu</em></h1>
+    <p class="cf-page-sub">Bizim tarafımızda bir sorun oluştu. Sipariş bilgileriniz değişmedi.</p>
   </div>
 </header>
 
@@ -20,12 +21,12 @@
   <div class="container">
     <div class="cf-empty-cart">
       <span class="cf-cat-icon"><i class="bi bi-cup-hot"></i></span>
-      <h2>Let's try that again</h2>
-      @if (Model.ShowRequestId)
+      <h2>Bir kez daha deneyelim</h2>
+      @if (!string.IsNullOrEmpty(Model))
       {
-        <p>Reference: <code>@Model.RequestId</code></p>
+        <p>Referans: <code>@Model</code></p>
       }
-      <a href="/" class="btn cf-btn-primary cf-btn-lg">Back to home <i class="bi bi-arrow-right"></i></a>
+      <a href="/" class="btn cf-btn-primary cf-btn-lg">Ana sayfaya dön <i class="bi bi-arrow-right"></i></a>
     </div>
   </div>
 </main>

@@ -10,6 +10,7 @@ public class OrderRepository : GenericRepository<Order>, IOrderRepository
     {
     }
 
+    /// <summary>Siparişi kalemleri, seçenekleri, ilk durum kaydı ve (yeniyse) müşterisiyle birlikte tek transaction içinde kaydeder: ya hepsi yazılır ya hiçbiri.</summary>
     public async Task CreateWithTransactionAsync(Order order)
     {
         // Ya hepsi yazılır ya hiçbiri: sipariş, kalemler, seçenekler, durum geçmişi, yeni müşteri.

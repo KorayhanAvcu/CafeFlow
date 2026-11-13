@@ -1,5 +1,6 @@
 using System.Text.Json;
 using CafeOrder.DtoLayer.Dtos.OrderDtos;
+using CafeOrder.EntityLayer.Enums;
 
 namespace CafeOrder.WebUI.Cart;
 
@@ -30,6 +31,41 @@ public static class CartSession
     {
         string json = JsonSerializer.Serialize(cart);
         session.SetString(CartKey, json);
+    }
+
+    /// <summary>Sepeti boşaltır (sipariş verildikten sonra veya "Sepeti boşalt" düğmesiyle).</summary>
+    public static void ClearCart(this ISession session)
+    {
+        session.SaveCart(new List<CartItemDto>());
+    }
+
+    /// <summary>Seçilen sipariş türünü okur; seçilmemişse veya geçersizse null.</summary>
+    public static OrderChannel? GetChannel(this ISession session)
+    {
+        if (Enum.TryParse(session.GetString(ChannelKey), out OrderChannel channel))
+        {
+            return channel;
+        }
+        return null;
+    }
+
+    /// <summary>Seçilen sipariş türünü yazar.</summary>
+    public static void SetChannel(this ISession session, OrderChannel channel)
+    {
+        session.SetString(ChannelKey, channel.ToString());
+    }
+
+    /// <summary>Okutulan masanın QR kodunu okur; yoksa null.</summary>
+    public static string? GetQrToken(this ISession session)
+    {
+        return session.GetString(TableKey);
+    }
+
+    /// <summary>QR ile okutulan masayı kaydeder: QR kodu yazılır ve sipariş türü Masa yapılır.</summary>
+    public static void SetTable(this ISession session, string qrToken)
+    {
+        session.SetString(TableKey, qrToken);
+        session.SetChannel(OrderChannel.Table);
     }
 
     /// <summary>Sepetteki toplam ürün adedi (navbar rozeti).</summary>

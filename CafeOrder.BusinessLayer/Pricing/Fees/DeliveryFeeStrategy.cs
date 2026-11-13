@@ -10,6 +10,7 @@ public class DeliveryFeeStrategy : IDeliveryFeeStrategy
         _options = options;
     }
 
+    /// <summary>Ara toplam ücretsiz teslimat sınırının (600 ₺) üstündeyse 0, değilse teslimat ücretini (30 ₺) döndürür. Rakamlar appsettings.json'dan gelir.</summary>
     public decimal Calculate(decimal orderAmount)
     {
         if (orderAmount >= _options.FreeDeliveryFrom)

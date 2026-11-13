@@ -1,7 +1,7 @@
 @model int
 @{
     var notFound = Model == 404;
-    ViewData["Title"] = (notFound ? "Page not found" : "Something went wrong") + " — CafeFlow";
+    ViewData["Title"] = (notFound ? "Sayfa bulunamadı" : "Bir şeyler ters gitti") + " — CafeFlow";
     ViewData["NavPage"] = "other";
 }
 @section Styles {
@@ -12,11 +12,11 @@
   <div class="cf-blob cf-blob-1"></div>
   <div class="cf-blob cf-blob-2"></div>
   <div class="container position-relative">
-    <h1 class="cf-page-title">@(notFound ? "This page is " : "Oops, ")<em>@(notFound ? "missing" : "a hiccup")</em></h1>
+    <h1 class="cf-page-title">@(notFound ? "Bu sayfa " : "Hay aksi, ")<em>@(notFound ? "kayıp" : "bir aksilik oldu")</em></h1>
     <p class="cf-page-sub">
       @(notFound
-          ? "The page you're looking for doesn't exist or has moved."
-          : $"The request couldn't be completed (error {Model}). Please try again.")
+          ? "Aradığınız sayfa yok ya da taşınmış."
+          : $"İstek tamamlanamadı (hata {Model}). Lütfen tekrar deneyin.")
     </p>
   </div>
 </header>
@@ -25,9 +25,9 @@
   <div class="container">
     <div class="cf-empty-cart">
       <span class="cf-cat-icon"><i class="bi @(notFound ? "bi-search-heart" : "bi-cup-hot")"></i></span>
-      <h2>@(notFound ? "Let's find something sweet" : "Let's try that again")</h2>
-      <p>Our menu is just one click away.</p>
-      <a href="/products" class="btn cf-btn-primary cf-btn-lg">Browse the menu <i class="bi bi-arrow-right"></i></a>
+      <h2>@(notFound ? "Hadi tatlı bir şey bulalım" : "Bir kez daha deneyelim")</h2>
+      <p>Menümüz bir tık uzağınızda.</p>
+      <a href="/products" class="btn cf-btn-primary cf-btn-lg">Menüye göz at <i class="bi bi-arrow-right"></i></a>
     </div>
   </div>
 </main>

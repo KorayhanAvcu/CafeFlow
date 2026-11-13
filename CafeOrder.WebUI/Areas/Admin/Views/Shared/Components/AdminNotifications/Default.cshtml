@@ -3,7 +3,7 @@
     int unread = ViewBag.UnreadCount;
 }
 <div class="dropdown">
-  <button type="button" class="adm-icon-btn" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-label="Notifications" title="Notifications" id="notifBtn">
+  <button type="button" class="adm-icon-btn" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-label="Bildirimler" title="Bildirimler" id="notifBtn">
     <i class="bi bi-bell"></i>
     @if (unread > 0)
     {
@@ -12,25 +12,25 @@
   </button>
   <div class="dropdown-menu dropdown-menu-end adm-notif-menu">
     <div class="adm-notif-head">
-      <strong>Notifications</strong>
+      <strong>Bildirimler</strong>
       <form method="post" action="/admin/notifications/read-all" class="m-0">
         @Html.AntiForgeryToken()
         <input type="hidden" name="returnUrl" value="@(Context.Request.Path + Context.Request.QueryString)" />
-        <button type="submit">Mark all as read</button>
+        <button type="submit">Tümünü okundu yap</button>
       </form>
     </div>
     <div id="notifList">
       @if (Model.Count == 0)
       {
-        <div class="adm-notif"><div><p>No notifications yet</p></div></div>
+        <div class="adm-notif"><div><p>Henüz bildirim yok</p></div></div>
       }
       @foreach (var n in Model)
       {
         <a href="@(n.OrderId == null ? "/admin/orders" : $"/admin/orders/{n.OrderId}")" class="adm-notif@(n.IsRead ? "" : " unread")">
-          <div><p>@n.Message</p><small>@n.CreatedAt.ToString("dd MMM, HH:mm")</small></div>
+          <div><p>@n.Message</p><small>@AdminDisplay.Date(n.CreatedAt)</small></div>
         </a>
       }
     </div>
-    <a href="/admin/notifications" class="adm-notif-foot">View all notifications</a>
+    <a href="/admin/notifications" class="adm-notif-foot">Tüm bildirimleri gör</a>
   </div>
 </div>

@@ -19,10 +19,11 @@ public class AdminNotificationsViewComponent : ViewComponent
         _notificationService = notificationService;
     }
 
+    /// <summary>Üst çubuktaki zili çizer: okunmamış yönetici bildirimi sayısı ve son 6 bildirim.</summary>
     public async Task<IViewComponentResult> InvokeAsync()
     {
         ViewBag.UnreadCount = await _notificationService.CountUnreadAsync(NotificationTarget.Admin);
-        List<ResultNotificationDto> latest = await _notificationService.GetLatestAsync(NotificationTarget.Admin, 6);
+        var latest = await _notificationService.GetLatestAsync(NotificationTarget.Admin, 6);
         return View(latest);
     }
 }

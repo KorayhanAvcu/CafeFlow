@@ -10,6 +10,7 @@ namespace CafeOrder.WebUI.Identity;
 /// </summary>
 public static class AdminAccountSeeder
 {
+    /// <summary>Açılışta Admin rolünü oluşturur; hiç admin yoksa ayarlardaki e-posta ve User Secrets'taki şifreyle ilk admin hesabını açar.</summary>
     public static async Task EnsureSeededAsync(IServiceProvider services, ILogger logger)
     {
         var roles = services.GetRequiredService<RoleManager<IdentityRole>>();
@@ -28,7 +29,7 @@ public static class AdminAccountSeeder
 
         if (string.IsNullOrWhiteSpace(options?.Email) || string.IsNullOrWhiteSpace(options.Password))
         {
-            logger.LogWarning("No admin account exists and the AdminAccount settings are empty, so nobody can sign in to /admin yet.");
+            logger.LogWarning("Hiç admin hesabı yok ve AdminAccount ayarları boş; /admin paneline henüz kimse giriş yapamaz.");
             return;
         }
 
@@ -43,12 +44,12 @@ public static class AdminAccountSeeder
         var created = await users.CreateAsync(admin, options.Password);
         if (!created.Succeeded)
         {
-            logger.LogError("The first admin account could not be created: {Errors}",
+            logger.LogError("İlk admin hesabı oluşturulamadı: {Errors}",
                 string.Join(" ", created.Errors.Select(e => e.Description)));
             return;
         }
 
         await users.AddToRoleAsync(admin, AppRoles.Admin);
-        logger.LogInformation("The first admin account {Email} was created.", options.Email);
+        logger.LogInformation("İlk admin hesabı {Email} oluşturuldu.", options.Email);
     }
 }

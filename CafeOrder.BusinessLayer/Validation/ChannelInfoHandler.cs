@@ -7,6 +7,7 @@ namespace CafeOrder.BusinessLayer.Validation;
 /// <summary>Halka 3: sipariş türüne göre gereken bilgiler girilmiş mi?</summary>
 public class ChannelInfoHandler : OrderValidationHandler
 {
+    /// <summary>Halka 3: kanala göre gereken bilgileri kontrol eder. Masa: geçerli QR. Teslimat ve gel-al: ad ve telefon. Teslimat: adres. Gel-al: ileri bir teslim alma saati.</summary>
     protected override void Check(Order order)
     {
         // Masadan sipariş: sadece geçerli bir QR (masa) gerekir.
@@ -14,7 +15,7 @@ public class ChannelInfoHandler : OrderValidationHandler
         {
             if (order.TableId == null)
             {
-                throw new BusinessException("Please scan the QR code on your table.");
+                throw new BusinessException("Lütfen masanızdaki QR kodu okutun.");
             }
             return;
         }
@@ -22,13 +23,13 @@ public class ChannelInfoHandler : OrderValidationHandler
         // Teslimat ve gel-al: ad ve telefon gerekir.
         if (order.Customer == null || string.IsNullOrWhiteSpace(order.Customer.FullName) || string.IsNullOrWhiteSpace(order.Customer.Phone))
         {
-            throw new BusinessException("Please enter your name and phone number.");
+            throw new BusinessException("Lütfen adınızı ve telefon numaranızı girin.");
         }
 
         // Teslimat: adres gerekir.
         if (order.Channel == OrderChannel.Delivery && string.IsNullOrWhiteSpace(order.Address))
         {
-            throw new BusinessException("Please enter your delivery address.");
+            throw new BusinessException("Lütfen teslimat adresinizi girin.");
         }
 
         // Gel-al: gelecekte bir saat gerekir.
@@ -36,11 +37,11 @@ public class ChannelInfoHandler : OrderValidationHandler
         {
             if (order.PickupTime == null)
             {
-                throw new BusinessException("Please choose a pickup time.");
+                throw new BusinessException("Lütfen teslim alma saatini seçin.");
             }
             if (order.PickupTime < DateTime.Now)
             {
-                throw new BusinessException("Pickup time cannot be in the past.");
+                throw new BusinessException("Teslim alma saati geçmişte olamaz.");
             }
         }
     }

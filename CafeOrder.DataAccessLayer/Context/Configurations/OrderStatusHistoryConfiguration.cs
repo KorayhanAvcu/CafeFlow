@@ -1,4 +1,4 @@
-﻿using CafeOrder.EntityLayer.Entities;
+using CafeOrder.EntityLayer.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -6,6 +6,7 @@ namespace CafeOrder.DataAccessLayer.Context.Configurations;
 
 public class OrderStatusHistoryConfiguration : IEntityTypeConfiguration<OrderStatusHistory>
 {
+    /// <summary>OrderStatusHistories tablosu: önceki/yeni durum enum'ları metin olarak saklanır.</summary>
     public void Configure(EntityTypeBuilder<OrderStatusHistory> builder)
     {
         builder.Property(x => x.FromStatus).HasConversion<string>().HasMaxLength(20);

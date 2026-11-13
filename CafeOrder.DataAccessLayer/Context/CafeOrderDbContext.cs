@@ -34,6 +34,7 @@ public class CafeOrderDbContext : IdentityDbContext<AppUser>
         configurationBuilder.Properties<decimal>().HavePrecision(18, 2);
     }
 
+    /// <summary>Tabloların kurallarını kurar: önce Identity tabloları, sonra AppUser.FullName uzunluğu, sonra Configurations klasöründeki bütün sınıflar.</summary>
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // Önce Identity kendi tablolarını kurar.

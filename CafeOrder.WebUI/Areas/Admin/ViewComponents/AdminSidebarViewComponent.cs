@@ -42,7 +42,7 @@ public class AdminSidebarViewComponent : ViewComponent
 
         // Kullanıcının adı giriş çerezinde (claim) durur; veritabanına gitmeye gerek yok.
         string? fullName = UserClaimsPrincipal.FindFirst(AppClaimsPrincipalFactory.FullNameClaim)?.Value;
-        ViewBag.UserName = fullName ?? "Admin";
+        ViewBag.UserName = fullName ?? "Yönetici";
         return View();
     }
 }

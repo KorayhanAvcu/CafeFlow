@@ -1,20 +1,20 @@
-@model List<ResultOrderDto>
+@model ResultOrderListDto
 @{
-    ViewData["Title"] = "Orders · CafeFlow Management Studio";
+    ViewData["Title"] = "Siparişler · CafeFlow Yönetim Paneli";
     ViewData["AdminPage"] = "orders";
-    ViewData["Crumb"] = "Orders";
-    Dictionary<OrderStatus, int> counts = ViewBag.Counts;
-    OrderStatus? status = ViewBag.Status;
-    OrderChannel? channel = ViewBag.Channel;
-    int currentPage = ViewBag.Page;
-    int totalPages = ViewBag.TotalPages;
-    string Link(int p) => $"/admin/orders?status={status}&channel={channel}&q={ViewBag.Search}&page={p}";
+    ViewData["Crumb"] = "Siparişler";
+    // Bütün veri OrderService.GetAdminListAsync'ten gelen ResultOrderListDto'da.
+    OrderStatus? status = Model.Filter.Status;
+    OrderChannel? channel = Model.Filter.Channel;
+    int currentPage = Model.Filter.Page;
+    int totalPages = Model.TotalPages;
+    string Link(int p) => $"/admin/orders?status={status}&channel={channel}&q={Uri.EscapeDataString(Model.Filter.Q ?? "")}&page={p}";
 }
 
 <div class="adm-page-head">
   <div>
-    <h1 class="adm-page-title">Order Management</h1>
-    <p class="adm-page-sub">Follow every order from the counter to the customer.</p>
+    <h1 class="adm-page-title">Sipariş Yönetimi</h1>
+    <p class="adm-page-sub">Her siparişi tezgâhtan müşteriye kadar takip edin.</p>
   </div>
 </div>
 
@@ -22,54 +22,54 @@
   @foreach (var s in new[] { OrderStatus.Received, OrderStatus.Preparing, OrderStatus.Ready, OrderStatus.Delivered })
   {
     <a href="/admin/orders?status=@s" class="adm-stat text-decoration-none">
-      <div><div class="adm-stat-value">@counts[s]</div><div class="adm-stat-label">@s</div></div>
+      <div><div class="adm-stat-value">@Model.StatusCounts[s]</div><div class="adm-stat-label">@AdminDisplay.StatusLabel(s)</div></div>
     </a>
   }
 </section>
 
 <section class="adm-card">
   <form class="adm-toolbar" method="get" action="/admin/orders">
-    <input type="search" class="adm-input" name="q" value="@ViewBag.Search" placeholder="Order no, customer or phone..." />
+    <input type="search" class="adm-input" name="q" value="@Model.Filter.Q" placeholder="Sipariş no, müşteri veya telefon..." />
     <select class="adm-select" name="status">
-      <option value="">All Statuses</option>
+      <option value="">Tüm Durumlar</option>
       @foreach (var s in Enum.GetValues<OrderStatus>())
       {
-        <option value="@s" selected="@(status == s)">@s</option>
+        <option value="@s" selected="@(status == s)">@AdminDisplay.StatusLabel(s)</option>
       }
     </select>
     <select class="adm-select" name="channel">
-      <option value="">All Channels</option>
+      <option value="">Tüm Kanallar</option>
       @foreach (var c in Enum.GetValues<OrderChannel>())
       {
-        <option value="@c" selected="@(channel == c)">@c</option>
+        <option value="@c" selected="@(channel == c)">@AdminDisplay.ChannelLabel(c)</option>
       }
     </select>
-    <button type="submit" class="adm-btn adm-btn-light">Filter</button>
-    <a href="/admin/orders" class="adm-btn adm-btn-ghost">Clear</a>
-    <span class="adm-counter"><strong>@ViewBag.Total</strong> orders</span>
+    <button type="submit" class="adm-btn adm-btn-light">Filtrele</button>
+    <a href="/admin/orders" class="adm-btn adm-btn-ghost">Temizle</a>
+    <span class="adm-counter"><strong>@Model.Total</strong> sipariş</span>
   </form>
 
-  @if (Model.Count == 0)
+  @if (Model.Orders.Count == 0)
   {
-    <div class="adm-empty"><h3>No orders found</h3></div>
+    <div class="adm-empty"><h3>Sipariş bulunamadı</h3></div>
   }
   else
   {
     <div class="adm-table-wrap">
       <table class="adm-table">
-        <thead><tr><th>Order</th><th>Customer / Table</th><th>Channel</th><th class="num">Items</th><th class="end">Total</th><th>Status</th><th>Created</th><th></th></tr></thead>
+        <thead><tr><th>Sipariş</th><th>Müşteri / Masa</th><th>Kanal</th><th class="num">Ürün</th><th class="end">Toplam</th><th>Durum</th><th>Tarih</th><th></th></tr></thead>
         <tbody>
-          @foreach (var order in Model)
+          @foreach (var order in Model.Orders)
           {
             <tr>
               <td><a href="/admin/orders/@order.Id" class="pg-mono">@order.OrderNo</a></td>
               <td>@AdminDisplay.Who(order)</td>
-              <td>@order.Channel</td>
+              <td>@AdminDisplay.ChannelLabel(order.Channel)</td>
               <td class="num">@order.Details.Sum(d => d.Quantity)</td>
               <td class="end">@AdminDisplay.Money(order.Total)</td>
-              <td><span class="adm-badge @AdminDisplay.StatusBadge(order.Status)">@order.Status</span></td>
-              <td>@order.CreatedAt.ToString("dd MMM yyyy, HH:mm")</td>
-              <td class="end"><a href="/admin/orders/@order.Id" class="adm-btn adm-btn-ghost adm-btn-sm">View</a></td>
+              <td><span class="adm-badge @AdminDisplay.StatusBadge(order.Status)">@AdminDisplay.StatusLabel(order.Status)</span></td>
+              <td>@AdminDisplay.Date(order.CreatedAt)</td>
+              <td class="end"><a href="/admin/orders/@order.Id" class="adm-btn adm-btn-ghost adm-btn-sm">Görüntüle</a></td>
             </tr>
           }
         </tbody>
@@ -77,7 +77,7 @@
     </div>
 
     <div class="adm-pager">
-      <span>Page @currentPage of @totalPages</span>
+      <span>Sayfa @currentPage / @totalPages</span>
       <nav class="adm-pages">
         @for (var p = 1; p <= totalPages; p++)
         {

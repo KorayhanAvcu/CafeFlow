@@ -1,6 +1,7 @@
+using CafeOrder.BusinessLayer.Services.Account;
+using CafeOrder.DtoLayer.Dtos.AccountDtos;
 using CafeOrder.EntityLayer.Entities;
 using CafeOrder.EntityLayer.Enums;
-using CafeOrder.WebUI.Areas.Admin.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -11,40 +12,46 @@ namespace CafeOrder.WebUI.Areas.Admin.Controllers;
 /// Admin girişi, çıkışı ve şifre değiştirme.
 /// Sınıf AdminControllerBase'ten türediği için varsayılan olarak kilitlidir.
 /// Login sayfası herkese açık olmak zorunda, o yüzden o action'larda [AllowAnonymous] var.
+/// Giriş/çıkış çerezle ilgili olduğu için burada (SignInManager); hesap bilgisi ve şifre değiştirme AccountService'te.
 /// </summary>
 [Route("admin")]
 public class AccountController : AdminControllerBase
 {
     private readonly SignInManager<AppUser> _signInManager;   // giriş / çıkış (çerez)
-    private readonly UserManager<AppUser> _userManager;       // kullanıcı bulma, rol, şifre
+    private readonly UserManager<AppUser> _userManager;       // giriş yapan kullanıcının Id'si, rol kontrolü
+    private readonly IAccountService _accountService;         // Hesabım ve şifre değiştirme
 
-    public AccountController(SignInManager<AppUser> signInManager, UserManager<AppUser> userManager)
+    public AccountController(SignInManager<AppUser> signInManager, UserManager<AppUser> userManager, IAccountService accountService)
     {
         _signInManager = signInManager;
         _userManager = userManager;
+        _accountService = accountService;
     }
 
-    /// <summary>Giriş formu.</summary>
+    /// <summary>
+    /// Giriş formu. ?ReturnUrl=... adres çubuğundan LoginUserDto olarak gelir.
+    /// Bu bir GET isteği olduğu için [Required] kurallarının ürettiği hatalar silinir (form boş açılırken hata görünmesin).
+    /// </summary>
     [AllowAnonymous]
     [HttpGet("login")]
-    public IActionResult Login(string? returnUrl)
+    public IActionResult LoginPage([FromQuery] LoginUserDto input)
     {
         // Zaten giriş yapmış admin formu tekrar görmesin.
         if (User.Identity != null && User.Identity.IsAuthenticated && User.IsInRole(AppRoles.Admin))
         {
-            return LocalRedirect(SafeReturnUrl(returnUrl));
+            return LocalRedirect(SafeReturnUrl(input.ReturnUrl));
         }
 
-        LoginInput model = new LoginInput();
-        model.ReturnUrl = returnUrl;
-        return View(model);
+        // Metodun adı POST'takiyle aynı olamadığı için (aynı parametre tipi) view adı açıkça veriliyor.
+        ModelState.Clear();
+        return View("Login", input);
     }
 
-    /// <summary>Giriş formunun gönderildiği yer.</summary>
+    /// <summary>Giriş formunun gönderildiği yer. Form LoginUserDto olarak gelir.</summary>
     [AllowAnonymous]
     [HttpPost("login")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Login(LoginInput input)
+    public async Task<IActionResult> Login(LoginUserDto input)
     {
         // [Required], [EmailAddress] kuralları sağlanmadıysa formu geri göster.
         if (!ModelState.IsValid)
@@ -56,11 +63,11 @@ public class AccountController : AdminControllerBase
 
         // isPersistent: true  → tarayıcı kapansa da oturum açık kalır (süresi Program.cs'te).
         // lockoutOnFailure: true → 5 yanlış şifreden sonra hesap 5 dakika kilitlenir.
-        Microsoft.AspNetCore.Identity.SignInResult result = await _signInManager.PasswordSignInAsync(email, input.Password!, true, true);
+        var result = await _signInManager.PasswordSignInAsync(email, input.Password!, true, true);
 
         if (result.Succeeded)
         {
-            AppUser? user = await _userManager.FindByNameAsync(email);
+            var user = await _userManager.FindByNameAsync(email);
             bool isAdmin = user != null && await _userManager.IsInRoleAsync(user, AppRoles.Admin);
             if (isAdmin)
             {
@@ -73,12 +80,12 @@ public class AccountController : AdminControllerBase
 
         if (result.IsLockedOut)
         {
-            ModelState.AddModelError("", "Too many wrong attempts. Please wait 5 minutes and try again.");
+            ModelState.AddModelError("", "Çok fazla hatalı deneme yapıldı. Lütfen 5 dakika bekleyip tekrar deneyin.");
         }
         else
         {
             // Hangisinin yanlış olduğu bilerek söylenmez (e-postanın var olup olmadığı belli olmasın).
-            ModelState.AddModelError("", "Email or password is incorrect.");
+            ModelState.AddModelError("", "E-posta veya şifre hatalı.");
         }
 
         input.Password = null;   // şifre kutuya geri yazılmasın
@@ -102,74 +109,44 @@ public class AccountController : AdminControllerBase
         return View();
     }
 
-    /// <summary>Hesabım sayfası.</summary>
+    /// <summary>Hesabım sayfası. Model: ResultAccountDto (AccountService hazırlar). Kullanıcı bulunamazsa giriş sayfasına gönderir.</summary>
     [HttpGet("account")]
     public async Task<IActionResult> Index()
     {
-        AppUser? user = await _userManager.GetUserAsync(User);
-        if (user == null)
+        var account = await _accountService.GetAccountAsync(_userManager.GetUserId(User));
+        if (account == null)
         {
             return Challenge();   // giriş sayfasına gönder
         }
-
-        AccountViewModel model = new AccountViewModel();
-        model.FullName = user.FullName;
-        model.Email = user.Email ?? "";
-        return View(model);
+        return View(account);
     }
 
-    /// <summary>Şifre değiştirme formu. Alan adları "Password.CurrentPassword" gibi olduğu için Prefix verilir.</summary>
+    /// <summary>
+    /// Şifre değiştirme formu. Alan adları "Password.CurrentPassword" gibi olduğu için Prefix verilir; form ChangePasswordDto olarak gelir.
+    /// Kurallar ve şifre değişikliği AccountService'te. Başarılıysa oturum çerezi yenilenir (eski çerez geçersiz olduğu için).
+    /// </summary>
     [HttpPost("account/password")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ChangePassword([Bind(Prefix = "Password")] ChangePasswordInput input)
+    public async Task<IActionResult> ChangePassword([Bind(Prefix = "Password")] ChangePasswordDto input)
     {
-        AppUser? user = await _userManager.GetUserAsync(User);
-        if (user == null)
+        var result = await _accountService.ChangePasswordAsync(_userManager.GetUserId(User), input);
+        if (result == null)
         {
             return Challenge();
         }
-
-        AccountViewModel model = new AccountViewModel();
-        model.FullName = user.FullName;
-        model.Email = user.Email ?? "";
-
-        // Form kuralları ([Required], [Compare] ...) sağlanmadıysa hataları göster.
-        if (!ModelState.IsValid)
+        if (!result.Succeeded)
         {
-            foreach (var entry in ModelState.Values)
-            {
-                foreach (var error in entry.Errors)
-                {
-                    if (!model.Errors.Contains(error.ErrorMessage))
-                    {
-                        model.Errors.Add(error.ErrorMessage);
-                    }
-                }
-            }
-            return View("Index", model);
+            return View("Index", result);
         }
 
-        IdentityResult result = await _userManager.ChangePasswordAsync(user, input.CurrentPassword!, input.NewPassword!);
-        if (result.Succeeded)
+        // Şifre değişince güvenlik damgası değişir; bu tarayıcının oturumu açık kalsın diye yenilenir.
+        var user = await _userManager.GetUserAsync(User);
+        if (user != null)
         {
-            // Şifre değişince güvenlik damgası değişir; bu tarayıcının oturumu açık kalsın diye yenilenir.
             await _signInManager.RefreshSignInAsync(user);
-            Flash("info", "Your password was changed.");
-            return Redirect("/admin/account");
         }
-
-        foreach (IdentityError error in result.Errors)
-        {
-            if (error.Code == "PasswordMismatch")
-            {
-                model.Errors.Add("Your current password is incorrect.");
-            }
-            else
-            {
-                model.Errors.Add(error.Description);
-            }
-        }
-        return View("Index", model);
+        // Başarılı: Hesabım sayfası "Şifreniz değiştirildi" mesajıyla doğrudan çizilir (result.Succeeded = true).
+        return View("Index", result);
     }
 
     /// <summary>

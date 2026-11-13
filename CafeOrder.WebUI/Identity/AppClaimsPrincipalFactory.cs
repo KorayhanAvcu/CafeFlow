@@ -17,6 +17,7 @@ public class AppClaimsPrincipalFactory : UserClaimsPrincipalFactory<AppUser, Ide
     {
     }
 
+    /// <summary>Giriş sırasında çereze yazılacak bilgileri hazırlar: Identity'nin standart bilgilerine kullanıcının adını (full_name) ekler.</summary>
     protected override async Task<ClaimsIdentity> GenerateClaimsAsync(AppUser user)
     {
         var identity = await base.GenerateClaimsAsync(user);

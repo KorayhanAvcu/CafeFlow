@@ -10,6 +10,7 @@ namespace CafeOrder.BusinessLayer.Creation;
 /// </summary>
 public abstract class OrderCreator
 {
+    /// <summary>Siparişi kurar: önce kanala özgü kısmı alt sınıfa yaptırır (CreateForChannel), sonra bütün kanallarda ortak olan sipariş numarası, "Alındı" durumu, tarih, not ve ilk durum geçmişi kaydını ekler. Adımların sırası burada sabittir (Template Method).</summary>
     public Order Create(Order form, Table? table)
     {
         // 1) Türe özgü kısmı alt sınıf doldurur.

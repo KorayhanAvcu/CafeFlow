@@ -1,4 +1,4 @@
-﻿namespace CafeOrder.BusinessLayer.Pricing;
+namespace CafeOrder.BusinessLayer.Pricing;
 
 /// <summary>
 /// DECORATOR deseni: içindeki fiyatı sarar ve seçeneğin farkını ekler.
@@ -15,6 +15,7 @@ public class OptionPriceDecorator : IPriceComponent
         _extraPrice = extraPrice;
     }
 
+    /// <summary>İçteki bileşenin fiyatını sorar ve bu seçeneğin fiyat farkını üstüne ekler.</summary>
     public decimal GetPrice()
     {
         return _inner.GetPrice() + _extraPrice;

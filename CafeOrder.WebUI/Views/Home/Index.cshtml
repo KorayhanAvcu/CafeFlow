@@ -1,7 +1,7 @@
 @model List<ResultProductDto>
 @{
-    ViewData["Title"] = "CafeFlow — Boutique Café & Online Ordering";
-    ViewData["Description"] = "CafeFlow is a boutique café serving handcrafted coffee and desserts. Order online, from your table with QR, or for pickup.";
+    ViewData["Title"] = "CafeFlow — Butik Kafe ve Online Sipariş";
+    ViewData["Description"] = "CafeFlow, el yapımı kahveler ve tatlılar sunan butik bir kafe. Online, masadaki QR kodla veya gel-al sipariş verin.";
     ViewData["NavPage"] = "home";
     ViewData["BodyAttributes"] = "data-bs-spy=\"scroll\" data-bs-target=\"#mainNav\" data-bs-offset=\"100\"";
 }
@@ -9,45 +9,45 @@
     <script src="~/js/home.js" asp-append-version="true"></script>
 }
 
-  <!-- ============ 2. HERO ============ -->
+  <!-- ============ 2. GİRİŞ ============ -->
   <header id="home" class="cf-hero">
     <div class="cf-blob cf-blob-1"></div>
     <div class="cf-blob cf-blob-2"></div>
     <div class="container position-relative">
       <div class="row align-items-center g-5">
         <div class="col-lg-6 reveal">
-          <span class="cf-eyebrow"><i class="bi bi-stars"></i> Freshly baked every morning</span>
+          <span class="cf-eyebrow"><i class="bi bi-stars"></i> Her sabah taze pişiyor</span>
           <h1 class="cf-hero-title">
-            Little moments,<br />
-            <em>beautifully</em> brewed.
+            Küçük anlar,<br />
+            <em>özenle</em> demlenir.
           </h1>
           <p class="cf-hero-text">
-            Handcrafted coffees, dreamy pink desserts and buttery pastries —
-            made with love in our cozy corner café. Order online, scan at your
-            table, or pick up on the go.
+            El yapımı kahveler, pembe rüya tatlılar ve tereyağlı hamur işleri —
+            sıcacık köşe kafemizde sevgiyle hazırlanıyor. Online sipariş verin,
+            masanızdan okutun ya da yolda gelip alın.
           </p>
           <div class="d-flex flex-wrap gap-3 mb-5">
             <a href="#order" class="btn cf-btn-primary cf-btn-lg">
-              Order Online <i class="bi bi-arrow-right"></i>
+              Online Sipariş <i class="bi bi-arrow-right"></i>
             </a>
             <a href="#menu" class="btn cf-btn-outline cf-btn-lg">
-              <i class="bi bi-book"></i> View Menu
+              <i class="bi bi-book"></i> Menüyü Gör
             </a>
           </div>
           <div class="cf-hero-stats">
             <div>
               <strong>4.9</strong>
-              <span><i class="bi bi-star-fill"></i> 2.4k reviews</span>
+              <span><i class="bi bi-star-fill"></i> 2.400 yorum</span>
             </div>
             <div class="cf-stat-divider"></div>
             <div>
               <strong>40+</strong>
-              <span>Signature treats</span>
+              <span>İmza lezzet</span>
             </div>
             <div class="cf-stat-divider"></div>
             <div>
-              <strong>15 min</strong>
-              <span>Avg. pickup time</span>
+              <strong>15 dk</strong>
+              <span>Ort. hazırlanma süresi</span>
             </div>
           </div>
         </div>
@@ -56,24 +56,24 @@
           <div class="cf-hero-visual">
             <div class="cf-hero-arch">
               <img src="https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=900&q=80"
-                   alt="Latte with latte art on a pastel table" data-fallback="coffee" />
+                   alt="Pastel bir masada latte art yapılmış latte" data-fallback="coffee" />
             </div>
             <div class="cf-float-card cf-float-1">
               <span class="cf-float-icon"><i class="bi bi-heart-fill"></i></span>
               <div>
-                <small>Today's favorite</small>
-                <strong>Strawberry Latte</strong>
+                <small>Günün favorisi</small>
+                <strong>Çilekli Latte</strong>
               </div>
             </div>
             <div class="cf-float-card cf-float-2">
               <span class="cf-float-icon cf-icon-peach"><i class="bi bi-qr-code"></i></span>
               <div>
-                <small>Sitting in?</small>
-                <strong>Scan &amp; order</strong>
+                <small>Kafede misiniz?</small>
+                <strong>Okut &amp; sipariş ver</strong>
               </div>
             </div>
             <div class="cf-hero-badge">
-              <span>Since</span>
+              <span>Kuruluş</span>
               <strong>2019</strong>
             </div>
           </div>
@@ -82,13 +82,13 @@
     </div>
   </header>
 
-  <!-- ============ 3. CATEGORIES ============ -->
+  <!-- ============ 3. KATEGORİLER ============ -->
   <section id="menu" class="cf-section">
     <div class="container">
       <div class="cf-section-head reveal">
-        <span class="cf-eyebrow">Explore the menu</span>
-        <h2 class="cf-section-title">Something sweet for every mood</h2>
-        <p class="cf-section-sub">From your first espresso to your afternoon treat, browse our café favorites.</p>
+        <span class="cf-eyebrow">Menüyü keşfedin</span>
+        <h2 class="cf-section-title">Her ruh haline tatlı bir şey</h2>
+        <p class="cf-section-sub">Sabahın ilk espressosundan öğleden sonra tatlısına kadar kafemizin favorilerine göz atın.</p>
       </div>
 
       <div class="row g-4">
@@ -100,7 +100,7 @@
             <span class="cf-cat-icon@(tones[toneIndex++ % tones.Length])"><i class="bi @(category.Icon ?? "bi-tag")"></i></span>
             <h3>@category.Name</h3>
             <p>@category.Description</p>
-            <span class="cf-cat-link">@category.ProductCount @(category.ProductCount == 1 ? "item" : "items") <i class="bi bi-arrow-up-right"></i></span>
+            <span class="cf-cat-link">@category.ProductCount ürün <i class="bi bi-arrow-up-right"></i></span>
           </a>
         </div>
 }
@@ -108,13 +108,13 @@
     </div>
   </section>
 
-  <!-- ============ 4. POPULAR PRODUCTS ============ -->
+  <!-- ============ 4. POPÜLER ÜRÜNLER ============ -->
   <section id="products" class="cf-section cf-section-tint">
     <div class="container">
       <div class="cf-section-head d-md-flex justify-content-between align-items-end text-md-start reveal">
         <div>
-          <span class="cf-eyebrow">Most loved</span>
-          <h2 class="cf-section-title mb-md-0">Popular this week</h2>
+          <span class="cf-eyebrow">En sevilenler</span>
+          <h2 class="cf-section-title mb-md-0">Bu haftanın popülerleri</h2>
         </div>
       </div>
 
@@ -134,17 +134,17 @@
               <h3><a href="/products/@product.Id">@product.Name</a></h3>
               <p>@product.Description</p>
               <div class="cf-product-foot">
-                <span class="cf-price">@(product.IsCustomizable ? "from " : "")@Display.Money(product.BasePrice)</span>
+                <span class="cf-price">@if (product.IsCustomizable) { <small>başlangıç</small> }@Display.Money(product.BasePrice)</span>
                 @if (product.IsCustomizable)
                 {
-                  <a href="/products/@product.Id" class="btn cf-add-btn"><i class="bi bi-sliders"></i> Customize</a>
+                  <a href="/products/@product.Id" class="btn cf-add-btn"><i class="bi bi-sliders"></i> Özelleştir</a>
                 }
                 else
                 {
                   <form method="post" asp-controller="Cart" asp-action="Add" class="d-inline">
                     <input type="hidden" name="productId" value="@product.Id" />
                     <input type="hidden" name="returnUrl" value="/#products" />
-                    <button type="submit" class="btn cf-add-btn"><i class="bi bi-plus-lg"></i> Add</button>
+                    <button type="submit" class="btn cf-add-btn"><i class="bi bi-plus-lg"></i> Ekle</button>
                   </form>
                 }
               </div>
@@ -155,18 +155,18 @@
       </div>
 
       <div class="text-center mt-5 reveal">
-        <a href="/products" class="btn cf-btn-outline cf-btn-lg">See the full menu <i class="bi bi-arrow-right"></i></a>
+        <a href="/products" class="btn cf-btn-outline cf-btn-lg">Tüm menüyü gör <i class="bi bi-arrow-right"></i></a>
       </div>
     </div>
   </section>
 
-  <!-- ============ 5. ORDER THE WAY YOU WANT ============ -->
+  <!-- ============ 5. NASIL İSTERSENİZ ÖYLE SİPARİŞ ============ -->
   <section id="order" class="cf-section">
     <div class="container">
       <div class="cf-section-head reveal">
-        <span class="cf-eyebrow">Ordering made easy</span>
-        <h2 class="cf-section-title">Order the way you want</h2>
-        <p class="cf-section-sub">At home, at your table or on your way — CafeFlow fits right into your day.</p>
+        <span class="cf-eyebrow">Kolay sipariş</span>
+        <h2 class="cf-section-title">Nasıl isterseniz öyle sipariş verin</h2>
+        <p class="cf-section-sub">Evde, masanızda ya da yolda — CafeFlow gününüze uyum sağlar.</p>
       </div>
 
       <div class="row g-4 cf-steps">
@@ -174,34 +174,34 @@
           <div class="cf-order-card">
             <span class="cf-order-num">01</span>
             <span class="cf-order-icon"><i class="bi bi-phone"></i></span>
-            <h3>Online Order</h3>
-            <p>Browse the menu, customize your drink and pay securely from any device. We'll have it ready when you are.</p>
-            <a href="#products" class="cf-text-link">Start an order <i class="bi bi-arrow-right"></i></a>
+            <h3>Online Sipariş</h3>
+            <p>Menüye göz atın, içeceğinizi özelleştirin ve her cihazdan kolayca sipariş verin. Siz hazır olduğunuzda biz de hazırız.</p>
+            <a href="#products" class="cf-text-link">Siparişe başla <i class="bi bi-arrow-right"></i></a>
           </div>
         </div>
         <div class="col-md-4 reveal">
           <div class="cf-order-card cf-order-featured">
             <span class="cf-order-num">02</span>
             <span class="cf-order-icon"><i class="bi bi-qr-code-scan"></i></span>
-            <h3>Table QR Order</h3>
-            <p>Already with us? Scan the QR code on your table, order in seconds and we'll bring everything straight to you.</p>
-            <a href="#products" class="cf-text-link">How it works <i class="bi bi-arrow-right"></i></a>
+            <h3>Masadan QR Sipariş</h3>
+            <p>Zaten kafede misiniz? Masanızdaki QR kodu okutun, saniyeler içinde sipariş verin; her şeyi masanıza getirelim.</p>
+            <a href="#products" class="cf-text-link">Nasıl çalışır? <i class="bi bi-arrow-right"></i></a>
           </div>
         </div>
         <div class="col-md-4 reveal">
           <div class="cf-order-card">
             <span class="cf-order-num">03</span>
             <span class="cf-order-icon"><i class="bi bi-bag-check"></i></span>
-            <h3>Takeaway / Pickup</h3>
-            <p>Order ahead, skip the line and grab your treats from our pickup counter — usually ready in 15 minutes.</p>
-            <a href="#contact" class="cf-text-link">Find the café <i class="bi bi-arrow-right"></i></a>
+            <h3>Gel-Al</h3>
+            <p>Önceden sipariş verin, sıra beklemeden tezgâhımızdan alın — genellikle 15 dakikada hazır.</p>
+            <a href="#contact" class="cf-text-link">Kafeyi bul <i class="bi bi-arrow-right"></i></a>
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ============ 6. ABOUT ============ -->
+  <!-- ============ 6. HAKKIMIZDA ============ -->
   <section id="about" class="cf-section cf-section-cream">
     <div class="container">
       <div class="row align-items-center g-5">
@@ -209,34 +209,34 @@
           <div class="cf-collage">
             <div class="cf-collage-main">
               <img src="https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=800&q=80"
-                   alt="Cozy café interior with soft light" data-fallback="cafe" loading="lazy" />
+                   alt="Yumuşak ışıklı, sıcak bir kafe içi" data-fallback="cafe" loading="lazy" />
             </div>
             <div class="cf-collage-side">
               <img src="https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=600&q=80"
-                   alt="Berry dessert in a glass" data-fallback="cake" loading="lazy" />
+                   alt="Bardakta meyveli tatlı" data-fallback="cake" loading="lazy" />
             </div>
             <div class="cf-collage-note">
               <i class="bi bi-flower1"></i>
-              <span>Baked with love, served with a smile.</span>
+              <span>Sevgiyle pişer, gülümsemeyle servis edilir.</span>
             </div>
           </div>
         </div>
 
         <div class="col-lg-6 reveal">
-          <span class="cf-eyebrow">Our story</span>
-          <h2 class="cf-section-title text-start">A little pink corner for slow mornings</h2>
+          <span class="cf-eyebrow">Hikâyemiz</span>
+          <h2 class="cf-section-title text-start">Ağır sabahlar için pembe bir köşe</h2>
           <p class="cf-body-lg">
-            CafeFlow started as a tiny counter with one espresso machine and a big
-            love for pretty desserts. Today it's a gathering place for friends,
-            first dates, quiet reading hours and every kind of celebration in between.
+            CafeFlow, tek bir espresso makinesi ve güzel tatlılara duyulan büyük bir
+            sevgiyle küçük bir tezgâhta başladı. Bugün arkadaş buluşmalarının, ilk
+            randevuların, sessiz okuma saatlerinin ve aradaki her türlü kutlamanın adresi.
           </p>
           <div class="row g-3 mt-2">
             <div class="col-sm-6">
               <div class="cf-feature">
                 <span class="cf-feature-icon"><i class="bi bi-house-heart"></i></span>
                 <div>
-                  <h4>Cozy atmosphere</h4>
-                  <p>Soft light, plush seats and good music.</p>
+                  <h4>Sıcak atmosfer</h4>
+                  <p>Yumuşak ışık, rahat koltuklar ve güzel müzik.</p>
                 </div>
               </div>
             </div>
@@ -244,8 +244,8 @@
               <div class="cf-feature">
                 <span class="cf-feature-icon"><i class="bi bi-flower2"></i></span>
                 <div>
-                  <h4>Fresh ingredients</h4>
-                  <p>Local dairy, seasonal fruit, real butter.</p>
+                  <h4>Taze malzemeler</h4>
+                  <p>Yerel süt ürünleri, mevsim meyveleri, gerçek tereyağı.</p>
                 </div>
               </div>
             </div>
@@ -253,8 +253,8 @@
               <div class="cf-feature">
                 <span class="cf-feature-icon"><i class="bi bi-cup-hot"></i></span>
                 <div>
-                  <h4>Handcrafted drinks</h4>
-                  <p>Specialty beans, roasted in small batches.</p>
+                  <h4>El yapımı içecekler</h4>
+                  <p>Küçük partilerde kavrulan nitelikli çekirdekler.</p>
                 </div>
               </div>
             </div>
@@ -262,8 +262,8 @@
               <div class="cf-feature">
                 <span class="cf-feature-icon"><i class="bi bi-cake"></i></span>
                 <div>
-                  <h4>Daily desserts</h4>
-                  <p>Baked every morning in our own kitchen.</p>
+                  <h4>Günlük tatlılar</h4>
+                  <p>Her sabah kendi mutfağımızda pişiyor.</p>
                 </div>
               </div>
             </div>
@@ -273,36 +273,36 @@
     </div>
   </section>
 
-  <!-- ============ 7. SPECIAL OFFER ============ -->
+  <!-- ============ 7. KAMPANYA ============ -->
   <section class="cf-section">
     <div class="container">
       <div class="cf-offer reveal">
         <div class="cf-offer-shape"></div>
         <div class="row align-items-center g-4 position-relative">
           <div class="col-lg-7">
-            <span class="cf-offer-pill"><i class="bi bi-gift"></i> Limited time · Weekdays 2–5 PM</span>
-            <h2 class="cf-offer-title">Sweet Pink Combo</h2>
+            <span class="cf-offer-pill"><i class="bi bi-gift"></i> Sınırlı süre · Hafta içi 14:00–17:00</span>
+            <h2 class="cf-offer-title">Tatlı Pembe Menü</h2>
             <p class="cf-offer-text">
-              Any handcrafted latte + a slice of Pink Velvet Cake. Use code <strong>PINK20</strong> at checkout
-              for 20% off — the perfect afternoon pick-me-up.
+              Dilediğiniz el yapımı latte + bir dilim Pembe Kadife Pasta. Ödemede <strong>PINK20</strong> kodunu kullanın,
+              %20 indirim kazanın — öğleden sonraya mükemmel bir mola.
             </p>
             <div class="d-flex flex-wrap align-items-center gap-4">
               <div class="cf-offer-price">
-                <span class="cf-old">₺385.00</span>
-                <span class="cf-new">₺308.00</span>
+                <span class="cf-old">₺385,00</span>
+                <span class="cf-new">₺308,00</span>
               </div>
-              <a href="/products?category=cakes" class="btn cf-btn-dark cf-btn-lg">
-                Claim the combo <i class="bi bi-arrow-right"></i>
+              <a href="/products?category=pastalar" class="btn cf-btn-dark cf-btn-lg">
+                Menüyü yakala <i class="bi bi-arrow-right"></i>
               </a>
             </div>
           </div>
           <div class="col-lg-5">
             <div class="cf-offer-visual">
               <img src="https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=700&q=80"
-                   alt="Coffee and dessert combo" data-fallback="coffee" loading="lazy" />
+                   alt="Kahve ve tatlı menüsü" data-fallback="coffee" loading="lazy" />
               <div class="cf-offer-badge">
-                <strong>-20%</strong>
-                <span>off</span>
+                <strong>-%20</strong>
+                <span>indirim</span>
               </div>
             </div>
           </div>
@@ -311,48 +311,48 @@
     </div>
   </section>
 
-  <!-- ============ 8. TESTIMONIALS ============ -->
+  <!-- ============ 8. YORUMLAR ============ -->
   <section class="cf-section cf-section-tint">
     <div class="container">
       <div class="cf-section-head reveal">
-        <span class="cf-eyebrow">Kind words</span>
-        <h2 class="cf-section-title">Our guests say it best</h2>
+        <span class="cf-eyebrow">Güzel sözler</span>
+        <h2 class="cf-section-title">Misafirlerimiz anlatsın</h2>
       </div>
 
       <div class="row g-4">
         <div class="col-md-4 reveal">
           <figure class="cf-review">
-            <div class="cf-stars" aria-label="5 out of 5 stars">
+            <div class="cf-stars" aria-label="5 üzerinden 5 yıldız">
               <i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i>
             </div>
-            <blockquote>“The strawberry latte is unreal and the café is so pretty. Ordering from the table QR was super quick — no waiting at all.”</blockquote>
+            <blockquote>“Çilekli latte inanılmaz, kafe de çok şirin. Masadaki QR ile sipariş vermek çok hızlıydı — hiç beklemedik.”</blockquote>
             <figcaption>
-              <span class="cf-avatar">EL</span>
-              <div><strong>Emily Laurent</strong><small>Regular guest</small></div>
+              <span class="cf-avatar">EY</span>
+              <div><strong>Elif Yıldız</strong><small>Müdavim</small></div>
             </figcaption>
           </figure>
         </div>
         <div class="col-md-4 reveal">
           <figure class="cf-review cf-review-featured">
-            <div class="cf-stars" aria-label="5 out of 5 stars">
+            <div class="cf-stars" aria-label="5 üzerinden 5 yıldız">
               <i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i>
             </div>
-            <blockquote>“I order pickup on my way to work every morning. Always ready on time and the Lotus Cheesecake is my weekly treat.”</blockquote>
+            <blockquote>“Her sabah işe giderken gel-al sipariş veriyorum. Hep zamanında hazır, Lotus Cheesecake de haftalık ödülüm.”</blockquote>
             <figcaption>
               <span class="cf-avatar cf-avatar-peach">DM</span>
-              <div><strong>Daniel Moore</strong><small>Pickup lover</small></div>
+              <div><strong>Deniz Metin</strong><small>Gel-al sever</small></div>
             </figcaption>
           </figure>
         </div>
         <div class="col-md-4 reveal">
           <figure class="cf-review">
-            <div class="cf-stars" aria-label="4.5 out of 5 stars">
+            <div class="cf-stars" aria-label="5 üzerinden 4,5 yıldız">
               <i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-half"></i>
             </div>
-            <blockquote>“Cozy, calm and beautifully styled. We celebrated my sister's birthday here and the croissant box was a hit.”</blockquote>
+            <blockquote>“Sakin, rahat ve çok zevkli dekore edilmiş. Kız kardeşimin doğum gününü burada kutladık, kruvasan kutusu çok beğenildi.”</blockquote>
             <figcaption>
               <span class="cf-avatar cf-avatar-cream">SA</span>
-              <div><strong>Sofia Alvarez</strong><small>Weekend visitor</small></div>
+              <div><strong>Selin Arslan</strong><small>Hafta sonu misafiri</small></div>
             </figcaption>
           </figure>
         </div>

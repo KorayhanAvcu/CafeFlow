@@ -1,24 +1,24 @@
 @model List<ResultCategoryDto>
 @{
-    ViewData["Title"] = "Categories · CafeFlow Management Studio";
+    ViewData["Title"] = "Kategoriler · CafeFlow Yönetim Paneli";
     ViewData["AdminPage"] = "categories";
-    ViewData["Crumb"] = "Categories";
+    ViewData["Crumb"] = "Kategoriler";
 }
 
 <div class="adm-page-head">
   <div>
-    <h1 class="adm-page-title">Category Management</h1>
-    <p class="adm-page-sub">@Model.Count categories · @Model.Count(c => c.IsActive) active · @Model.Sum(c => c.ProductCount) products</p>
+    <h1 class="adm-page-title">Kategori Yönetimi</h1>
+    <p class="adm-page-sub">@Model.Count kategori · @Model.Count(c => c.IsActive) aktif · @Model.Sum(c => c.ProductCount) ürün</p>
   </div>
-  <a href="/admin/categories/new" class="adm-btn adm-btn-primary"><i class="bi bi-plus-lg"></i> Add Category</a>
+  <a href="/admin/categories/new" class="adm-btn adm-btn-primary"><i class="bi bi-plus-lg"></i> Kategori Ekle</a>
 </div>
 
-<partial name="_Flash" model="null" />
+<partial name="_ErrorMessage" model="@((string?)ViewBag.Error)" />
 
 <section class="adm-card">
   <div class="adm-table-wrap">
     <table class="adm-table">
-      <thead><tr><th>Category</th><th>Description</th><th class="num">Products</th><th class="num">Order</th><th>Status</th><th class="end"></th></tr></thead>
+      <thead><tr><th>Kategori</th><th>Açıklama</th><th class="num">Ürün</th><th class="num">Sıra</th><th>Durum</th><th class="end"></th></tr></thead>
       <tbody>
         @foreach (var c in Model)
         {
@@ -31,14 +31,14 @@
               <form method="post" action="/admin/categories/@c.Id/status" class="pg-inline">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="active" value="@(c.IsActive ? "false" : "true")" />
-                <button type="submit" class="adm-badge @(c.IsActive ? "adm-badge-success" : "adm-badge-inactive") border-0">@(c.IsActive ? "Active" : "Inactive")</button>
+                <button type="submit" class="adm-badge @(c.IsActive ? "adm-badge-success" : "adm-badge-inactive") border-0" title="Değiştirmek için tıklayın">@(c.IsActive ? "Aktif" : "Pasif")</button>
               </form>
             </td>
             <td class="end">
-              <a href="/admin/categories/@c.Id/edit" class="adm-btn adm-btn-ghost adm-btn-sm">Edit</a>
-              <form method="post" action="/admin/categories/@c.Id/delete" class="pg-inline" onsubmit="return confirm('Delete this category?');">
+              <a href="/admin/categories/@c.Id/edit" class="adm-btn adm-btn-ghost adm-btn-sm">Düzenle</a>
+              <form method="post" action="/admin/categories/@c.Id/delete" class="pg-inline" onsubmit="return confirm('Bu kategori silinsin mi?');">
                 @Html.AntiForgeryToken()
-                <button type="submit" class="adm-btn adm-btn-ghost adm-btn-sm"><i class="bi bi-trash3"></i></button>
+                <button type="submit" class="adm-btn adm-btn-ghost adm-btn-sm" title="Sil" aria-label="Sil"><i class="bi bi-trash3"></i></button>
               </form>
             </td>
           </tr>

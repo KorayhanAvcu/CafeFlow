@@ -1,14 +1,14 @@
 @{
     var description = ViewData["Description"] as string
-        ?? "CafeFlow is a boutique café serving handcrafted coffee and desserts.";
-    // After "Add to cart" the cart drawer opens once (site.js reads this attribute).
+        ?? "CafeFlow, el yapımı kahveler ve tatlılar sunan butik bir kafe.";
+    // "Sepete ekle"den sonra sepet paneli bir kez açılır (site.js bu özelliği okur).
     var openCart = TempData["OpenCart"] is true;
     var page = ViewData["NavPage"] as string ?? "other";
     // Sepet paneli sadece ana sayfa, menü ve ürün detayında var.
     bool hasDrawer = page == "home" || page == "menu" || page == "detail";
 }
 <!DOCTYPE html>
-<html lang="en">
+<html lang="tr">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />

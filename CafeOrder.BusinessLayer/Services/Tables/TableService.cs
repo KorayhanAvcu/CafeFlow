@@ -19,9 +19,10 @@ public class TableService : ITableService
         _mapper = mapper;
     }
 
+    /// <summary>Bütün masaları siparişleriyle (sayı için) masa numarasına göre getirir.</summary>
     public async Task<List<ResultTableDto>> GetAllAsync()
     {
-        List<Table> tables = await _tableRepository.GetQueryable()
+        var tables = await _tableRepository.GetQueryable()
             .Include(t => t.Orders)
             .OrderBy(t => t.Number)
             .ToListAsync();
@@ -29,10 +30,37 @@ public class TableService : ITableService
         return _mapper.Map<List<ResultTableDto>>(tables);
     }
 
-    public async Task<ResultTableDto> GetByIdAsync(int id)
+
+    /// <summary>
+    /// Masa sayfasının sağındaki form. editId verilirse o masanın dolu formu döner;
+    /// verilmezse yeni masa formu döner: Id = 0, aktif, numara = en büyük masa numarası + 1 (hiç masa yoksa 1).
+    /// </summary>
+    public async Task<UpdateTableDto> GetFormAsync(int? editId)
     {
-        Table table = await GetEntityAsync(id);
-        return _mapper.Map<ResultTableDto>(table);
+        if (editId != null)
+        {
+            var table = await GetEntityAsync(editId.Value);
+            return _mapper.Map<UpdateTableDto>(table);
+        }
+
+        var anyTable = await _tableRepository.AnyAsync(t => true);
+        UpdateTableDto form = new UpdateTableDto();
+        form.IsActive = true;
+        form.Number = anyTable ? await _tableRepository.GetQueryable().MaxAsync(t => t.Number) + 1 : 1;
+        return form;
+    }
+
+    /// <summary>Formun kaydet düğmesi: Id 0 ise yeni masa olarak ekler, değilse var olanı günceller.</summary>
+    public async Task SaveAsync(UpdateTableDto dto)
+    {
+        if (dto.Id == 0)
+        {
+            await CreateAsync(_mapper.Map<CreateTableDto>(dto));
+        }
+        else
+        {
+            await UpdateAsync(dto);
+        }
     }
 
     /// <summary>Okutulan QR kodu aktif bir masaya ait mi? Bulamazsa null döner.</summary>
@@ -44,7 +72,7 @@ public class TableService : ITableService
         }
 
         string token = qrToken.Trim().ToUpper();
-        Table? table = await _tableRepository.GetFirstAsync(t => t.QrToken == token && t.IsActive);
+        var table = await _tableRepository.GetFirstAsync(t => t.QrToken == token && t.IsActive);
         if (table == null)
         {
             return null;
@@ -52,6 +80,7 @@ public class TableService : ITableService
         return _mapper.Map<ResultTableDto>(table);
     }
 
+    /// <summary>Yeni masa ekler: kuralları kontrol eder, rastgele QR kodu üretir, kaydeder.</summary>
     public async Task CreateAsync(CreateTableDto dto)
     {
         // DTO → Entity
@@ -64,7 +93,7 @@ public class TableService : ITableService
     /// <summary>Masa numarası değişirse eski QR kart çalışmasın diye yeni kod üretilir.</summary>
     public async Task UpdateAsync(UpdateTableDto dto)
     {
-        Table table = await GetEntityAsync(dto.Id);
+        var table = await GetEntityAsync(dto.Id);
         int oldNumber = table.Number;
 
         // DTO'daki alanları var olan kaydın üstüne yaz (QrToken DTO'da yok, değişmez).
@@ -82,14 +111,15 @@ public class TableService : ITableService
     /// <summary>Kart kaybolduğunda yeni QR kodu üretir.</summary>
     public async Task RegenerateQrAsync(int id)
     {
-        Table table = await GetEntityAsync(id);
+        var table = await GetEntityAsync(id);
         table.QrToken = await NewQrAsync(table.Number);
         await _tableRepository.UpdateAsync(table);
     }
 
+    /// <summary>Masanın aktif/pasif durumunu değiştirip kaydeder.</summary>
     public async Task ChangeStatusAsync(int id, bool isActive)
     {
-        Table table = await GetEntityAsync(id);
+        var table = await GetEntityAsync(id);
         table.IsActive = isActive;
         await _tableRepository.UpdateAsync(table);
     }
@@ -97,16 +127,16 @@ public class TableService : ITableService
     /// <summary>Siparişi olan masa silinemez.</summary>
     public async Task DeleteAsync(int id)
     {
-        Table? table = await _tableRepository.GetQueryable()
+        var table = await _tableRepository.GetQueryable()
             .Include(t => t.Orders)
             .FirstOrDefaultAsync(t => t.Id == id);
         if (table == null)
         {
-            throw new BusinessException("Table not found.");
+            throw new BusinessException("Masa bulunamadı.");
         }
         if (table.Orders.Count > 0)
         {
-            throw new BusinessException("Table " + table.Number + " has past orders. Make it inactive instead.");
+            throw new BusinessException("Masa " + table.Number + " geçmiş siparişlerde var, silinemez. Bunun yerine pasif yapın.");
         }
 
         await _tableRepository.DeleteAsync(table);
@@ -115,7 +145,7 @@ public class TableService : ITableService
     /// <summary>Veritabanındaki kaydı getirir; yoksa hata verir.</summary>
     private async Task<Table> GetEntityAsync(int id)
     {
-        Table? table = await _tableRepository.GetByIdAsync(id);
+        var table = await _tableRepository.GetByIdAsync(id);
         if (table == null)
         {
             throw new BusinessException("Table not found.");
@@ -130,17 +160,17 @@ public class TableService : ITableService
 
         if (table.Number < 1 || table.Number > 999)
         {
-            throw new BusinessException("Table number must be between 1 and 999.");
+            throw new BusinessException("Masa numarası 1 ile 999 arasında olmalı.");
         }
         if (table.Area.Length == 0 || table.Area.Length > 50)
         {
-            throw new BusinessException("Please enter an area (at most 50 characters).");
+            throw new BusinessException("Lütfen bir bölge girin (en fazla 50 karakter).");
         }
 
-        bool numberUsed = await _tableRepository.AnyAsync(t => t.Number == table.Number && t.Id != table.Id);
+        var numberUsed = await _tableRepository.AnyAsync(t => t.Number == table.Number && t.Id != table.Id);
         if (numberUsed)
         {
-            throw new BusinessException("Table " + table.Number + " already exists.");
+            throw new BusinessException("Masa " + table.Number + " zaten var.");
         }
     }
 
@@ -161,7 +191,7 @@ public class TableService : ITableService
             string token = "CF-T" + number.ToString("00") + "-" + random;
 
             // Aynı kod başka masada yoksa kullan.
-            bool exists = await _tableRepository.AnyAsync(t => t.QrToken == token);
+            var exists = await _tableRepository.AnyAsync(t => t.QrToken == token);
             if (!exists)
             {
                 return token;

@@ -1,10 +1,10 @@
 @{
     var page = ViewData["AdminPage"] as string ?? "";
-    var userName = User.FindFirst(CafeOrder.WebUI.Identity.AppClaimsPrincipalFactory.FullNameClaim)?.Value ?? User.Identity?.Name ?? "Admin";
+    var userName = User.FindFirst(CafeOrder.WebUI.Identity.AppClaimsPrincipalFactory.FullNameClaim)?.Value ?? User.Identity?.Name ?? "Yönetici";
     var userEmail = User.Identity?.Name ?? "";
 }
 <!DOCTYPE html>
-<html lang="en">
+<html lang="tr">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -24,61 +24,61 @@
 <body class="adm">
   @Html.AntiForgeryToken()
 
-  <!-- ============ SHARED ADMIN SHELL: SIDEBAR ============ -->
+  <!-- ============ ORTAK ADMIN ÇERÇEVESİ: SOL MENÜ ============ -->
   @await Component.InvokeAsync("AdminSidebar", new { activePage = page })
   <div class="adm-backdrop" id="admBackdrop"></div>
 
   <div class="adm-main">
-    <!-- ============ SHARED ADMIN SHELL: TOP NAVBAR ============ -->
+    <!-- ============ ORTAK ADMIN ÇERÇEVESİ: ÜST ÇUBUK ============ -->
     <header class="adm-topbar">
-      <button type="button" class="adm-icon-btn bordered" id="sidebarToggle" aria-label="Toggle sidebar" aria-controls="admSidebar" aria-expanded="true">
+      <button type="button" class="adm-icon-btn bordered" id="sidebarToggle" aria-label="Menüyü aç/kapat" aria-controls="admSidebar" aria-expanded="true">
         <i class="bi bi-layout-sidebar"></i>
       </button>
-      <nav class="adm-crumbs" aria-label="Breadcrumb">
-        <span class="adm-hide-sm">Management</span>
+      <nav class="adm-crumbs" aria-label="Sayfa yolu">
+        <span class="adm-hide-sm">Yönetim</span>
         <i class="bi bi-chevron-right adm-hide-sm"></i>
         <strong>@ViewData["Crumb"]</strong>
       </nav>
 
       <div class="adm-topbar-right">
-        <!-- Quick actions -->
+        <!-- Hızlı işlemler -->
         <div class="dropdown">
-          <button type="button" class="adm-icon-btn" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Quick actions" title="Quick actions">
+          <button type="button" class="adm-icon-btn" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Hızlı işlemler" title="Hızlı işlemler">
             <i class="bi bi-lightning-charge"></i>
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
-            <li><h6 class="dropdown-header">Quick actions</h6></li>
-            <li><a class="dropdown-item" href="/admin/categories/new"><i class="bi bi-plus-circle"></i> Add Category</a></li>
-            <li><a class="dropdown-item" href="/admin/products/new"><i class="bi bi-plus-square"></i> Add Product</a></li>
-            <li><a class="dropdown-item" href="/admin/products"><i class="bi bi-cup-straw"></i> View Products</a></li>
-            <li><a class="dropdown-item" href="/admin/orders"><i class="bi bi-receipt"></i> View Orders</a></li>
+            <li><h6 class="dropdown-header">Hızlı işlemler</h6></li>
+            <li><a class="dropdown-item" href="/admin/categories/new"><i class="bi bi-plus-circle"></i> Kategori Ekle</a></li>
+            <li><a class="dropdown-item" href="/admin/products/new"><i class="bi bi-plus-square"></i> Ürün Ekle</a></li>
+            <li><a class="dropdown-item" href="/admin/products"><i class="bi bi-cup-straw"></i> Ürünleri Gör</a></li>
+            <li><a class="dropdown-item" href="/admin/orders"><i class="bi bi-receipt"></i> Siparişleri Gör</a></li>
             <li><hr class="dropdown-divider" /></li>
-            <li><a class="dropdown-item" href="/" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i> Open customer site</a></li>
+            <li><a class="dropdown-item" href="/" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i> Müşteri sitesini aç</a></li>
           </ul>
         </div>
 
-        <!-- Notifications (written by the Observer pattern) -->
+        <!-- Bildirimler (Observer deseninin yazdıkları) -->
         @await Component.InvokeAsync("AdminNotifications")
 
-        <!-- Profile -->
+        <!-- Profil -->
         <div class="dropdown">
-          <button type="button" class="adm-user-btn" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Account menu">
+          <button type="button" class="adm-user-btn" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Hesap menüsü">
             <span class="adm-avatar">@AdminDisplay.Initials(userName)</span>
             <span class="adm-user-meta">
               <strong>@userName</strong>
-              <small>Admin</small>
+              <small>Yönetici</small>
             </span>
             <i class="bi bi-chevron-down small text-muted adm-hide-sm"></i>
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
-            <li><h6 class="dropdown-header text-truncate" style="max-width:240px">Signed in as @userEmail</h6></li>
-            <li><a class="dropdown-item" href="/admin/account"><i class="bi bi-person"></i> My Account</a></li>
-            <li><a class="dropdown-item" href="/admin/account#cur"><i class="bi bi-key"></i> Change Password</a></li>
+            <li><h6 class="dropdown-header text-truncate" style="max-width:240px">Giriş yapan: @userEmail</h6></li>
+            <li><a class="dropdown-item" href="/admin/account"><i class="bi bi-person"></i> Hesabım</a></li>
+            <li><a class="dropdown-item" href="/admin/account#cur"><i class="bi bi-key"></i> Şifre Değiştir</a></li>
             <li><hr class="dropdown-divider" /></li>
             <li>
               <form method="post" action="/admin/logout" class="m-0">
                 @Html.AntiForgeryToken()
-                <button class="dropdown-item text-danger" type="submit"><i class="bi bi-box-arrow-right"></i> Logout</button>
+                <button class="dropdown-item text-danger" type="submit"><i class="bi bi-box-arrow-right"></i> Çıkış Yap</button>
               </form>
             </li>
           </ul>
@@ -91,7 +91,7 @@
     </main>
 
     <footer class="adm-footer">
-      <span>© @DateTime.Now.Year CafeFlow Management Studio</span>
+      <span>© @DateTime.Now.Year CafeFlow Yönetim Paneli</span>
     </footer>
   </div>
 

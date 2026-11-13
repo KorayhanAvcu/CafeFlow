@@ -14,14 +14,16 @@ public class AdminObserver : IOrderObserver
         _notificationRepository = notificationRepository;
     }
 
+    /// <summary>Yeni siparişte yönetici bildirimi yazar: "Yeni Teslimat siparişi: CF-...". Paneldeki zilde görünür.</summary>
     public async Task OrderPlacedAsync(Order order)
     {
-        await SendAsync(order, $"New {order.Channel} order {order.OrderNo}.");
+        await SendAsync(order, $"Yeni {order.Channel.ToText()} siparişi: {order.OrderNo}.");
     }
 
+    /// <summary>Her durum değişikliğinde yönetici bildirimi yazar: "Sipariş CF-...: Alındı → Hazırlanıyor."</summary>
     public async Task StatusChangedAsync(Order order, OrderStatus previous)
     {
-        await SendAsync(order, $"Order {order.OrderNo}: {previous} → {order.Status}.");
+        await SendAsync(order, $"Sipariş {order.OrderNo}: {previous.ToText()} → {order.Status.ToText()}.");
     }
 
     /// <summary>Notifications tablosuna bir kayıt ekler.</summary>

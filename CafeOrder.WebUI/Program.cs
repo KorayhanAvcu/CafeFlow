@@ -1,5 +1,6 @@
-using System.Globalization;
 using CafeOrder.BusinessLayer.Events;
+using CafeOrder.BusinessLayer.Services.Account;
+using CafeOrder.BusinessLayer.Services.Cart;
 using CafeOrder.BusinessLayer.Mapping;
 using CafeOrder.BusinessLayer.Pricing;
 using CafeOrder.BusinessLayer.Services.Categories;
@@ -18,16 +19,15 @@ using CafeOrder.DataAccessLayer.Repositories.Products;
 using CafeOrder.DataAccessLayer.Repositories.Tables;
 using CafeOrder.EntityLayer.Entities;
 using CafeOrder.WebUI.Identity;
+using CafeOrder.WebUI.ModelBinding;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
-// Site İngilizce: fiyatlar "185.50" biçiminde yazılır ve formdan da öyle okunur.
-CultureInfo.DefaultThreadCurrentCulture = CultureInfo.GetCultureInfo("en-US");
-CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.GetCultureInfo("en-US");
-
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllersWithViews();
+// Formdan gelen ondalık sayılar "185,50" ya da "185.50" yazılsa da doğru okunur (sunucunun diline bakılmaz).
+builder.Services.AddControllersWithViews(options =>
+    options.ModelBinderProviders.Insert(0, new DecimalModelBinderProvider()));
 builder.Services.AddDbContext<CafeOrderDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
@@ -44,6 +44,7 @@ builder.Services
         options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
     })
     .AddEntityFrameworkStores<CafeOrderDbContext>()
+    .AddErrorDescriber<TurkishIdentityErrorDescriber>()
     .AddClaimsPrincipalFactory<AppClaimsPrincipalFactory>();
 
 // Giriş çerezi 30 gün geçerli; panel kullanıldıkça süresi uzar.
@@ -78,6 +79,8 @@ builder.Services.AddScoped<ITableService, TableService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<ICartService, CartService>();
+builder.Services.AddScoped<IAccountService, AccountService>();
 
 // Observer: sipariş olaylarını dinleyenler
 builder.Services.AddScoped<IOrderObserver, KitchenObserver>();

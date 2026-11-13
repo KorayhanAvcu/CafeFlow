@@ -1,13 +1,14 @@
-@model ResultOrderDto
+@model ResultCartDto
 @{
-    ViewData["Title"] = "Your Cart — CafeFlow";
+    ViewData["Title"] = "Sepetiniz — CafeFlow";
     ViewData["NavPage"] = "cart";
 
-    OrderChannel? channel = ViewBag.Channel;
-    ResultTableDto? table = ViewBag.Table;
-    CreateOrderDto form = ViewBag.Form ?? new CreateOrderDto();   // formda yazılanlar (hata olunca geri gelir)
-    decimal freeDeliveryFrom = ViewBag.FreeDeliveryFrom;
-    var isEmpty = Model.Details.Count == 0;
+    // Bütün veri CartService.GetCartAsync'ten gelen ResultCartDto'da.
+    ResultOrderDto order = Model.Order;
+    OrderChannel? channel = Model.Channel;
+    ResultTableDto? table = Model.Table;
+    CreateOrderDto form = Model.Form;   // formda yazılanlar (hata olunca geri gelir)
+    var isEmpty = order.Details.Count == 0;
     OrderChannel[] channels = { OrderChannel.Delivery, OrderChannel.Pickup, OrderChannel.Table };
 }
 @section Styles {
@@ -19,18 +20,18 @@
     <div class="cf-blob cf-blob-1"></div>
     <div class="cf-blob cf-blob-2"></div>
     <div class="container position-relative">
-      <h1 class="cf-page-title">Your Sweet <em>Cart</em></h1>
-      <p class="cf-page-sub">Your favorite little treats are almost on their way!</p>
+      <h1 class="cf-page-title">Tatlı <em>Sepetiniz</em></h1>
+      <p class="cf-page-sub">En sevdiğiniz lezzetler yola çıkmak üzere!</p>
     </div>
   </header>
 
   <main class="cf-cart-section">
     <div class="container">
-      @if (ViewBag.Error != null)
+      @if (Model.Error != null)
       {
         <div class="cf-notice mb-4" role="alert">
           <i class="bi bi-exclamation-circle"></i>
-          <div><strong>We couldn't place your order</strong>@ViewBag.Error</div>
+          <div><strong>Siparişinizi alamadık</strong>@Model.Error</div>
         </div>
       }
 
@@ -40,11 +41,11 @@
           <!-- 1. Ürünler -->
           <section class="cf-panel">
             <div class="cf-panel-head">
-              <h2 class="cf-panel-title"><span class="cf-step">1</span> Your Treats</h2>
+              <h2 class="cf-panel-title"><span class="cf-step">1</span> Ürünleriniz</h2>
               @if (!isEmpty)
               {
                 <form method="post" asp-action="Clear">
-                  <button type="submit" class="cf-clear-btn"><i class="bi bi-trash3"></i> Clear cart</button>
+                  <button type="submit" class="cf-clear-btn"><i class="bi bi-trash3"></i> Sepeti boşalt</button>
                 </form>
               }
             </div>
@@ -52,15 +53,15 @@
             @if (isEmpty)
             {
               <div class="cf-empty-cart">
-                <h2>Your cart feels a little lonely...</h2>
-                <p>Let's fill it with something sweet!</p>
-                <a href="/products" class="btn cf-btn-primary cf-btn-lg">Explore Our Menu <i class="bi bi-arrow-right"></i></a>
+                <h2>Sepetiniz biraz yalnız görünüyor...</h2>
+                <p>Hadi onu tatlı bir şeyle dolduralım!</p>
+                <a href="/products" class="btn cf-btn-primary cf-btn-lg">Menümüzü Keşfedin <i class="bi bi-arrow-right"></i></a>
               </div>
             }
 
-            @for (var i = 0; i < Model.Details.Count; i++)
+            @for (var i = 0; i < order.Details.Count; i++)
             {
-              var line = Model.Details[i];
+              var line = order.Details[i];
               <article class="cf-item">
                 <a href="/products/@line.ProductId" class="cf-item-thumb">
                   <img src="@line.ProductImageUrl" alt="@line.ProductName" data-fallback="@line.ProductCategorySlug" />
@@ -79,16 +80,16 @@
                   }
                   <form method="post" asp-action="Update" class="cf-item-actions">
                     <input type="hidden" name="index" value="@i" />
-                    <button type="submit" name="quantity" value="0" class="cf-link-btn muted"><i class="bi bi-trash3"></i> Remove</button>
+                    <button type="submit" name="quantity" value="0" class="cf-link-btn muted"><i class="bi bi-trash3"></i> Kaldır</button>
                   </form>
                 </div>
                 <div class="cf-item-side">
-                  <span class="cf-unit">@Display.Money(line.UnitPrice) each</span>
+                  <span class="cf-unit">Adedi @Display.Money(line.UnitPrice)</span>
                   <form method="post" asp-action="Update" class="cf-stepper">
                     <input type="hidden" name="index" value="@i" />
-                    <button type="submit" name="quantity" value="@(line.Quantity - 1)" aria-label="Decrease"><i class="bi bi-dash"></i></button>
+                    <button type="submit" name="quantity" value="@(line.Quantity - 1)" aria-label="Azalt"><i class="bi bi-dash"></i></button>
                     <span>@line.Quantity</span>
-                    <button type="submit" name="quantity" value="@(line.Quantity + 1)" aria-label="Increase"><i class="bi bi-plus"></i></button>
+                    <button type="submit" name="quantity" value="@(line.Quantity + 1)" aria-label="Artır"><i class="bi bi-plus"></i></button>
                   </form>
                   <span class="cf-line-total">@Display.Money(line.LineTotal)</span>
                 </div>
@@ -98,10 +99,10 @@
 
           @if (!isEmpty)
           {
-            <!-- 2. Sipariş türü: seçip "Continue" denince sunucuya gider, ücret yeniden hesaplanır -->
+            <!-- 2. Sipariş türü: seçip "Devam" denince sunucuya gider, ücret yeniden hesaplanır -->
             <section class="cf-panel" id="orderType">
               <div class="cf-panel-head">
-                <h2 class="cf-panel-title"><span class="cf-step">2</span> How Would You Like Your Order?</h2>
+                <h2 class="cf-panel-title"><span class="cf-step">2</span> Siparişinizi Nasıl Almak İstersiniz?</h2>
               </div>
               <form method="post" asp-action="Channel">
                 <div class="cf-type-grid">
@@ -120,7 +121,7 @@
                     </label>
                   }
                 </div>
-                <button type="submit" class="btn cf-btn-outline mt-3">Continue</button>
+                <button type="submit" class="btn cf-btn-outline mt-3">Devam</button>
               </form>
             </section>
 
@@ -129,7 +130,7 @@
             {
               <section class="cf-panel">
                 <div class="cf-panel-head">
-                  <h2 class="cf-panel-title"><span class="cf-step">3</span> Your Details</h2>
+                  <h2 class="cf-panel-title"><span class="cf-step">3</span> Bilgileriniz</h2>
                 </div>
                 <form method="post" asp-action="Checkout" id="checkoutForm" class="cf-details">
                   @if (channel == OrderChannel.Table)
@@ -138,7 +139,7 @@
                     {
                       <div class="cf-table-card">
                         <span class="cf-table-num">@table.Number</span>
-                        <div><small>You're ordering from</small><strong>Table @table.Number · @table.Area</strong></div>
+                        <div><small>Sipariş verdiğiniz masa</small><strong>Masa @table.Number · @table.Area</strong></div>
                       </div>
                     }
                     else
@@ -146,8 +147,8 @@
                       <div class="cf-notice">
                         <i class="bi bi-qr-code-scan"></i>
                         <div>
-                          <strong>Scan the QR code on your table</strong>
-                          <a href="/cart?qr=CF-T07-ROSE" class="cf-text-link">Simulate a table scan (demo)</a>
+                          <strong>Masanızdaki QR kodu okutun</strong>
+                          <a href="/cart?qr=CF-T07-GUL" class="cf-text-link">Masa okutmayı dene (demo)</a>
                         </div>
                       </div>
                     }
@@ -156,34 +157,34 @@
                   {
                     <div class="row g-3 pb-3">
                       <div class="col-md-6">
-                        <label class="cf-label" for="fullName">Full Name</label>
+                        <label class="cf-label" for="fullName">Ad Soyad</label>
                         <input class="cf-input" id="fullName" name="FullName" value="@form.FullName" />
                       </div>
                       <div class="col-md-6">
-                        <label class="cf-label" for="phone">Phone Number</label>
+                        <label class="cf-label" for="phone">Telefon</label>
                         <input class="cf-input" id="phone" name="Phone" value="@form.Phone" />
                       </div>
                       @if (channel == OrderChannel.Delivery)
                       {
                         <div class="col-12">
-                          <label class="cf-label" for="address">Delivery Address</label>
+                          <label class="cf-label" for="address">Teslimat Adresi</label>
                           <textarea class="cf-textarea" id="address" name="Address" rows="2">@form.Address</textarea>
                         </div>
                         <div class="col-12">
-                          <label class="cf-label" for="addressNotes">Address Notes (optional)</label>
+                          <label class="cf-label" for="addressNotes">Adres Notu (isteğe bağlı)</label>
                           <input class="cf-input" id="addressNotes" name="AddressNotes" value="@form.AddressNotes" />
                         </div>
                       }
                       @if (channel == OrderChannel.Pickup)
                       {
                         <div class="col-md-6">
-                          <label class="cf-label" for="pickupTime">Pickup Time</label>
+                          <label class="cf-label" for="pickupTime">Teslim Alma Saati</label>
                           <input class="cf-input" id="pickupTime" name="PickupTime" type="datetime-local" value="@form.PickupTime?.ToString("yyyy-MM-ddTHH:mm")" />
                         </div>
                       }
                     </div>
                   }
-                  <label class="cf-label" for="note">Note (optional)</label>
+                  <label class="cf-label" for="note">Not (isteğe bağlı)</label>
                   <textarea class="cf-textarea" id="note" name="Note" rows="2" maxlength="300">@form.Note</textarea>
                 </form>
               </section>
@@ -194,28 +195,28 @@
         <!-- Özet: bütün tutarları OrderService.CalculateAsync hesapladı -->
         <div class="col-lg-4">
           <aside class="cf-summary" id="summary">
-            <div class="cf-summary-head"><h2>Order Summary</h2></div>
+            <div class="cf-summary-head"><h2>Sipariş Özeti</h2></div>
             <div class="cf-summary-body">
               <ul class="cf-sum-rows">
-                <li><span>Subtotal</span><span>@Display.Money(Model.Subtotal)</span></li>
-                <li><span>Delivery Fee</span><span>@(channel == null ? "—" : Model.DeliveryFee == 0 ? "Free" : Display.Money(Model.DeliveryFee))</span></li>
+                <li><span>Ara toplam</span><span>@Display.Money(order.Subtotal)</span></li>
+                <li><span>Teslimat Ücreti</span><span>@(channel == null ? "—" : order.DeliveryFee == 0 ? "Ücretsiz" : Display.Money(order.DeliveryFee))</span></li>
               </ul>
-              @if (channel == OrderChannel.Delivery && Model.DeliveryFee > 0)
+              @if (channel == OrderChannel.Delivery && order.DeliveryFee > 0)
               {
-                <p class="small text-muted">Free delivery from @Display.Money(freeDeliveryFrom).</p>
+                <p class="small text-muted">@Display.Money(Model.FreeDeliveryFrom) ve üzeri siparişlerde teslimat ücretsiz.</p>
               }
 
               <div class="cf-grand">
-                <span>Total</span>
-                <strong>@Display.Money(Model.Total)</strong>
+                <span>Toplam</span>
+                <strong>@Display.Money(order.Total)</strong>
               </div>
 
               <button type="submit" form="checkoutForm" class="btn cf-btn-primary cf-btn-lg w-100" disabled="@(isEmpty || channel == null)">
-                <i class="bi bi-lock"></i> Place Order
+                <i class="bi bi-lock"></i> Siparişi Ver
               </button>
               @if (!isEmpty && channel == null)
               {
-                <p class="small text-muted mt-2">Choose how you'd like your order first.</p>
+                <p class="small text-muted mt-2">Önce siparişinizi nasıl almak istediğinizi seçin.</p>
               }
             </div>
           </aside>

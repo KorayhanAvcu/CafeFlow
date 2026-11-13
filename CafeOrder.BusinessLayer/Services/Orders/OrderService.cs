@@ -60,7 +60,7 @@ public class OrderService : IOrderService
     /// <summary>Admin listesi ve dashboard: bütün siparişler, yeniden eskiye.</summary>
     public async Task<List<ResultOrderDto>> GetAllAsync()
     {
-        List<Order> orders = await _orderRepository.GetQueryable()
+        var orders = await _orderRepository.GetQueryable()
             .Include(o => o.Customer)
             .Include(o => o.Table)
             .Include(o => o.Details)
@@ -70,19 +70,100 @@ public class OrderService : IOrderService
         return _mapper.Map<List<ResultOrderDto>>(orders);
     }
 
+    /// <summary>Siparişi Id ile, kalemleri/seçenekleri/geçmişiyle birlikte getirir ve DTO'ya çevirir. Yoksa null.</summary>
     public async Task<ResultOrderDto?> GetByIdAsync(int id)
     {
-        Order? order = await OrdersWithDetails().FirstOrDefaultAsync(o => o.Id == id);
+        var order = await OrdersWithDetails().FirstOrDefaultAsync(o => o.Id == id);
         if (order == null)
         {
             return null;
         }
-        return _mapper.Map<ResultOrderDto>(order);
+        ResultOrderDto dto = _mapper.Map<ResultOrderDto>(order);
+
+        // STATE: bu durumdan hangi durumlara geçilebilir? Admin sayfası sadece bunların düğmesini gösterir.
+        dto.AllowedNextStatuses = OrderState.For(order.Status).GetAllowedNext();
+        return dto;
     }
 
+    /// <summary>
+    /// Admin sipariş listesi. Önce her durumdaki sipariş sayısını hesaplar (üstteki kartlar, filtreden önce),
+    /// sonra durum, kanal ve aramaya (sipariş no, müşteri adı, telefon) göre filtreler ve 10'arlı sayfalara böler.
+    /// </summary>
+    public async Task<ResultOrderListDto> GetAdminListAsync(OrderFilterDto filter)
+    {
+        const int pageSize = 10;
+        var orders = await GetAllAsync();
+
+        ResultOrderListDto result = new ResultOrderListDto();
+        result.Filter = filter;
+        foreach (OrderStatus status in Enum.GetValues<OrderStatus>())
+        {
+            result.StatusCounts[status] = orders.Count(o => o.Status == status);
+        }
+
+        if (filter.Status != null)
+        {
+            orders = orders.Where(o => o.Status == filter.Status).ToList();
+        }
+        if (filter.Channel != null)
+        {
+            orders = orders.Where(o => o.Channel == filter.Channel).ToList();
+        }
+        if (!string.IsNullOrWhiteSpace(filter.Q))
+        {
+            string q = filter.Q.Trim();
+            orders = orders.Where(o =>
+                o.OrderNo.Contains(q, StringComparison.OrdinalIgnoreCase)
+                || (o.CustomerFullName != null && o.CustomerFullName.Contains(q, StringComparison.CurrentCultureIgnoreCase))
+                || (o.CustomerPhone != null && o.CustomerPhone.Contains(q))).ToList();
+        }
+
+        // Sayfalama: 23 sipariş → 3 sayfa. Sayfa numarası 1 ile son sayfa arasına sıkıştırılır.
+        result.Total = orders.Count;
+        result.TotalPages = Math.Max(1, (int)Math.Ceiling(orders.Count / (double)pageSize));
+        filter.Page = Math.Clamp(filter.Page, 1, result.TotalPages);
+        result.Orders = orders.Skip((filter.Page - 1) * pageSize).Take(pageSize).ToList();
+        return result;
+    }
+
+    /// <summary>
+    /// Admin panel sayfasının bütün rakamları: bugünkü sipariş ve ciro, açık sipariş sayısı, son 7 günün cirosu,
+    /// durumlara göre sayılar, en çok satan 5 ürün ve son 6 sipariş. İptal edilen siparişler ciroya katılmaz.
+    /// </summary>
+    public async Task<ResultDashboardDto> GetDashboardAsync()
+    {
+        var orders = await GetAllAsync();
+        DateTime today = DateTime.Today;
+        DateTime weekStart = today.AddDays(-6);
+        List<ResultOrderDto> notCancelled = orders.Where(o => o.Status != OrderStatus.Cancelled).ToList();
+
+        ResultDashboardDto dashboard = new ResultDashboardDto();
+        dashboard.TodayOrders = orders.Count(o => o.CreatedAt >= today);
+        dashboard.TodayRevenue = notCancelled.Where(o => o.CreatedAt >= today).Sum(o => o.Total);
+        dashboard.WeekRevenue = notCancelled.Where(o => o.CreatedAt >= weekStart).Sum(o => o.Total);
+        dashboard.OpenOrders = orders.Count(o => o.Status == OrderStatus.Received || o.Status == OrderStatus.Preparing || o.Status == OrderStatus.Ready);
+        foreach (OrderStatus status in Enum.GetValues<OrderStatus>())
+        {
+            dashboard.StatusCounts[status] = orders.Count(o => o.Status == status);
+        }
+
+        // En çok satanlar: iptal edilmemiş siparişlerin bütün kalemleri ürün adına göre toplanır.
+        dashboard.BestSellers = notCancelled
+            .SelectMany(o => o.Details)
+            .GroupBy(d => d.ProductName)
+            .Select(g => new ResultBestSellerDto { Name = g.Key, Quantity = g.Sum(d => d.Quantity), Revenue = g.Sum(d => d.LineTotal) })
+            .OrderByDescending(r => r.Quantity)
+            .Take(5)
+            .ToList();
+
+        dashboard.LatestOrders = orders.Take(6).ToList();
+        return dashboard;
+    }
+
+    /// <summary>Siparişi sipariş numarasıyla getirir (müşterinin onay sayfası). Yoksa null.</summary>
     public async Task<ResultOrderDto?> GetByOrderNoAsync(string orderNo)
     {
-        Order? order = await OrdersWithDetails().FirstOrDefaultAsync(o => o.OrderNo == orderNo);
+        var order = await OrdersWithDetails().FirstOrDefaultAsync(o => o.OrderNo == orderNo);
         if (order == null)
         {
             return null;
@@ -90,6 +171,7 @@ public class OrderService : IOrderService
         return _mapper.Map<ResultOrderDto>(order);
     }
 
+    /// <summary>Verilen durumdaki sipariş sayısını SQL COUNT ile döndürür.</summary>
     public async Task<int> CountByStatusAsync(OrderStatus status)
     {
         return await _orderRepository.CountAsync(o => o.Status == status);
@@ -121,12 +203,12 @@ public class OrderService : IOrderService
             productIds.Add(item.ProductId);
         }
 
-        List<Product> products = await _productRepository.GetQueryable()
+        var products = await _productRepository.GetQueryable()
             .Include(p => p.Category)
             .Where(p => productIds.Contains(p.Id))
             .ToListAsync();
 
-        List<ProductOption> allOptions = await _productOptionRepository.GetAllAsync();
+        var allOptions = await _productOptionRepository.GetAllAsync();
 
         // 2) Her sepet satırı için bir sipariş kalemi oluştur.
         order.Details.Clear();
@@ -242,7 +324,7 @@ public class OrderService : IOrderService
         if (customer.Phone != "")
         {
             string phone = customer.Phone;
-            Customer? existing = await _customerRepository.GetFirstAsync(c => c.Phone == phone);
+            var existing = await _customerRepository.GetFirstAsync(c => c.Phone == phone);
             if (existing != null)
             {
                 customer = existing;
@@ -278,17 +360,17 @@ public class OrderService : IOrderService
     /// <summary>Admin sipariş detayındaki durum düğmeleri buraya gelir.</summary>
     public async Task ChangeStatusAsync(int id, OrderStatus target, string? note)
     {
-        Order? order = await OrdersWithDetails().FirstOrDefaultAsync(o => o.Id == id);
+        var order = await OrdersWithDetails().FirstOrDefaultAsync(o => o.Id == id);
         if (order == null)
         {
-            throw new BusinessException("Order not found.");
+            throw new BusinessException("Sipariş bulunamadı.");
         }
 
         // STATE: şu anki durum, hedef duruma geçişe izin veriyor mu?
         OrderState state = OrderState.For(order.Status);
         if (!state.CanMoveTo(target))
         {
-            throw new BusinessException("An order cannot move from " + order.Status + " to " + target + ".");
+            throw new BusinessException("Sipariş \"" + order.Status.ToText() + "\" durumundan \"" + target.ToText() + "\" durumuna geçemez.");
         }
 
         OrderStatus previous = order.Status;

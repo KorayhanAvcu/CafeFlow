@@ -1,4 +1,4 @@
-﻿namespace CafeOrder.BusinessLayer.Pricing;
+namespace CafeOrder.BusinessLayer.Pricing;
 
 /// <summary>DECORATOR deseni: en içteki kutu, ürünün seçeneksiz fiyatı.</summary>
 public class BaseProductPrice : IPriceComponent
@@ -10,6 +10,7 @@ public class BaseProductPrice : IPriceComponent
         _basePrice = basePrice;
     }
 
+    /// <summary>Ürünün seçeneksiz taban fiyatını döndürür (sarmanın en içi).</summary>
     public decimal GetPrice()
     {
         return _basePrice;

@@ -9,6 +9,7 @@ namespace CafeOrder.WebUI.ViewComponents;
 /// <summary>Navbar'daki sepet sayısı. View: Views/Shared/Components/CartCount/Default.cshtml</summary>
 public class CartCountViewComponent : ViewComponent
 {
+    /// <summary>Navbar'daki sepet rozetini çizer: Session'daki toplam ürün adedi.</summary>
     public IViewComponentResult Invoke()
     {
         int count = HttpContext.Session.CartCount();
@@ -26,10 +27,11 @@ public class CartDrawerViewComponent : ViewComponent
         _orderService = orderService;
     }
 
+    /// <summary>Sağdan açılan sepet panelini çizer; fiyatları OrderService hesaplar (ücretsiz kanal gibi).</summary>
     public async Task<IViewComponentResult> InvokeAsync()
     {
         // Panelde teslimat ücreti gösterilmez; bu yüzden gel-al gibi hesaplanır.
-        ResultOrderDto cart = await _orderService.CalculateAsync(OrderChannel.Pickup, HttpContext.Session.GetCart());
+        var cart = await _orderService.CalculateAsync(OrderChannel.Pickup, HttpContext.Session.GetCart());
         return View(cart);
     }
 }

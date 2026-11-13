@@ -4,17 +4,17 @@
 }
 <div class="offcanvas offcanvas-end cf-cart-drawer" tabindex="-1" id="cartDrawer" aria-labelledby="cartTitle">
   <div class="offcanvas-header">
-    <h5 class="offcanvas-title" id="cartTitle"><i class="bi bi-bag-heart"></i> Your Sweet Cart</h5>
-    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    <h5 class="offcanvas-title" id="cartTitle"><i class="bi bi-bag-heart"></i> Tatlı Sepetiniz</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Kapat"></button>
   </div>
   <div class="offcanvas-body d-flex flex-column">
     @if (Model.Details.Count == 0)
     {
       <div class="cf-cart-empty">
         <span class="cf-cat-icon"><i class="bi bi-bag-heart"></i></span>
-        <h6>Your cart is feeling light</h6>
-        <p>Add a latte or a little slice of happiness.</p>
-        <button type="button" class="btn cf-btn-outline" data-bs-dismiss="offcanvas">Browse the menu</button>
+        <h6>Sepetiniz biraz hafif</h6>
+        <p>Bir latte ya da küçük bir dilim mutluluk ekleyin.</p>
+        <button type="button" class="btn cf-btn-outline" data-bs-dismiss="offcanvas">Menüye göz at</button>
       </div>
     }
     else
@@ -38,16 +38,16 @@
                 }
                 else
                 {
-                  @(Display.Money(line.UnitPrice) + " each")
+                  @("Adedi " + Display.Money(line.UnitPrice))
                 }
               </div>
               <div class="cf-cart-line-bottom">
                 <form method="post" asp-controller="Cart" asp-action="Update" class="cf-stepper">
                   <input type="hidden" name="index" value="@i" />
                   <input type="hidden" name="returnUrl" value="@returnUrl" />
-                  <button type="submit" name="quantity" value="@(line.Quantity - 1)" aria-label="Decrease"><i class="bi bi-dash"></i></button>
+                  <button type="submit" name="quantity" value="@(line.Quantity - 1)" aria-label="Azalt"><i class="bi bi-dash"></i></button>
                   <span>@line.Quantity</span>
-                  <button type="submit" name="quantity" value="@(line.Quantity + 1)" aria-label="Increase"><i class="bi bi-plus"></i></button>
+                  <button type="submit" name="quantity" value="@(line.Quantity + 1)" aria-label="Artır"><i class="bi bi-plus"></i></button>
                 </form>
                 <span class="cf-line-price">@Display.Money(line.LineTotal)</span>
               </div>
@@ -58,11 +58,11 @@
 
       <div class="cf-cart-footer">
         <ul class="cf-cart-summary">
-          <li><span>Items</span><span>@Model.Details.Sum(d => d.Quantity)</span></li>
-          <li class="cf-sum-total"><span>Subtotal</span><strong>@Display.Money(Model.Subtotal)</strong></li>
+          <li><span>Ürün</span><span>@Model.Details.Sum(d => d.Quantity)</span></li>
+          <li class="cf-sum-total"><span>Ara toplam</span><strong>@Display.Money(Model.Subtotal)</strong></li>
         </ul>
         <div class="d-grid gap-2">
-          <a href="/cart" class="btn cf-btn-primary cf-btn-lg">View Cart &amp; Checkout <i class="bi bi-arrow-right"></i></a>
+          <a href="/cart" class="btn cf-btn-primary cf-btn-lg">Sepete Git ve Sipariş Ver <i class="bi bi-arrow-right"></i></a>
         </div>
       </div>
     }

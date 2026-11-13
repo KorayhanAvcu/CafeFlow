@@ -1,32 +1,35 @@
+@using System.Globalization
+@using CafeOrder.BusinessLayer.Services.Products
 @model UpdateProductDto
 @{
     var isNew = Model.Id == 0;
-    ViewData["Title"] = (isNew ? "New Product" : Model.Name) + " · CafeFlow Management Studio";
+    ViewData["Title"] = (isNew ? "Yeni Ürün" : Model.Name) + " · CafeFlow Yönetim Paneli";
     ViewData["AdminPage"] = "products";
-    ViewData["Crumb"] = isNew ? "New Product" : "Edit Product";
+    ViewData["Crumb"] = isNew ? "Yeni Ürün" : "Ürünü Düzenle";
     List<ResultCategoryDto> categories = ViewBag.Categories;
-    var badges = new[] { "Best Seller", "New", "Popular", "Chef's Choice" };
+    // Sayı kutusu (type="number") her dilde noktalı değer bekler: 185.50
+    string price = Model.BasePrice == 0 ? "" : Model.BasePrice.ToString(CultureInfo.InvariantCulture);
 }
 
 <div class="adm-page-head">
   <div>
-    <a href="/admin/products" class="adm-btn adm-btn-ghost adm-btn-sm mb-2"><i class="bi bi-arrow-left"></i> All products</a>
-    <h1 class="adm-page-title">@(isNew ? "New product" : Model.Name)</h1>
+    <a href="/admin/products" class="adm-btn adm-btn-ghost adm-btn-sm mb-2"><i class="bi bi-arrow-left"></i> Tüm ürünler</a>
+    <h1 class="adm-page-title">@(isNew ? "Yeni ürün" : Model.Name)</h1>
   </div>
 </div>
 
-<partial name="_Flash" model="@((string?)ViewBag.Error)" />
+<partial name="_ErrorMessage" model="@((string?)ViewBag.Error)" />
 
 <form method="post" action="/admin/products/save" class="adm-card">
   @Html.AntiForgeryToken()
   <input type="hidden" name="Id" value="@Model.Id" />
   <div class="pg-card-body row g-3">
     <div class="col-md-8">
-      <label class="adm-label" for="name">Name</label>
+      <label class="adm-label" for="name">Ad</label>
       <input class="adm-input" id="name" name="Name" value="@Model.Name" />
     </div>
     <div class="col-md-4">
-      <label class="adm-label" for="category">Category</label>
+      <label class="adm-label" for="category">Kategori</label>
       <select class="adm-select w-100" id="category" name="CategoryId">
         @foreach (var c in categories)
         {
@@ -35,36 +38,36 @@
       </select>
     </div>
     <div class="col-md-4">
-      <label class="adm-label" for="price">Price (₺)</label>
-      <input class="adm-input" id="price" name="BasePrice" type="number" step="0.01" value="@Model.BasePrice" />
+      <label class="adm-label" for="price">Fiyat (₺)</label>
+      <input class="adm-input" id="price" name="BasePrice" type="number" step="0.01" min="0" value="@price" />
     </div>
     <div class="col-md-4">
-      <label class="adm-label" for="badge">Badge</label>
+      <label class="adm-label" for="badge">Rozet</label>
       <select class="adm-select w-100" id="badge" name="Badge">
-        <option value="">No badge</option>
-        @foreach (var b in badges)
+        <option value="">Rozet yok</option>
+        @foreach (var b in ProductService.Badges)
         {
           <option value="@b" selected="@(Model.Badge == b)">@b</option>
         }
       </select>
     </div>
     <div class="col-12">
-      <label class="adm-label" for="description">Short description</label>
+      <label class="adm-label" for="description">Kısa açıklama</label>
       <textarea class="adm-textarea" id="description" name="Description" rows="2">@Model.Description</textarea>
     </div>
     <div class="col-12">
-      <label class="adm-label" for="image">Image URL</label>
+      <label class="adm-label" for="image">Görsel adresi (URL)</label>
       <input class="adm-input" id="image" name="ImageUrl" value="@Model.ImageUrl" />
     </div>
     <div class="col-12 d-flex gap-4 flex-wrap">
-      <label><input type="checkbox" name="IsCustomizable" value="true" checked="@Model.IsCustomizable" /> Customizable (size, milk, extras)</label>
-      <label><input type="checkbox" name="IsVegetarian" value="true" checked="@Model.IsVegetarian" /> Vegetarian</label>
-      <label><input type="checkbox" name="IsActive" value="true" checked="@Model.IsActive" /> Active</label>
+      <label><input type="checkbox" name="IsCustomizable" value="true" checked="@Model.IsCustomizable" /> Özelleştirilebilir (boyut, süt, ekstralar)</label>
+      <label><input type="checkbox" name="IsVegetarian" value="true" checked="@Model.IsVegetarian" /> Vejetaryen</label>
+      <label><input type="checkbox" name="IsActive" value="true" checked="@Model.IsActive" /> Aktif</label>
       <input type="hidden" name="IsActive" value="false" />
     </div>
   </div>
   <div class="pg-form-foot">
-    <a href="/admin/products" class="adm-btn adm-btn-light">Cancel</a>
-    <button type="submit" class="adm-btn adm-btn-primary">Save</button>
+    <a href="/admin/products" class="adm-btn adm-btn-light">Vazgeç</a>
+    <button type="submit" class="adm-btn adm-btn-primary">Kaydet</button>
   </div>
 </form>

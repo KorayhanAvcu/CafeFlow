@@ -22,7 +22,7 @@ public class ProductsController : Controller
     [HttpGet("")]
     public async Task<IActionResult> Index(string? category, string? q)
     {
-        List<ResultProductDto> products = await _productService.GetMenuAsync(category, q);
+        var products = await _productService.GetMenuAsync(category, q);
 
         ViewBag.Categories = await _categoryService.GetActiveAsync();
         ViewBag.Category = category;
@@ -34,7 +34,7 @@ public class ProductsController : Controller
     [HttpGet("{id:int}")]
     public async Task<IActionResult> Detail(int id)
     {
-        ResultProductDto? product = await _productService.GetActiveByIdAsync(id);
+        var product = await _productService.GetActiveByIdAsync(id);
         if (product == null)
         {
             Response.StatusCode = 404;

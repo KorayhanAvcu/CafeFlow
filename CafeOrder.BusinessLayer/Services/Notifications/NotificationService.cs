@@ -35,14 +35,31 @@ public class NotificationService : INotificationService
             query = query.Where(n => !n.IsRead);
         }
 
-        List<Notification> notifications = await query.OrderByDescending(n => n.Id).ToListAsync();
+        var notifications = await query.OrderByDescending(n => n.Id).ToListAsync();
         return _mapper.Map<List<ResultNotificationDto>>(notifications);
+    }
+
+    /// <summary>
+    /// Bildirimler sayfasının bütün verisi: filtrelenmiş liste, toplam okunmamış sayısı ve
+    /// her hedef (mutfak, kasa, yönetici) için ayrı okunmamış sayısı.
+    /// </summary>
+    public async Task<ResultNotificationPageDto> GetPageAsync(NotificationTarget? target, bool unreadOnly)
+    {
+        ResultNotificationPageDto page = new ResultNotificationPageDto();
+        page.Target = target;
+        page.Notifications = await GetAllAsync(target, unreadOnly);
+        page.UnreadAll = await CountUnreadAsync(null);
+        foreach (NotificationTarget t in Enum.GetValues<NotificationTarget>())
+        {
+            page.UnreadByTarget[t] = await CountUnreadAsync(t);
+        }
+        return page;
     }
 
     /// <summary>Üst çubuktaki zil için son birkaç bildirim.</summary>
     public async Task<List<ResultNotificationDto>> GetLatestAsync(NotificationTarget target, int count)
     {
-        List<Notification> notifications = await _notificationRepository.GetQueryable()
+        var notifications = await _notificationRepository.GetQueryable()
             .Include(n => n.Order)
             .Where(n => n.Target == target)
             .OrderByDescending(n => n.Id)

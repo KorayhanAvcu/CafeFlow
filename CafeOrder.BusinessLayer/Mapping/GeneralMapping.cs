@@ -27,14 +27,14 @@ public class GeneralMapping : Profile
             .ForMember(dest => dest.ProductCount, opt => opt.MapFrom(src => src.Products.Count));
         CreateMap<CreateCategoryDto, Category>();
         CreateMap<UpdateCategoryDto, Category>();
-        CreateMap<ResultCategoryDto, UpdateCategoryDto>();    // düzenleme formunu doldurmak için
+        CreateMap<Category, UpdateCategoryDto>();             // düzenleme formunu doldurmak için (CategoryService.GetFormAsync)
         CreateMap<UpdateCategoryDto, CreateCategoryDto>();    // form Id = 0 ile gelirse yeni kayıt
 
         // ---------- Ürün ----------
         CreateMap<Product, ResultProductDto>();               // CategoryName, CategorySlug, CategoryIcon kendiliğinden
         CreateMap<CreateProductDto, Product>();
         CreateMap<UpdateProductDto, Product>();
-        CreateMap<ResultProductDto, UpdateProductDto>();
+        CreateMap<Product, UpdateProductDto>();               // düzenleme formu (ProductService.GetFormAsync)
         CreateMap<UpdateProductDto, CreateProductDto>();
         CreateMap<ProductOption, ResultProductOptionDto>();
 
@@ -43,7 +43,7 @@ public class GeneralMapping : Profile
             .ForMember(dest => dest.OrderCount, opt => opt.MapFrom(src => src.Orders.Count));
         CreateMap<CreateTableDto, Table>();
         CreateMap<UpdateTableDto, Table>();
-        CreateMap<ResultTableDto, UpdateTableDto>();
+        CreateMap<Table, UpdateTableDto>();                   // düzenleme formu (TableService.GetFormAsync)
         CreateMap<UpdateTableDto, CreateTableDto>();
 
         // ---------- Müşteri ----------

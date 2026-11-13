@@ -13,13 +13,4 @@ namespace CafeOrder.WebUI.Areas.Admin.Controllers;
 [Authorize(Roles = AppRoles.Admin)]
 public abstract class AdminControllerBase : Controller
 {
-    /// <summary>
-    /// Redirect'ten sonraki sayfada bir kez gösterilecek mesaj (TempData bir sonraki isteğe kadar yaşar).
-    /// type: "info" (yeşil) veya "warn" (sarı). Mesajı _Flash.cshtml gösterir.
-    /// </summary>
-    protected void Flash(string type, string? message)
-    {
-        TempData["FlashType"] = type;
-        TempData["Flash"] = message;
-    }
 }

@@ -7,6 +7,7 @@ namespace CafeOrder.DataAccessLayer.Context.Configurations;
 /// <summary>Products tablosunun kuralları.</summary>
 public class ProductConfiguration : IEntityTypeConfiguration<Product>
 {
+    /// <summary>Products tablosu: ad uzunluğu ve kategori ilişkisi Restrict (ürünü olan kategori silinemez).</summary>
     public void Configure(EntityTypeBuilder<Product> builder)
     {
         builder.Property(x => x.Name).HasMaxLength(150).IsRequired();

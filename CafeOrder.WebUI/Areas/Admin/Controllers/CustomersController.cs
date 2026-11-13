@@ -14,6 +14,7 @@ public class CustomersController : AdminControllerBase
         _customerService = customerService;
     }
 
+    /// <summary>Müşteri listesi sayfası; q ile ad veya telefonda arama.</summary>
     [HttpGet("")]
     public async Task<IActionResult> Index(string? q)
     {

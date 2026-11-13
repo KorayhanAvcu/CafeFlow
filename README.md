@@ -6,12 +6,16 @@ ASP.NET Core MVC (.NET 8) ile geliştirilmiş, tasarım deseni tabanlı kafe sip
 
 Müşteriler giriş yapmadan online teslimat, gel-al veya masadaki QR kod ile sipariş verir. Yönetici giriş yaparak menüyü, masaları ve siparişleri yönetir; yeni siparişler ve durum değişiklikleri panelde bildirim olarak görünür. Gerçek ödeme, kurye ve SMS entegrasyonu kapsam dışıdır.
 
+Sitenin tamamı (müşteri sayfaları, admin paneli, hata ve bildirim mesajları, örnek menü) **Türkçedir**. Uygulamada global bir kültür ayarı yoktur: para ve tarih yardımcı metotlarda açıkça Türkçe biçimlenir (`₺1.234,50`, `13 Kas 2026, 10:30`), formdan gelen ondalık sayılar ise `185,50` veya `185.50` yazılsa da doğru okunur. Böylece site sunucunun dili ne olursa olsun aynı görünür.
+
+Kod okumaya yeni başlayanlar için bütün kodu satır satır anlatan rehber: **[docs/kod-rehberi](docs/kod-rehberi/00-BASLA.md)**
+
 ## Özellikler
 
 ### Müşteri tarafı (herkese açık)
 
 - **Ana Sayfa:** kategoriler ve öne çıkan (rozetli) ürünler veritabanından gelir
-- **Ürünler:** arama ve kategori filtresi; ikisi de sunucuda uygulanır (`/products?category=cakes&q=latte`)
+- **Ürünler:** arama ve kategori filtresi; ikisi de sunucuda uygulanır (`/products?category=pastalar&q=latte`)
 - **Ürün Detay:** açıklama, fiyat; boyut, süt, ekstra shot ve şurup seçimi; aynı kategoriden diğer ürünler
 - **Sepet:** Session'da tutulur; teslimat, gel-al veya QR ile masa siparişi; bütün tutarları sunucu hesaplar
 - **Sipariş onayı:** sipariş numarası ve özet
@@ -112,7 +116,7 @@ CafeOrder.WebUI/             Controllers, Views, Cart (Session), ViewComponents,
 
 ## Bir Sipariş Nasıl İşlenir?
 
-Müşteri sepette **Place Order** düğmesine bastığında sırasıyla şunlar çalışır:
+Müşteri sepette **Siparişi Ver** düğmesine bastığında sırasıyla şunlar çalışır:
 
 ```text
 Views/Cart/Index.cshtml            form → POST /cart/checkout (CreateOrderDto)
@@ -146,6 +150,8 @@ Admin sipariş detayında bir durum düğmesine bastığında: `OrdersController
 | State | `BusinessLayer/States` | Sipariş durumları arasında yalnızca izinli geçişlere izin verir |
 | Observer | `BusinessLayer/Events` | Sipariş olaylarını mutfak, kasa ve admin'e bildirir; admin bildirimleri paneldeki zilde görünür |
 
+Her desenin amacı, kullanılan sınıflar, tetiklendiği iş akışı ve test edilen senaryolar: **[docs/DESIGN_PATTERNS.md](docs/DESIGN_PATTERNS.md)**
+
 ## İş Kuralları
 
 **Sipariş**
@@ -164,7 +170,7 @@ Admin sipariş detayında bir durum düğmesine bastığında: `OrdersController
 
 - Ürünü olan kategori silinemez. Pasif kategorinin ürünleri menüde görünmez.
 - Geçmiş siparişlerde geçen ürün veya masa silinemez; bunun yerine pasif yapılır.
-- Ürün fiyatı 0'dan büyük ve en fazla 10.000 ₺ olur; rozet yalnızca Best Seller, New, Popular veya Chef's Choice olabilir.
+- Ürün fiyatı 0'dan büyük ve en fazla 10.000 ₺ olur; rozet yalnızca Çok Satan, Yeni, Popüler veya Şefin Seçimi olabilir.
 - Masa numarası benzersizdir. QR kodu `CF-T07-ABC123` biçiminde rastgele üretilir. Masa numarası değişince veya "yeni QR" istenince eski kod çalışmaz.
 
 ## Kurulum
@@ -190,6 +196,12 @@ cd CafeFlow
 ```
 
 `Server=` kısmını kendi sunucu adınızla değiştirin (ör. `.\\SQLEXPRESS` veya LocalDB için `(localdb)\\MSSQLLocalDB`).
+
+Repodaki dosyayı değiştirmek istemezseniz bağlantı adresini yalnızca kendi bilgisayarınızda geçerli olacak şekilde User Secrets'a yazabilirsiniz (appsettings.json'daki değerin yerine geçer):
+
+```bash
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=.\SQLEXPRESS;Database=CafeOrderDb;Trusted_Connection=True;TrustServerCertificate=True" --project CafeOrder.WebUI
+```
 
 **2. Admin şifresini belirleyin (bir kez)**
 
@@ -223,6 +235,12 @@ Visual Studio'da `CafeOrder.slnx` dosyasını açın, `CafeOrder.WebUI` projesin
 
 Veritabanı şeması EF Core migration dosyalarıyla oluşur (`CafeOrder.DataAccessLayer/Migrations`); uygulama açılırken eksik migration'ları kendisi uygular.
 
+Aynı şema düz SQL olarak da repodadır: [`database/CafeOrderDb_schema.sql`](database/CafeOrderDb_schema.sql). Bu dosya bütün migration'lardan üretilmiştir ve tekrar çalıştırılabilir (idempotent). Migration değişince yeniden üretmek için:
+
+```bash
+dotnet ef migrations script --idempotent --project CafeOrder.DataAccessLayer --startup-project CafeOrder.WebUI -o database/CafeOrderDb_schema.sql
+```
+
 LocalDB kullanıyorsanız ve açılmazsa ("Local Database Runtime error") şu iki komutu deneyin, olmazsa bilgisayarı yeniden başlatın:
 
 ```bash
@@ -238,11 +256,11 @@ sqllocaldb start MSSQLLocalDB
 | Sayfa | Adres |
 |---|---|
 | Ana Sayfa | `/` |
-| Ürünler | `/products` (kategori için `/products?category=cakes`) |
+| Ürünler | `/products` (kategori için `/products?category=pastalar`) |
 | Ürün Detay | `/products/7` |
 | Sepet | `/cart` |
-| Masa 7 QR'ı | `/cart?qr=CF-T07-ROSE` |
-| Masa 12 QR'ı | `/cart?qr=CF-T12-PEACH` |
+| Masa 7 QR'ı | `/cart?qr=CF-T07-GUL` |
+| Masa 12 QR'ı | `/cart?qr=CF-T12-SEFTALI` |
 | Admin: Giriş | `/admin/login` |
 | Admin: Dashboard | `/admin` |
 | Admin: Siparişler | `/admin/orders` |
@@ -260,8 +278,38 @@ sqllocaldb start MSSQLLocalDB
 | Kategori | 8 | 7 aktif, 1 pasif |
 | Ürün | 20 | 7 tanesi özelleştirilebilir |
 | Ürün seçeneği | 9 | Boyut, süt, ekstra shot, şurup |
-| Masa | 2 | `CF-T07-ROSE` (Masa 7), `CF-T12-PEACH` (Masa 12) |
+| Masa | 2 | `CF-T07-GUL` (Masa 7), `CF-T12-SEFTALI` (Masa 12) |
 | Admin hesabı | 1 | E-posta `appsettings.Development.json`'dan, şifre User Secrets'tan |
+
+Yukarıdakiler uygulama ilk açıldığında otomatik eklenir. Dashboard, sipariş listesi, filtreler ve bildirimler dolu görünsün diye **örnek siparişler** ayrı bir SQL scriptindedir: [`database/CafeOrderDb_sample_orders.sql`](database/CafeOrderDb_sample_orders.sql). Uygulamayı bir kez çalıştırdıktan sonra:
+
+```bash
+sqlcmd -S .\SQLEXPRESS -d CafeOrderDb -E -I -f 65001 -i database/CafeOrderDb_sample_orders.sql
+```
+
+| Veri | Adet | Detay |
+|---|---|---|
+| Müşteri | 5 | Ayşe Yılmaz, Mehmet Demir, Zeynep Kaya, Ali Vural, Can Öztürk |
+| Sipariş | 11 | 4 teslimat, 4 gel-al, 3 masa (Masa 7 ve 12); son 7 güne yayılır |
+| Durumlar | Hepsi | Alındı, Hazırlanıyor, Hazır, Teslim Edildi ve iki iptal (Alındı'dan ve Hazırlanıyor'dan) |
+| Durum geçmişi ve bildirimler | Her sipariş için | Uygulamanın yazdığı kayıtlarla aynı biçimde |
+
+Fiyatlar uygulama kurallarıyla aynı hesaplanmıştır. Örneğin `CF-DEMO0001`: Vanilyalı Latte Büyük + Yulaf Sütü + Shot 225 ₺ × 2, aynı ürün Küçük + Vanilya Şurubu 170 ₺ (ayrı kalem), Tereyağlı Kruvasan 95 ₺; ara toplam 715 ₺ olduğu için teslimat ücretsiz. Script tekrar çalıştırılırsa hiçbir şey eklemez.
+
+## Ekran Görüntüleri
+
+Bütün görüntüler [`docs/screenshots`](docs/screenshots) klasöründedir.
+
+| Müşteri | Admin |
+|---|---|
+| ![Ana Sayfa](docs/screenshots/01-home.png) | ![Dashboard](docs/screenshots/09-admin-dashboard.png) |
+| ![Ürünler](docs/screenshots/02-products.png) | ![Siparişler](docs/screenshots/10-admin-orders.png) |
+| ![Ürün Detay](docs/screenshots/04-product-detail.png) | ![Sipariş Detay](docs/screenshots/11-admin-order-detail.png) |
+| ![Sepet](docs/screenshots/05-cart.png) | ![Kategoriler](docs/screenshots/12-admin-categories.png) |
+| ![QR Masa Siparişi](docs/screenshots/06-cart-table-qr.png) | ![Kategori Formu](docs/screenshots/13-admin-category-form.png) |
+| ![Sipariş Onayı](docs/screenshots/07-order-confirmation.png) | ![Bildirimler](docs/screenshots/17-admin-notifications.png) |
+
+Diğerleri: [arama ve filtre](docs/screenshots/03-products-filter.png), [admin girişi](docs/screenshots/08-admin-login.png), [ürünler](docs/screenshots/14-admin-products.png), [masalar](docs/screenshots/15-admin-tables.png), [müşteriler](docs/screenshots/16-admin-customers.png).
 
 ## Kapsam Dışı
 

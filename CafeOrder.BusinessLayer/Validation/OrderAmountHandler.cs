@@ -15,11 +15,12 @@ public class OrderAmountHandler : OrderValidationHandler
         _options = options;
     }
 
+    /// <summary>Halka 4: teslimat siparişinde ara toplamın en az sipariş tutarına (100 ₺) ulaştığını kontrol eder.</summary>
     protected override void Check(Order order)
     {
         if (order.Channel == OrderChannel.Delivery && order.Subtotal < _options.MinDeliveryAmount)
         {
-            throw new BusinessException("Minimum delivery order is " + _options.MinDeliveryAmount.ToString("0") + " ₺.");
+            throw new BusinessException("Teslimat için en az sipariş tutarı " + _options.MinDeliveryAmount.ToString("0") + " ₺.");
         }
     }
 }

@@ -31,4 +31,10 @@ public class ResultOrderDto
 
     public List<ResultOrderDetailDto> Details { get; set; } = new List<ResultOrderDetailDto>();
     public List<ResultOrderStatusHistoryDto> StatusHistories { get; set; } = new List<ResultOrderStatusHistoryDto>();
+
+    /// <summary>
+    /// Bu durumdan geçilebilecek durumlar (STATE deseni). OrderService.GetByIdAsync doldurur;
+    /// admin sipariş detayı sadece bunların düğmesini gösterir. Boşsa sipariş son durumundadır.
+    /// </summary>
+    public List<OrderStatus> AllowedNextStatuses { get; set; } = new List<OrderStatus>();
 }

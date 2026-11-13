@@ -1,14 +1,14 @@
-@model LoginInput
+@model LoginUserDto
 @{
     Layout = null;
     var errors = ViewData.ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).Distinct().ToList();
 }
 <!DOCTYPE html>
-<html lang="en">
+<html lang="tr">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sign in · CafeFlow Management Studio</title>
+  <title>Giriş · CafeFlow Yönetim Paneli</title>
   <meta name="robots" content="noindex" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
@@ -20,16 +20,16 @@
 </head>
 <body class="adm auth-page">
   <main class="auth-card">
-    <a href="/" class="adm-brand auth-brand" aria-label="CafeFlow home">
+    <a href="/" class="adm-brand auth-brand" aria-label="CafeFlow ana sayfa">
       <span class="adm-brand-mark"><i class="bi bi-cup-hot-fill"></i></span>
       <span class="adm-brand-text">
         <strong>Cafe<span>Flow</span></strong>
-        <small>Management Studio</small>
+        <small>Yönetim Paneli</small>
       </span>
     </a>
 
-    <h1 class="auth-title">Welcome back</h1>
-    <p class="auth-sub">Sign in to manage orders, the menu and tables.</p>
+    <h1 class="auth-title">Tekrar hoş geldiniz</h1>
+    <p class="auth-sub">Siparişleri, menüyü ve masaları yönetmek için giriş yapın.</p>
 
     @if (errors.Count > 0)
     {
@@ -43,25 +43,25 @@
       @Html.AntiForgeryToken()
       <input type="hidden" name="ReturnUrl" value="@Model.ReturnUrl" />
 
-      <label class="adm-label" for="email">Email</label>
+      <label class="adm-label" for="email">E-posta</label>
       <div class="adm-input-icon mb-3">
         <i class="bi bi-envelope"></i>
         <input type="email" class="adm-input" id="email" name="Email" value="@Model.Email" autocomplete="username" required autofocus />
       </div>
 
-      <label class="adm-label" for="password">Password</label>
+      <label class="adm-label" for="password">Şifre</label>
       <div class="adm-input-icon auth-password mb-3">
         <i class="bi bi-lock"></i>
         <input type="password" class="adm-input" id="password" name="Password" autocomplete="current-password" required />
-        <button type="button" class="auth-eye" id="togglePassword" aria-label="Show password" aria-pressed="false"><i class="bi bi-eye"></i></button>
+        <button type="button" class="auth-eye" id="togglePassword" aria-label="Şifreyi göster" aria-pressed="false"><i class="bi bi-eye"></i></button>
       </div>
 
-      <p class="auth-note"><i class="bi bi-shield-check"></i> You stay signed in on this device for 30 days, or until you log out.</p>
+      <p class="auth-note"><i class="bi bi-shield-check"></i> Bu cihazda 30 gün boyunca ya da çıkış yapana kadar oturumunuz açık kalır.</p>
 
-      <button type="submit" class="adm-btn adm-btn-primary w-100 auth-submit"><i class="bi bi-box-arrow-in-right"></i> Sign in</button>
+      <button type="submit" class="adm-btn adm-btn-primary w-100 auth-submit"><i class="bi bi-box-arrow-in-right"></i> Giriş Yap</button>
     </form>
 
-    <a href="/" class="auth-back"><i class="bi bi-arrow-left"></i> Back to the cafe</a>
+    <a href="/" class="auth-back"><i class="bi bi-arrow-left"></i> Kafeye dön</a>
   </main>
 
   <script>
@@ -72,7 +72,7 @@
         const show = input.type === "password";
         input.type = show ? "text" : "password";
         btn.setAttribute("aria-pressed", String(show));
-        btn.setAttribute("aria-label", show ? "Hide password" : "Show password");
+        btn.setAttribute("aria-label", show ? "Şifreyi gizle" : "Şifreyi göster");
         btn.innerHTML = `<i class="bi ${show ? "bi-eye-slash" : "bi-eye"}"></i>`;
       });
     })();

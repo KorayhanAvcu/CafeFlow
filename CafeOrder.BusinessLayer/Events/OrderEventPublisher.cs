@@ -31,7 +31,7 @@ public class OrderEventPublisher
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Notification failed for order {OrderNo}", order.OrderNo);
+                _logger.LogError(ex, "{OrderNo} siparişi için bildirim yazılamadı", order.OrderNo);
             }
         }
     }

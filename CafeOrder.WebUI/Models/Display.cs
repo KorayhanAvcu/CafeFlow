@@ -6,37 +6,47 @@ namespace CafeOrder.WebUI.Models;
 /// <summary>Müşteri sayfalarında tekrar eden küçük yazı işleri (view'lar kullanır).</summary>
 public static class Display
 {
-    /// <summary>Fiyatı ₺1,234.50 biçiminde yazar.</summary>
+    private static readonly CultureInfo Turkish = CultureInfo.GetCultureInfo("tr-TR");
+
+    /// <summary>Fiyatı ₺1.234,50 biçiminde yazar.</summary>
     public static string Money(decimal amount)
     {
-        return "₺" + amount.ToString("N2", CultureInfo.GetCultureInfo("en-US"));
+        return "₺" + amount.ToString("N2", Turkish);
+    }
+
+    /// <summary>Tarihi "13 Kasım, 10:30" biçiminde yazar.</summary>
+    public static string DateTimeText(DateTime value)
+    {
+        return value.ToString("d MMMM, HH:mm", Turkish);
     }
 
     /// <summary>Ürün rozetinin CSS sınıfı.</summary>
     public static string BadgeClass(string? badge)
     {
-        if (badge == "Best Seller") return "cf-tag-best";
-        if (badge == "New") return "cf-tag-new";
-        if (badge == "Popular") return "cf-tag-popular";
-        if (badge == "Chef's Choice") return "cf-tag-chef";
+        if (badge == "Çok Satan") return "cf-tag-best";
+        if (badge == "Yeni") return "cf-tag-new";
+        if (badge == "Popüler") return "cf-tag-popular";
+        if (badge == "Şefin Seçimi") return "cf-tag-chef";
         return "";
     }
 
-    /// <summary>Seçeneğin okunur hali: "Oat" → "Oat milk".</summary>
+    /// <summary>
+    /// Seçeneğin okunur hali: boyutta "Büyük" → "Büyük boy", ekstra shot'ta "Evet" → "Ekstra shot".
+    /// Süt ve şurup adları veride zaten tam ("Yulaf Sütü", "Vanilya Şurubu"), olduğu gibi yazılır.
+    /// </summary>
     public static string OptionText(string groupKey, string value)
     {
-        if (groupKey == OptionGroups.Size) return value + " size";
-        if (groupKey == OptionGroups.Milk) return value + " milk";
-        if (groupKey == OptionGroups.ExtraShot) return "Extra shot";
-        return value + " syrup";
+        if (groupKey == OptionGroups.Size) return value + " boy";
+        if (groupKey == OptionGroups.ExtraShot) return "Ekstra shot";
+        return value;
     }
 
     /// <summary>Sipariş türünün adı.</summary>
     public static string ChannelName(OrderChannel channel)
     {
-        if (channel == OrderChannel.Delivery) return "Delivery";
-        if (channel == OrderChannel.Pickup) return "Pickup";
-        return "Dine-In";
+        if (channel == OrderChannel.Delivery) return "Teslimat";
+        if (channel == OrderChannel.Pickup) return "Gel-Al";
+        return "Masada";
     }
 
     /// <summary>Sipariş türünün ikonu.</summary>
@@ -50,8 +60,8 @@ public static class Display
     /// <summary>Sipariş türünün kısa açıklaması.</summary>
     public static string ChannelText(OrderChannel channel)
     {
-        if (channel == OrderChannel.Delivery) return "Delivered to your door.";
-        if (channel == OrderChannel.Pickup) return "Order ahead, pick it up.";
-        return "Order from your table.";
+        if (channel == OrderChannel.Delivery) return "Kapınıza teslim edilir.";
+        if (channel == OrderChannel.Pickup) return "Önceden sipariş verin, gelip alın.";
+        return "Masanızdan sipariş verin.";
     }
 }

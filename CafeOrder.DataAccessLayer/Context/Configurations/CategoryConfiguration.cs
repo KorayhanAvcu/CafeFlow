@@ -1,4 +1,4 @@
-﻿using CafeOrder.EntityLayer.Entities;
+using CafeOrder.EntityLayer.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -6,6 +6,7 @@ namespace CafeOrder.DataAccessLayer.Context.Configurations;
 
 public class CategoryConfiguration : IEntityTypeConfiguration<Category>
 {
+    /// <summary>Categories tablosu: ad/kod/slug uzunlukları ve slug'ın benzersizliği.</summary>
     public void Configure(EntityTypeBuilder<Category> builder)
     {
         builder.Property(x => x.Name).HasMaxLength(100).IsRequired();

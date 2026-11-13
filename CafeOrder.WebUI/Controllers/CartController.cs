@@ -1,10 +1,8 @@
 using CafeOrder.BusinessLayer.Exceptions;
-using CafeOrder.BusinessLayer.Pricing;
+using CafeOrder.BusinessLayer.Services.Cart;
 using CafeOrder.BusinessLayer.Services.Orders;
-using CafeOrder.BusinessLayer.Services.Products;
 using CafeOrder.BusinessLayer.Services.Tables;
 using CafeOrder.DtoLayer.Dtos.OrderDtos;
-using CafeOrder.DtoLayer.Dtos.ProductDtos;
 using CafeOrder.DtoLayer.Dtos.TableDtos;
 using CafeOrder.EntityLayer.Enums;
 using CafeOrder.WebUI.Cart;
@@ -13,109 +11,65 @@ using Microsoft.AspNetCore.Mvc;
 namespace CafeOrder.WebUI.Controllers;
 
 /// <summary>
-/// Sepet ve sipariş verme.
-/// Sepet Session'da durur (sadece ürün, seçenek ve adet). Fiyatları her seferinde OrderService hesaplar.
+/// Sepet ve sipariş verme. Controller sadece aracıdır: Session'daki sepeti okur, DTO'larla birlikte
+/// CartService'e verir, dönen DTO'yu sayfaya verir. Bütün kurallar ve hesaplar serviste.
 /// </summary>
 [Route("cart")]
 public class CartController : Controller
 {
+    private readonly ICartService _cartService;
     private readonly IOrderService _orderService;
-    private readonly IProductService _productService;
     private readonly ITableService _tableService;
-    private readonly PricingOptions _pricing;
 
-    public CartController(IOrderService orderService, IProductService productService, ITableService tableService, PricingOptions pricing)
+    public CartController(ICartService cartService, IOrderService orderService, ITableService tableService)
     {
+        _cartService = cartService;
         _orderService = orderService;
-        _productService = productService;
         _tableService = tableService;
-        _pricing = pricing;
     }
 
-    /// <summary>Sepet sayfası. Masa QR kodu okutulunca da buraya gelinir: /cart?qr=CF-T07-ROSE</summary>
+    /// <summary>Sepet sayfası. Masa QR kodu okutulunca da buraya gelinir: /cart?qr=CF-T07-GUL</summary>
     [HttpGet("")]
     public async Task<IActionResult> Index(string? qr)
     {
         if (qr != null)
         {
-            ResultTableDto? table = await _tableService.GetByQrAsync(qr);
+            var table = await _tableService.GetByQrAsync(qr);
             if (table == null)
             {
-                TempData["CartError"] = "This table QR code is not valid. Please scan the code on your table again.";
+                TempData["CartError"] = "Bu masa QR kodu geçerli değil. Lütfen masanızdaki kodu tekrar okutun.";
             }
             else
             {
-                // Masa kodu ve sipariş türü Session'a yazılır.
-                HttpContext.Session.SetString(CartSession.TableKey, table.QrToken);
-                HttpContext.Session.SetString(CartSession.ChannelKey, OrderChannel.Table.ToString());
-                TempData["CartToast"] = "Welcome to Table " + table.Number + "!";
+                HttpContext.Session.SetTable(table.QrToken);
+                TempData["CartToast"] = "Hoş geldiniz! Masa " + table.Number + " için sipariş verebilirsiniz.";
             }
 
             // QR kodu adres çubuğunda kalmasın diye sade adrese yönlendir.
-            return RedirectToAction("Index");
+            return Redirect("/cart");
         }
 
-        ResultOrderDto cart = await BuildCartAsync(new CreateOrderDto());
-        return View(cart);
+        return View(await GetCartPageAsync(null, TempData["CartError"] as string));
     }
 
-    /// <summary>Ürün kartındaki veya ürün detayındaki "Add" düğmesi.</summary>
+    /// <summary>Ürün kartındaki veya ürün detayındaki "Sepete Ekle" düğmesi. Form AddToCartDto olarak gelir.</summary>
     [HttpPost("add")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Add(int productId, int[] optionIds, int? sizeId, int? milkId, int? syrupId, int quantity = 1, string? returnUrl = null)
+    public async Task<IActionResult> Add(AddToCartDto dto)
     {
-        ResultProductDto? product = await _productService.GetActiveByIdAsync(productId);
-        if (product == null)
+        List<CartItemDto> cart = HttpContext.Session.GetCart();
+        try
+        {
+            var productName = await _cartService.AddItemAsync(cart, dto);
+            HttpContext.Session.SaveCart(cart);
+            TempData["CartToast"] = productName + " sepete eklendi";
+            TempData["OpenCart"] = true;
+        }
+        catch (BusinessException)
         {
             return NotFound();
         }
-
-        // Seçilen seçeneklerin Id'lerini tek listede topla.
-        // Boy, süt ve şurup radyo düğmesi (tek değer), ekstra shot onay kutusu (liste).
-        List<int> options = new List<int>();
-        if (product.IsCustomizable)
-        {
-            options.AddRange(optionIds);
-            if (sizeId != null) options.Add(sizeId.Value);
-            if (milkId != null) options.Add(milkId.Value);
-            if (syrupId != null) options.Add(syrupId.Value);
-            options.Sort();   // aynı seçim farklı sırayla gelse de aynı satır sayılsın
-        }
-
-        if (quantity < 1) quantity = 1;
-        if (quantity > 20) quantity = 20;
-
-        List<CartItemDto> cart = HttpContext.Session.GetCart();
-
-        // Aynı ürün aynı seçeneklerle zaten varsa adedini artır, yoksa yeni satır ekle.
-        CartItemDto? sameLine = null;
-        foreach (CartItemDto item in cart)
-        {
-            if (item.ProductId == productId && item.OptionIds.SequenceEqual(options))
-            {
-                sameLine = item;
-                break;
-            }
-        }
-
-        if (sameLine != null)
-        {
-            sameLine.Quantity = Math.Min(20, sameLine.Quantity + quantity);
-        }
-        else
-        {
-            CartItemDto newLine = new CartItemDto();
-            newLine.ProductId = productId;
-            newLine.OptionIds = options;
-            newLine.Quantity = quantity;
-            cart.Add(newLine);
-        }
-
-        HttpContext.Session.SaveCart(cart);
-
-        TempData["CartToast"] = product.Name + " added to your cart";
-        TempData["OpenCart"] = true;
-        return RedirectBack(returnUrl);
+        return RedirectBack(dto.ReturnUrl);
     }
 
     /// <summary>Satırın adedini değiştirir; adet 0 olursa satır silinir. index = sepetteki sıra.</summary>
@@ -124,20 +78,8 @@ public class CartController : Controller
     public IActionResult Update(int index, int quantity, string? returnUrl)
     {
         List<CartItemDto> cart = HttpContext.Session.GetCart();
-
-        if (index >= 0 && index < cart.Count)
-        {
-            if (quantity <= 0)
-            {
-                cart.RemoveAt(index);
-            }
-            else
-            {
-                cart[index].Quantity = Math.Min(20, quantity);
-            }
-            HttpContext.Session.SaveCart(cart);
-        }
-
+        _cartService.UpdateQuantity(cart, index, quantity);
+        HttpContext.Session.SaveCart(cart);
         return RedirectBack(returnUrl);
     }
 
@@ -146,8 +88,8 @@ public class CartController : Controller
     [ValidateAntiForgeryToken]
     public IActionResult Clear()
     {
-        HttpContext.Session.SaveCart(new List<CartItemDto>());
-        return RedirectToAction("Index");
+        HttpContext.Session.ClearCart();
+        return Redirect("/cart");
     }
 
     /// <summary>Sipariş türünü (teslimat, gel-al, masa) Session'a yazar.</summary>
@@ -155,44 +97,27 @@ public class CartController : Controller
     [ValidateAntiForgeryToken]
     public IActionResult Channel(OrderChannel channel)
     {
-        HttpContext.Session.SetString(CartSession.ChannelKey, channel.ToString());
+        HttpContext.Session.SetChannel(channel);
         return Redirect("/cart#orderType");
     }
 
-    /// <summary>"Place Order" düğmesi. Kurallar OrderService içinde; hata olursa sayfa yazılanlarla geri gelir.</summary>
+    /// <summary>"Siparişi Ver" düğmesi. Form CreateOrderDto olarak gelir; kurallar serviste. Hata olursa sayfa yazılanlarla geri gelir.</summary>
     [HttpPost("checkout")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Checkout(CreateOrderDto form)
     {
-        // Formdaki ad, telefon, adres, not, saat alanları model binding ile CreateOrderDto'ya dolar.
-        // Sipariş türü formdan değil Session'dan gelir.
-        OrderChannel? channel = GetChannel();
-        if (channel == null)
-        {
-            form.Channel = OrderChannel.Delivery;
-        }
-        else
-        {
-            form.Channel = channel.Value;
-        }
-
         try
         {
-            List<CartItemDto> cart = HttpContext.Session.GetCart();
-            string? qrToken = HttpContext.Session.GetString(CartSession.TableKey);
+            var order = await _cartService.CheckoutAsync(
+                HttpContext.Session.GetCart(), HttpContext.Session.GetChannel(), HttpContext.Session.GetQrToken(), form);
 
-            ResultOrderDto order = await _orderService.PlaceOrderAsync(form, cart, qrToken);
-
-            // Sipariş kaydedildi: sepeti boşalt ve onay sayfasına git.
-            HttpContext.Session.SaveCart(new List<CartItemDto>());
-            return RedirectToAction("Confirmation", new { orderNo = order.OrderNo });
+            HttpContext.Session.ClearCart();
+            return Redirect("/cart/confirmation/" + order.OrderNo);
         }
         catch (BusinessException ex)
         {
             // Kural hatası: aynı sayfayı hata mesajıyla tekrar göster (yazılanlar kaybolmasın).
-            ViewBag.Error = ex.Message;
-            ResultOrderDto cartView = await BuildCartAsync(form);
-            return View("Index", cartView);
+            return View("Index", await GetCartPageAsync(form, ex.Message));
         }
     }
 
@@ -200,7 +125,7 @@ public class CartController : Controller
     [HttpGet("confirmation/{orderNo}")]
     public async Task<IActionResult> Confirmation(string orderNo)
     {
-        ResultOrderDto? order = await _orderService.GetByOrderNoAsync(orderNo.ToUpper());
+        var order = await _orderService.GetByOrderNoAsync(orderNo.ToUpper());
         if (order == null)
         {
             return NotFound();
@@ -208,60 +133,16 @@ public class CartController : Controller
         return View(order);
     }
 
-    /// <summary>Session'daki sipariş türünü okur; seçilmemişse null.</summary>
-    private OrderChannel? GetChannel()
-    {
-        string? value = HttpContext.Session.GetString(CartSession.ChannelKey);
-        OrderChannel channel;
-        if (Enum.TryParse(value, out channel))
-        {
-            return channel;
-        }
-        return null;
-    }
-
     /// <summary>
-    /// Sepet sayfasının modeli: satırlar ve tutarlar OrderService.CalculateAsync ile hesaplanır (ResultOrderDto).
-    /// Formda yazılanlar (ad, adres, not, saat) ViewBag.Form ile geri gönderilir ki hata olunca kaybolmasın.
+    /// Sepet sayfasının verisini CartService'ten alır (ResultCartDto) ve
+    /// servisin temizlediği sepeti (silinmiş ürünler çıkmış hali) Session'a geri yazar.
     /// </summary>
-    private async Task<ResultOrderDto> BuildCartAsync(CreateOrderDto form)
+    private async Task<ResultCartDto> GetCartPageAsync(CreateOrderDto? form, string? error)
     {
-        List<CartItemDto> cart = HttpContext.Session.GetCart();
-        OrderChannel? channel = GetChannel();
-
-        // Tür seçilmediyse gel-al gibi hesapla (ücret gösterilmez).
-        OrderChannel calculateAs = OrderChannel.Pickup;
-        if (channel != null)
-        {
-            calculateAs = channel.Value;
-        }
-
-        ResultOrderDto order = await _orderService.CalculateAsync(calculateAs, cart);
-
-        // Menüden kalkmış ürünleri sepetten de çıkar.
-        List<CartItemDto> kept = new List<CartItemDto>();
-        foreach (CartItemDto item in cart)
-        {
-            if (order.Details.Any(d => d.ProductId == item.ProductId))
-            {
-                kept.Add(item);
-            }
-        }
-        if (kept.Count != cart.Count)
-        {
-            HttpContext.Session.SaveCart(kept);
-        }
-
-        ViewBag.Form = form;
-        ViewBag.Channel = channel;
-        ViewBag.Table = await _tableService.GetByQrAsync(HttpContext.Session.GetString(CartSession.TableKey));
-        ViewBag.FreeDeliveryFrom = _pricing.FreeDeliveryFrom;
-        ViewBag.DeliveryFee = _pricing.DeliveryFee;
-        if (ViewBag.Error == null)
-        {
-            ViewBag.Error = TempData["CartError"];
-        }
-        return order;
+        var page = await _cartService.GetCartAsync(
+            HttpContext.Session.GetCart(), HttpContext.Session.GetChannel(), HttpContext.Session.GetQrToken(), form, error);
+        HttpContext.Session.SaveCart(page.Items);
+        return page;
     }
 
     /// <summary>Geldiği sayfaya döner. Sadece site içi adreslere izin verilir.</summary>

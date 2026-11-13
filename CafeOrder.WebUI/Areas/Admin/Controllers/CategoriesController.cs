@@ -1,4 +1,3 @@
-using AutoMapper;
 using CafeOrder.BusinessLayer.Exceptions;
 using CafeOrder.BusinessLayer.Services.Categories;
 using CafeOrder.DtoLayer.Dtos.CategoryDtos;
@@ -6,61 +5,56 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CafeOrder.WebUI.Areas.Admin.Controllers;
 
-/// <summary>Kategori yönetimi: listele, ekle, düzenle, aktif/pasif, sil.</summary>
+/// <summary>
+/// Kategori yönetimi: listele, ekle, düzenle, aktif/pasif, sil.
+/// Controller sadece DTO alıp verir; form hazırlama ve "ekle mi güncelle mi" kararı CategoryService'te.
+/// </summary>
 [Route("admin/categories")]
 public class CategoriesController : AdminControllerBase
 {
     private readonly ICategoryService _categoryService;
-    private readonly IMapper _mapper;
 
-    public CategoriesController(ICategoryService categoryService, IMapper mapper)
+    public CategoriesController(ICategoryService categoryService)
     {
         _categoryService = categoryService;
-        _mapper = mapper;
     }
 
+    /// <summary>Kategori listesi sayfası (/admin/categories).</summary>
     [HttpGet("")]
     public async Task<IActionResult> Index()
     {
         return View(await _categoryService.GetAllAsync());
     }
 
-    /// <summary>Boş form.</summary>
+    /// <summary>Boş "yeni kategori" formu.</summary>
     [HttpGet("new")]
-    public IActionResult Create()
+    public async Task<IActionResult> Create()
     {
-        UpdateCategoryDto form = new UpdateCategoryDto();   // Id = 0 → yeni kayıt
-        form.IsActive = true;
-        return View("Form", form);
+        return View("Form", await _categoryService.GetFormAsync(null));
     }
 
-    /// <summary>Dolu form.</summary>
+    /// <summary>Kategorinin dolu düzenleme formu; kategori yoksa 404.</summary>
     [HttpGet("{id:int}/edit")]
     public async Task<IActionResult> Edit(int id)
     {
-        ResultCategoryDto category = await _categoryService.GetByIdAsync(id);
-        UpdateCategoryDto form = _mapper.Map<UpdateCategoryDto>(category);
-        return View("Form", form);
+        try
+        {
+            return View("Form", await _categoryService.GetFormAsync(id));
+        }
+        catch (BusinessException)
+        {
+            return NotFound();
+        }
     }
 
-    /// <summary>Formun kaydet düğmesi. Id 0 ise yeni kayıt, değilse güncelleme.</summary>
+    /// <summary>Formun kaydet düğmesi. Form UpdateCategoryDto olarak gelir; servis Id'ye bakıp ekler ya da günceller.</summary>
     [HttpPost("save")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Save(UpdateCategoryDto form)
     {
         try
         {
-            if (form.Id == 0)
-            {
-                CreateCategoryDto createDto = _mapper.Map<CreateCategoryDto>(form);
-                await _categoryService.CreateAsync(createDto);
-            }
-            else
-            {
-                await _categoryService.UpdateAsync(form);
-            }
-
-            Flash("info", form.Name + " was saved.");
+            await _categoryService.SaveAsync(form);
             return RedirectToAction("Index");
         }
         catch (BusinessException ex)
@@ -79,15 +73,15 @@ public class CategoriesController : AdminControllerBase
         try
         {
             await _categoryService.ChangeStatusAsync(id, active);
-            Flash("info", active ? "Category is now active." : "Category is now inactive.");
+            return RedirectToAction("Index");
         }
         catch (BusinessException ex)
         {
-            Flash("warn", ex.Message);
+            return await ShowListWithErrorAsync(ex.Message);
         }
-        return RedirectToAction("Index");
     }
 
+    /// <summary>Listedeki sil düğmesi: kategoriyi siler; ürünü varsa uyarı mesajıyla listeye döner.</summary>
     [HttpPost("{id:int}/delete")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(int id)
@@ -95,12 +89,18 @@ public class CategoriesController : AdminControllerBase
         try
         {
             await _categoryService.DeleteAsync(id);
-            Flash("info", "Category was deleted.");
+            return RedirectToAction("Index");
         }
         catch (BusinessException ex)
         {
-            Flash("warn", ex.Message);
+            return await ShowListWithErrorAsync(ex.Message);
         }
-        return RedirectToAction("Index");
+    }
+
+    /// <summary>Kural hatasında (ör. ürünü olan kategoriyi silme) listeyi hata mesajıyla doğrudan gösterir; yönlendirme yapılmaz.</summary>
+    private async Task<IActionResult> ShowListWithErrorAsync(string error)
+    {
+        ViewBag.Error = error;
+        return View("Index", await _categoryService.GetAllAsync());
     }
 }

@@ -29,7 +29,7 @@ public class CategoryService : ICategoryService
     /// <summary>Admin listesi: bütün kategoriler, ürünleriyle birlikte (ürün sayısı için).</summary>
     public async Task<List<ResultCategoryDto>> GetAllAsync()
     {
-        List<Category> categories = await _categoryRepository.GetQueryable()
+        var categories = await _categoryRepository.GetQueryable()
             .Include(c => c.Products)
             .OrderBy(c => c.DisplayOrder)
             .ToListAsync();
@@ -40,7 +40,7 @@ public class CategoryService : ICategoryService
     /// <summary>Müşteri menüsü: sadece aktif kategoriler ve içlerindeki aktif ürünler.</summary>
     public async Task<List<ResultCategoryDto>> GetActiveAsync()
     {
-        List<Category> categories = await _categoryRepository.GetQueryable()
+        var categories = await _categoryRepository.GetQueryable()
             .Where(c => c.IsActive)
             .Include(c => c.Products.Where(p => p.IsActive))
             .OrderBy(c => c.DisplayOrder)
@@ -49,12 +49,44 @@ public class CategoryService : ICategoryService
         return _mapper.Map<List<ResultCategoryDto>>(categories);
     }
 
-    public async Task<ResultCategoryDto> GetByIdAsync(int id)
+
+    /// <summary>Ana sayfa: aktif kategorilerden içinde en az bir aktif ürün olanları döndürür.</summary>
+    public async Task<List<ResultCategoryDto>> GetActiveWithProductsAsync()
     {
-        Category category = await GetEntityAsync(id);
-        return _mapper.Map<ResultCategoryDto>(category);
+        var categories = await GetActiveAsync();
+        return categories.Where(c => c.ProductCount > 0).ToList();
     }
 
+    /// <summary>
+    /// Admin formu için veri. id null ise boş form döner (Id = 0 → "yeni kayıt", aktif işaretli);
+    /// değilse o kategorinin değerleriyle dolu form döner.
+    /// </summary>
+    public async Task<UpdateCategoryDto> GetFormAsync(int? id)
+    {
+        if (id == null)
+        {
+            UpdateCategoryDto form = new UpdateCategoryDto();
+            form.IsActive = true;
+            return form;
+        }
+        var category = await GetEntityAsync(id.Value);
+        return _mapper.Map<UpdateCategoryDto>(category);
+    }
+
+    /// <summary>Formun kaydet düğmesi: Id 0 ise yeni kategori olarak ekler, değilse var olanı günceller.</summary>
+    public async Task SaveAsync(UpdateCategoryDto dto)
+    {
+        if (dto.Id == 0)
+        {
+            await CreateAsync(_mapper.Map<CreateCategoryDto>(dto));
+        }
+        else
+        {
+            await UpdateAsync(dto);
+        }
+    }
+
+    /// <summary>Yeni kategori ekler: kuralları kontrol eder, sıra boşsa en sona koyar, slug/ikon/tarih atar, kaydeder; sonra Id'den CAT-009 gibi kodu üretip ikinci kez kaydeder.</summary>
     public async Task CreateAsync(CreateCategoryDto dto)
     {
         // DTO → Entity
@@ -64,7 +96,7 @@ public class CategoryService : ICategoryService
         // Sıra girilmediyse en sona ekle.
         if (category.DisplayOrder == 0)
         {
-            int count = await _categoryRepository.CountAsync();
+            var count = await _categoryRepository.CountAsync();
             category.DisplayOrder = count + 1;
         }
 
@@ -81,7 +113,7 @@ public class CategoryService : ICategoryService
     /// <summary>Formdan gelen değerleri veritabanındaki kayda kopyalar ve kaydeder.</summary>
     public async Task UpdateAsync(UpdateCategoryDto dto)
     {
-        Category category = await GetEntityAsync(dto.Id);
+        var category = await GetEntityAsync(dto.Id);
         int oldDisplayOrder = category.DisplayOrder;
 
         // DTO'daki alanları var olan kaydın üstüne yaz (Code, Slug, CreatedAt DTO'da yok, değişmez).
@@ -97,9 +129,10 @@ public class CategoryService : ICategoryService
         await _categoryRepository.UpdateAsync(category);
     }
 
+    /// <summary>Kategorinin aktif/pasif durumunu değiştirip kaydeder.</summary>
     public async Task ChangeStatusAsync(int id, bool isActive)
     {
-        Category category = await GetEntityAsync(id);
+        var category = await GetEntityAsync(id);
         category.IsActive = isActive;
         await _categoryRepository.UpdateAsync(category);
     }
@@ -107,12 +140,12 @@ public class CategoryService : ICategoryService
     /// <summary>Ürünü olan kategori silinemez.</summary>
     public async Task DeleteAsync(int id)
     {
-        Category category = await GetEntityAsync(id);
+        var category = await GetEntityAsync(id);
 
-        bool hasProducts = await _productRepository.AnyAsync(p => p.CategoryId == id);
+        var hasProducts = await _productRepository.AnyAsync(p => p.CategoryId == id);
         if (hasProducts)
         {
-            throw new BusinessException(category.Name + " still has products. Move or delete them first.");
+            throw new BusinessException(category.Name + " kategorisinde hâlâ ürün var. Önce ürünleri taşıyın veya silin.");
         }
 
         await _categoryRepository.DeleteAsync(category);
@@ -121,10 +154,10 @@ public class CategoryService : ICategoryService
     /// <summary>Veritabanındaki kaydı getirir; yoksa hata verir.</summary>
     private async Task<Category> GetEntityAsync(int id)
     {
-        Category? category = await _categoryRepository.GetByIdAsync(id);
+        var category = await _categoryRepository.GetByIdAsync(id);
         if (category == null)
         {
-            throw new BusinessException("Category not found.");
+            throw new BusinessException("Kategori bulunamadı.");
         }
         return category;
     }
@@ -144,21 +177,21 @@ public class CategoryService : ICategoryService
 
         if (category.Name.Length < 2 || category.Name.Length > 100)
         {
-            throw new BusinessException("Category name must be 2-100 characters.");
+            throw new BusinessException("Kategori adı 2-100 karakter olmalı.");
         }
         if (category.Description != null && category.Description.Length > 500)
         {
-            throw new BusinessException("Description can be at most 500 characters.");
+            throw new BusinessException("Açıklama en fazla 500 karakter olabilir.");
         }
         if (category.DisplayOrder < 0 || category.DisplayOrder > 999)
         {
-            throw new BusinessException("Display order must be between 1 and 999.");
+            throw new BusinessException("Sıra 0 ile 999 arasında olmalı (0: en sona ekle).");
         }
 
-        bool nameUsed = await _categoryRepository.AnyAsync(c => c.Name == category.Name && c.Id != category.Id);
+        var nameUsed = await _categoryRepository.AnyAsync(c => c.Name == category.Name && c.Id != category.Id);
         if (nameUsed)
         {
-            throw new BusinessException("\"" + category.Name + "\" already exists.");
+            throw new BusinessException("\"" + category.Name + "\" adında bir kategori zaten var.");
         }
     }
 

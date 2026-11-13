@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CafeOrder.WebUI.Areas.Admin.Controllers;
 
-/// <summary>Mutfak, kasa ve admin bildirimleri (Observer deseninin yazdıkları).</summary>
+/// <summary>Mutfak, kasa ve yönetici bildirimleri (Observer deseninin yazdıkları).</summary>
 [Route("admin/notifications")]
 public class NotificationsController : AdminControllerBase
 {
@@ -15,34 +15,23 @@ public class NotificationsController : AdminControllerBase
         _notificationService = notificationService;
     }
 
+    /// <summary>Bildirimler sayfası. Model: ResultNotificationPageDto (filtrelenmiş liste ve hedef başına okunmamış sayıları).</summary>
     [HttpGet("")]
     public async Task<IActionResult> Index(NotificationTarget? target, bool unread = false)
     {
-        ViewBag.Target = target;
-        ViewBag.Unread = unread;
-
-        // Üstteki kartlar: okunmamış sayıları
-        Dictionary<string, int> unreadCounts = new Dictionary<string, int>();
-        unreadCounts["All"] = await _notificationService.CountUnreadAsync(null);
-        unreadCounts["Kitchen"] = await _notificationService.CountUnreadAsync(NotificationTarget.Kitchen);
-        unreadCounts["Cashier"] = await _notificationService.CountUnreadAsync(NotificationTarget.Cashier);
-        unreadCounts["Admin"] = await _notificationService.CountUnreadAsync(NotificationTarget.Admin);
-        ViewBag.UnreadCounts = unreadCounts;
-
-        return View(await _notificationService.GetAllAsync(target, unread));
+        return View(await _notificationService.GetPageAsync(target, unread));
     }
 
-    /// <summary>Bildirimler sayfasındaki "Mark as read" düğmesi.</summary>
+    /// <summary>Bildirimler sayfasındaki "Okundu yap" düğmesi; seçili hedefin okunmamışlarını okundu yapar.</summary>
     [HttpPost("mark-read")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> MarkRead(NotificationTarget? target)
     {
         await _notificationService.MarkAllReadAsync(target);
-        Flash("info", "Notifications are marked as read.");
-        return RedirectToAction("Index", new { target = target });
+        return Redirect("/admin/notifications?target=" + target);
     }
 
-    /// <summary>Üst çubuktaki zilin "Mark all as read" düğmesi. İşlemden sonra bulunduğu sayfaya döner.</summary>
+    /// <summary>Üst çubuktaki zilin "Tümünü okundu yap" düğmesi. İşlemden sonra bulunduğu sayfaya döner.</summary>
     [HttpPost("read-all")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ReadAll(string? returnUrl)

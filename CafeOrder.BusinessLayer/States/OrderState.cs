@@ -43,6 +43,7 @@ public abstract class OrderState
 /// <summary>Alındı → Hazırlanıyor veya İptal</summary>
 public class ReceivedState : OrderState
 {
+    /// <summary>Alındı durumundan Hazırlanıyor veya İptal'e geçilebilir.</summary>
     public override List<OrderStatus> GetAllowedNext()
     {
         return new List<OrderStatus> { OrderStatus.Preparing, OrderStatus.Cancelled };
@@ -52,6 +53,7 @@ public class ReceivedState : OrderState
 /// <summary>Hazırlanıyor → Hazır veya İptal</summary>
 public class PreparingState : OrderState
 {
+    /// <summary>Hazırlanıyor durumundan Hazır veya İptal'e geçilebilir.</summary>
     public override List<OrderStatus> GetAllowedNext()
     {
         return new List<OrderStatus> { OrderStatus.Ready, OrderStatus.Cancelled };
@@ -61,6 +63,7 @@ public class PreparingState : OrderState
 /// <summary>Hazır → Teslim Edildi</summary>
 public class ReadyState : OrderState
 {
+    /// <summary>Hazır durumundan sadece Teslim Edildi'ye geçilebilir (artık iptal edilemez).</summary>
     public override List<OrderStatus> GetAllowedNext()
     {
         return new List<OrderStatus> { OrderStatus.Delivered };
@@ -70,6 +73,7 @@ public class ReadyState : OrderState
 /// <summary>Teslim Edildi: son durum, başka yere geçilemez.</summary>
 public class DeliveredState : OrderState
 {
+    /// <summary>Teslim Edildi son durumdur; boş liste döner, hiçbir yere geçilemez.</summary>
     public override List<OrderStatus> GetAllowedNext()
     {
         return new List<OrderStatus>();
@@ -79,6 +83,7 @@ public class DeliveredState : OrderState
 /// <summary>İptal: son durum, başka yere geçilemez.</summary>
 public class CancelledState : OrderState
 {
+    /// <summary>İptal son durumdur; boş liste döner, hiçbir yere geçilemez.</summary>
     public override List<OrderStatus> GetAllowedNext()
     {
         return new List<OrderStatus>();
