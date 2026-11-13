@@ -61,7 +61,7 @@ public async Task<IActionResult> Index()
 - `[HttpGet("/")]`: başında `/` olduğu için controller'ın route ön ekinden bağımsız, mutlak bir adres.
 - **Controller hiçbir hesap yapmıyor:** Sayfanın asıl verisi **model** olarak gidiyor (`View(...)` → view'da `@model List<ResultProductDto>`).
 - **Kategori kartları controller'da değil:** Eskiden `ViewBag.Categories` dolduruluyordu. Artık `CategoryShowcaseViewComponent` bu listeyi `CategoryService.GetActiveWithProductsAsync()` ile **kendisi** çekiyor ("ürünü olmayan kategoriyi gösterme" kuralı o serviste). Controller bir şey bilmek zorunda değil; `ViewBag` `dynamic` olduğu için kaybolan tip kontrolü de geri geldi (VC view'ında `@model List<ResultCategoryDto>`).
-- Ana sayfanın geri kalanı partial'lara bölündü: `_Hero`, `_OrderWays`, `_About`, `_Offer`, `_Reviews` (hepsi `Views/Home/` altında, statik içerik). Öne çıkan ürünler ortak `_ProductCard` partial'ı ile çiziliyor.
+- Ana sayfanın geri kalanı View Component'lere bölündü: `HomeHero`, `HomeOrderWays`, `HomeAbout`, `HomeOffer`, `HomeReviews` (statik içerik). Öne çıkan ürünler ortak `ProductCard` View Component'i ile çiziliyor.
 
 ```csharp
 [HttpGet("/error")]
@@ -278,7 +278,7 @@ Sipariş numarasını bilen herkes bu sayfayı görebilir (giriş yok). Numaran�
 
 ## 7. View Component'ler
 
-**View Component**, kendi verisini kendisi getiren küçük bir sayfa parçasıdır. Partial view'a benzer, ama partial veriyi çağırandan alır; view component ise DI ile servis alıp veriyi kendisi hazırlar.
+**View Component**, kendi C# sınıfı olan küçük bir sayfa parçasıdır. DI ile servis alıp veriyi kendisi hazırlayabilir ya da parametre olarak aldığı veriyi çizebilir. (Partial view'dan farkı: partial'ın sınıfı yoktur, çağıranın modelini ve ViewData'sını görür.)
 
 ```csharp
 public class CartCountViewComponent : ViewComponent
@@ -310,33 +310,39 @@ public class CartDrawerViewComponent : ViewComponent
 ```
 Sağdan açılan sepet paneli (Bootstrap Offcanvas). Fiyatları yine `OrderService` hesaplıyor (Pickup = ücretsiz, çünkü panelde sadece ara toplam gösteriliyor). Layout bunu sadece ana sayfa, menü ve detay sayfasında çağırıyor.
 
-### Sayfa parçaları: veri isteyen → View Component, istemeyen → partial
+### Sayfa parçaları: hepsi View Component
 
-Kural basit: **bir parça kendi verisini servisten çekmesi gerekiyorsa View Component, verisini çağıran sayfanın modelinden alıyorsa (ya da hiç verisi yoksa) partial.**
+Projede **hiç partial view kalmadı**; sayfanın her parçası bir View Component. İki çeşit var:
 
-| View Component (`WebUI/ViewComponents/MenuViewComponents.cs`) | Servis çağrısı | Nerede | Çağrı |
+1. **Veriyi kendisi çeken VC'ler:** DI ile servis alır, veriyi kendisi getirir. Controller'ın `ViewBag`'e liste koymasına gerek kalmaz.
+2. **Veriyi parametre olarak alan VC'ler:** Sayfanın modelini (veya hiçbir şeyi) alıp kendi `Default.cshtml`'ine verir. Sınıfları tek satırdır: `public IViewComponentResult Invoke(ResultCartDto cart) => View(cart);`
+
+| Veriyi kendisi çeken VC | Servis çağrısı | Nerede | Çağrı |
 |---|---|---|---|
-| `CategoryShowcaseViewComponent` | `CategoryService.GetActiveWithProductsAsync()` | Ana sayfa kategori kartları | `@await Component.InvokeAsync("CategoryShowcase")` |
-| `CategoryFilterViewComponent` | `CategoryService.GetActiveAsync()` | Menü kategori düğmeleri | `<vc:category-filter selected="@selected" />` |
-| `ProductOptionsViewComponent` | `ProductService.GetOptionsAsync()` | Detaydaki boy/süt/ekstra/şurup | `<vc:product-options product="@Model" />` |
-| `RelatedProductsViewComponent` | `ProductService.GetRelatedAsync(id, kategori, 4)` | Detaydaki benzer ürünler | `<vc:related-products product-id="..." category-id="..." />` |
-| `CartCountViewComponent`, `CartDrawerViewComponent` | Session + `OrderService.CalculateAsync` | Navbar rozeti, sepet paneli | `@await Component.InvokeAsync("CartCount")` |
+| `CategoryShowcase` | `CategoryService.GetActiveWithProductsAsync()` | Ana sayfa kategori kartları | `@await Component.InvokeAsync("CategoryShowcase")` |
+| `CategoryFilter` | `CategoryService.GetActiveAsync()` | Menü kategori düğmeleri | `<vc:category-filter selected="@selected" />` |
+| `ProductOptions` | `ProductService.GetOptionsAsync()` | Detaydaki boy/süt/ekstra/şurup | `<vc:product-options product="@Model" />` |
+| `RelatedProducts` | `ProductService.GetRelatedAsync(id, kategori, 4)` | Detaydaki benzer ürünler | `<vc:related-products product-id="..." category-id="..." />` |
+| `CartCount`, `CartDrawer` | Session + `OrderService.CalculateAsync` | Navbar rozeti, sepet paneli | `@await Component.InvokeAsync("CartCount")` |
+| `CartToast` | `TempData["CartToast"]` | Sepet bildirimi | `<vc:cart-toast />` |
 
-- **`<vc:...>` etiketi:** View Component'i HTML etiketi gibi çağırmanın yolu. Adı kebab-case yazılır (`CategoryFilter` → `category-filter`), parametreler de öyle (`productId` → `product-id`). Çalışması için `_ViewImports.cshtml`'e `@addTagHelper *, CafeOrder.WebUI` satırı eklendi (projenin kendi derlemesindeki VC'leri tag helper yapar). Avantajı: parametre adları derleme anında kontrol edilir; `InvokeAsync("...", new { ... })` gibi anonim nesne yazmaya gerek kalmaz.
-- **Dikkat (yaşadık):** `<vc:category-filter selected="@selected" />` etiketinde `selected` null olunca VC'ye `""` (boş metin) gelebiliyor. Bu yüzden "Tüm Ürünler" düğmesi seçili görünmüyordu. VC içinde `string.IsNullOrEmpty(selected) ? null : selected` ile düzeltildi.
-- VC view'ları `Views/Shared/Components/<Ad>/Default.cshtml` yolunda.
-
-| Partial | Model | Ne çizer |
+| Parametre alan VC (sınıf dosyası) | Parametre | Ne çizer |
 |---|---|---|
-| `Home/_Hero`, `_OrderWays`, `_About`, `_Offer`, `_Reviews` | — | Ana sayfanın statik bölümleri |
-| `Shared/_ProductCard` | `ResultProductDto` | Ürün kartı (ana sayfa, menü, benzer ürünler) |
-| `Products/_MenuHeader`, `_MenuPromo` | — | Menü başlığı ve alt tanıtım kutusu |
-| `Products/_DetailBreadcrumb`, `_ProductGallery` | `ResultProductDto` | Detayın sayfa yolu ve fotoğrafı |
-| `Cart/_CartHeader` | — | Sepet başlığı |
-| `Cart/_CartItems`, `_ChannelPicker`, `_CheckoutForm`, `_CartSummary` | `ResultCartDto` | Sepetin 3 adımı ve özet |
-| `Cart/_OrderReceipt` | `ResultOrderDto` | Onay sayfasındaki fiş |
+| `Navbar`, `Footer` (`LayoutViewComponents.cs`) | `string navPage` | Üst menü ve alt bilgi; ana sayfada farklı görünür |
+| `HomeHero`, `HomeOrderWays`, `HomeAbout`, `HomeOffer`, `HomeReviews` (`HomeViewComponents.cs`) | — | Ana sayfanın statik bölümleri |
+| `ProductCard` (`ProductViewComponents.cs`) | `ResultProductDto product` | Ürün kartı (ana sayfa, menü, benzer ürünler) |
+| `MenuHeader`, `MenuPromo` | — | Menü başlığı ve alt tanıtım kutusu |
+| `DetailBreadcrumb`, `ProductGallery` | `ResultProductDto product` | Detayın sayfa yolu ve fotoğrafı |
+| `CartHeader` (`CartPageViewComponents.cs`) | — | Sepet başlığı |
+| `CartItems`, `ChannelPicker`, `CheckoutForm`, `CartSummary` | `ResultCartDto cart` | Sepetin 3 adımı ve özet |
+| `OrderReceipt` | `ResultOrderDto order` | Onay sayfasındaki fiş |
 
-Partial, çağıran sayfanın klasöründe (`Views/Cart/_CartItems.cshtml`), bulunamazsa `Views/Shared/`'da aranır. Çağrı: `<partial name="_CartItems" model="Model" />`. Partial'lar veri **çekmez**; bu yüzden `Cart/Index.cshtml` artık sadece iskelet: başlık + 4 partial çağrısı.
+- **`<vc:...>` etiketi:** View Component'i HTML etiketi gibi çağırmanın yolu. Adı kebab-case yazılır (`CartItems` → `cart-items`), parametreler de öyle (`navPage` → `nav-page`). Çalışması için `_ViewImports.cshtml`'e `@addTagHelper *, CafeOrder.WebUI` satırı eklendi (projenin kendi derlemesindeki VC'leri tag helper yapar). Avantajı: parametre adları derleme anında kontrol edilir; `InvokeAsync("...", new { ... })` gibi anonim nesne yazmaya gerek kalmaz.
+- **VC'nin görünümü nerede?** `Views/Shared/Components/<Ad>/Default.cshtml`. `return View(cart)` → bu dosya, `cart` da onun `@model`'i.
+- **`string` model tuzağı:** `Navbar`, `Footer`, `CartToast` modeli metin olan VC'ler. `return View(navPage)` yazılsaydı MVC metni **view adı** sanardı (`View(string viewName)` aşırı yüklemesi seçilir). Bu yüzden `return View("Default", navPage)` yazıldı.
+- **Partial'dan farkı:** Partial, çağıranın `ViewData`'sını ve modelini görür; VC ise sadece kendisine verilen parametreleri görür. Bu yüzden eskiden `ViewData["NavPage"]`'i kendisi okuyan navbar, artık layout'tan `<vc:navbar nav-page="@(page)" />` ile sayfa adını açıkça alıyor; bağımlılığı görünür oldu.
+- **Dikkat (yaşadık):** `<vc:category-filter selected="@selected" />` etiketinde `selected` null olunca VC'ye `""` (boş metin) gelebiliyor. Bu yüzden "Tüm Ürünler" düğmesi seçili görünmüyordu. VC içinde `string.IsNullOrEmpty(selected) ? null : selected` ile düzeltildi.
+- Sonuç: `Cart/Index.cshtml` artık sadece iskelet: başlık + 4 `<vc:...>` çağrısı.
 
 ---
 
@@ -364,11 +370,11 @@ Her view'dan önce çalışır: "bütün sayfalar `_Layout` kullansın."
 @await RenderSectionAsync("Styles", required: false)
 ...
 <!body @Html.Raw(ViewData["BodyAttributes"] as string) data-open-cart="@(openCart && hasDrawer ? "true" : null)">
-  <partial name="_Navbar" />
+  <vc:navbar nav-page="@(page)" />
   @RenderBody()
-  <partial name="_Footer" />
+  <vc:footer nav-page="@(page)" />
   @if (hasDrawer) { @await Component.InvokeAsync("CartDrawer") }
-  <partial name="_CartToast" />
+  <vc:cart-toast />
   <script src="~/js/site.js" asp-append-version="true"></script>
   @await RenderSectionAsync("Scripts", required: false)
 </!body>
@@ -378,7 +384,7 @@ Her view'dan önce çalışır: "bütün sayfalar `_Layout` kullansın."
 - `~/css/site.css`: `~` uygulamanın kök dizinidir. `asp-append-version="true"` adresin sonuna dosyanın hash'ini ekler (`site.css?v=abc123`). CSS değiştiğinde tarayıcı eski önbellek yerine yeni dosyayı alır (**cache busting**).
 - `RenderSectionAsync("Styles", required: false)`: view'lar `@section Styles { ... }` ile sayfaya özel CSS ekleyebiliyor (örneğin `cart.css`).
 - `@RenderBody()`: view'ın kendisi buraya yerleşir.
-- `<partial name="_Navbar" />`: partial view. Verisini çağıranın modelinden alır, burada model geçilmiyor.
+- `<vc:navbar nav-page="@(page)" />`: View Component. Hangi sayfada olduğunu parametre olarak alır (aktif link, ana sayfada şeffaf menü). `@page` yerine `@(page)` yazıldı, çünkü Razor'da `@page` bir direktif adıdır.
 - **`<!body ...>`:** Başındaki `!` o eleman için tag helper işlemeyi kapatır. Ana sayfa `ViewData["BodyAttributes"]` ile body'ye Bootstrap scroll-spy özellikleri ekliyor; `@Html.Raw` bu metni HTML olarak (kaçış yapmadan) basıyor. Normalde `@` ile basılan her şey **HTML encode** edilir (`<` → `&lt;`). Bu XSS saldırılarına karşı otomatik bir korumadır. `Html.Raw` bu korumayı kapatır, bu yüzden **sadece sunucunun kendi ürettiği metinle** kullanılmalı (burada öyle).
 - `data-open-cart="@(cond ? "true" : null)"`: Razor'da bir attribute'un değeri `null` ise attribute **hiç yazılmaz**. Bu küçük ama kullanışlı bir Razor özelliği.
 
@@ -423,7 +429,7 @@ Her view'dan önce çalışır: "bütün sayfalar `_Layout` kullansın."
 - Formda **fiyat alanı yok**, sadece Id'ler var.
 - `min="1" max="20"` sadece tarayıcı tarafında bir ipucu; asıl kontrol sunucuda (controller sıkıştırması + `QuantityHandler`).
 
-### `_ProductCard.cshtml`: tekrar kullanılan kart
+### `ProductCard` View Component'i (`Components/ProductCard/Default.cshtml`): tekrar kullanılan kart
 ```razor
 @model ResultProductDto
 ...
@@ -442,7 +448,7 @@ else
 ```
 - Özelleştirilebilir ürün kartında "Özelleştir" (detaya gider), diğerlerinde "Ekle" (doğrudan sepete ekler).
 - `returnUrl = Path + QueryString`: kullanıcı `/products?category=pastalar` sayfasındaysa ekledikten sonra **aynı filtreli sayfaya** döner.
-- Çağrı: `<partial name="_ProductCard" model="product" />`.
+- Çağrı: `<vc:product-card product="@product" />`. Sınıf: `ProductCardViewComponent.Invoke(ResultProductDto product) => View(product)`.
 
 ### `Cart/Index.cshtml`: üç adımlı sayfa
 1. **Ürünler:** `@for (var i = 0; ...)` döngüsü. `foreach` değil, çünkü Update formu için `index` gerekli.
@@ -505,6 +511,6 @@ Toast konusunda bugün bulduğumuz şey: `.cf-toast` CSS'te `transform: translat
 2. `options.Sort()` satırı silinirse hangi senaryoda sepette yinelenen satırlar oluşur?
 3. `RedirectBack` içindeki `Url.IsLocalUrl` kontrolü hangi saldırıyı engelliyor?
 4. Tek bir formdaki "+" ve "–" düğmeleri JavaScript olmadan nasıl farklı değerler gönderiyor?
-5. `CartCount` neden bir partial view değil de bir View Component?
+5. `CartToast` VC'sinde neden `return View(message)` değil de `return View("Default", message)` yazılıyor?
 6. `@Html.Raw` ne zaman tehlikelidir? Layout'taki kullanımı neden güvenli?
 7. Checkout'ta `form.Channel` formdan gelse bile neden üzerine yazılıyor?

@@ -12,16 +12,16 @@
   </div>
 </div>
 
-<partial name="_StatCards" model="Model" />
+<vc:stat-cards dashboard="@Model" />
 
 <div class="row g-4">
   <div class="col-xl-8">
-    <partial name="_LatestOrders" model="Model" />
+    <vc:latest-orders dashboard="@Model" />
 
-    <partial name="_BestSellers" model="Model" />
+    <vc:best-sellers dashboard="@Model" />
   </div>
 
   <div class="col-xl-4">
-    <partial name="_StatusCounts" model="Model" />
+    <vc:status-counts dashboard="@Model" />
   </div>
 </div>

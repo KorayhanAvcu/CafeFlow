@@ -17,7 +17,7 @@
   </form>
 </div>
 
-<partial name="_ErrorMessage" model="error" />
+<vc:error-message message="@error" />
 @if (Model.Succeeded)
 {
   <div class="adm-callout info mb-4" role="status">

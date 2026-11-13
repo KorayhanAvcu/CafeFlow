@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="~/css/inner.css" asp-append-version="true" />
 }
 
-  <partial name="_MenuHeader" />
+  <vc:menu-header />
 
   <!-- ============ MENÜ: KATEGORİLER, ARAMA, ÜRÜNLER ============ -->
   <main class="cf-menu-section">
@@ -53,11 +53,11 @@
         @foreach (var product in Model)
         {
           <div class="col-12 col-sm-6 col-lg-4 col-xl-3 cf-grid-item">
-            <partial name="_ProductCard" model="product" />
+            <vc:product-card product="@product" />
           </div>
         }
       </div>
 
-      <partial name="_MenuPromo" />
+      <vc:menu-promo />
     </div>
   </main>

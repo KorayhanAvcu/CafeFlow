@@ -9,7 +9,7 @@
     <script src="~/js/home.js" asp-append-version="true"></script>
 }
 
-  <partial name="_Hero" />
+  <vc:home-hero />
 
   @await Component.InvokeAsync("CategoryShowcase")
 
@@ -27,7 +27,7 @@
 @foreach (var product in Model)
 {
         <div class="col-sm-6 col-lg-4 reveal">
-          <partial name="_ProductCard" model="product" />
+          <vc:product-card product="@product" />
         </div>
 }
       </div>
@@ -38,10 +38,10 @@
     </div>
   </section>
 
-  <partial name="_OrderWays" />
+  <vc:home-order-ways />
 
-  <partial name="_About" />
+  <vc:home-about />
 
-  <partial name="_Offer" />
+  <vc:home-offer />
 
-  <partial name="_Reviews" />
+  <vc:home-reviews />

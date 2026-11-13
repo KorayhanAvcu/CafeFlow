@@ -9,14 +9,14 @@
     <link rel="stylesheet" href="~/css/product-detail.css" asp-append-version="true" />
 }
 
-  <partial name="_DetailBreadcrumb" model="Model" />
+  <vc:detail-breadcrumb product="@Model" />
 
   <main>
     <section class="cf-detail-section">
       <div class="container">
         <div class="row g-5">
 
-          <partial name="_ProductGallery" model="Model" />
+          <vc:product-gallery product="@Model" />
 
           <!-- Bilgiler ve seçenekler -->
           <div class="col-lg-6">

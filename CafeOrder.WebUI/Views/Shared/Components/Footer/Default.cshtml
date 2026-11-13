@@ -1,5 +1,7 @@
+@* FooterViewComponent: model = sayfa adı; ana sayfada linkler sayfa içi çapalara gider. *@
+@model string
 @{
-    var isHome = (ViewData["NavPage"] as string) == "home";
+    var isHome = Model == "home";
 }
 <!-- ============ FOOTER (bütün müşteri sayfalarında ortak) ============ -->
 <footer id="contact" class="cf-footer">

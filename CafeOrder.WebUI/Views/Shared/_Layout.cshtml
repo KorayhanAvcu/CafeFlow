@@ -26,17 +26,17 @@
 </head>
 @* "!" turns off the tag helper for this element so the homepage can add its scroll-spy attributes. *@
 <!body @Html.Raw(ViewData["BodyAttributes"] as string) data-open-cart="@(openCart && hasDrawer ? "true" : null)">
-  <partial name="_Navbar" />
+  <vc:navbar nav-page="@(page)" />
 
   @RenderBody()
 
-  <partial name="_Footer" />
+  <vc:footer nav-page="@(page)" />
 
   @if (hasDrawer)
   {
     @await Component.InvokeAsync("CartDrawer")
   }
-  <partial name="_CartToast" />
+  <vc:cart-toast />
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="~/js/site.js" asp-append-version="true"></script>

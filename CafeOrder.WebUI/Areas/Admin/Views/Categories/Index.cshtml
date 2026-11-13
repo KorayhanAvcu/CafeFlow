@@ -13,7 +13,7 @@
   <a href="/admin/categories/new" class="adm-btn adm-btn-primary"><i class="bi bi-plus-lg"></i> Kategori Ekle</a>
 </div>
 
-<partial name="_ErrorMessage" model="@((string?)ViewBag.Error)" />
+<vc:error-message message="@((string?)ViewBag.Error)" />
 
 <section class="adm-card">
   <div class="adm-table-wrap">

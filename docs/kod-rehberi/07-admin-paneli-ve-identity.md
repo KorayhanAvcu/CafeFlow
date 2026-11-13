@@ -48,7 +48,7 @@ private async Task<IActionResult> ShowListWithErrorAsync(string error)
     return View("Index", await _categoryService.GetAllAsync());
 }
 ```
-- Mesajı `_ErrorMessage.cshtml` partial'ı gösteriyor. Model olarak sadece mesaj metnini alıyor; boşsa hiçbir şey çizmiyor:
+- Mesajı `ErrorMessage` View Component'i gösteriyor (`Areas/Admin/Views/Shared/Components/ErrorMessage/Default.cshtml`). Model olarak sadece mesaj metnini alıyor; boşsa hiçbir şey çizmiyor:
 ```razor
 @model string?
 @if (!string.IsNullOrEmpty(Model))
@@ -56,7 +56,7 @@ private async Task<IActionResult> ShowListWithErrorAsync(string error)
   <div class="adm-callout warn mb-4" role="alert">...@Model...</div>
 }
 ```
-View'larda: `<partial name="_ErrorMessage" model="@((string?)ViewBag.Error)" />`.
+View'larda: `<vc:error-message message="@((string?)ViewBag.Error)" />`. Sınıf `ErrorMessageViewComponent.Invoke(string? message)`; model metin olduğu için `return View("Default", message)` yazılır.
 - Şifre değiştirme başarılı olunca Hesabım sayfası `ResultAccountDto.Succeeded = true` ile doğrudan çizilir ve sayfa "Şifreniz değiştirildi." yazar.
 
 (Müşteri tarafındaki sepet bildirimi, "Ürün sepete eklendi" yazısı, hâlâ TempData ile çalışıyor; Bölüm 06.)
@@ -414,18 +414,20 @@ public async Task SaveAsync(UpdateCategoryDto dto)
 - `?.` ve `??` zinciri: claim yoksa → kullanıcı adı → "Admin".
 - `InvokeAsync("AdminSidebar", new { activePage = page })`: anonim nesnedeki property adı, view component'in `InvokeAsync(string activePage)` parametresiyle eşleşiyor.
 
-### Admin partial'ları ve CategorySelectViewComponent
+### Admin View Component'leri (`AdminPageViewComponents.cs` ve `CategorySelectViewComponent.cs`)
 
 | Parça | Tür | Model | Ne çizer |
 |---|---|---|---|
-| `Dashboard/_StatCards` | partial | `ResultDashboardDto` | 4 sayı kartı |
-| `Dashboard/_LatestOrders`, `_BestSellers`, `_StatusCounts` | partial | `ResultDashboardDto` | Son siparişler, en çok satanlar, durum sayıları |
-| `Orders/_OrderItems` | partial | `ResultOrderDto` | Sipariş satırları ve toplamlar |
-| `Orders/_OrderHistory` | partial | `ResultOrderDto` | Durum geçmişi |
-| `Orders/_OrderStatusForm` | partial | `ResultOrderDto` | **State**: `AllowedNextStatuses`'tan durum butonları |
-| `Orders/_OrderCustomer` | partial | `ResultOrderDto` | Masa / müşteri bilgileri |
-| `Shared/_ErrorMessage` | partial | `string?` | Kural hatası kutusu |
-| `CategorySelectViewComponent` | View Component | `List<ResultCategoryDto>` | Kategori `<select>`'i (ürün filtresi + ürün formu) |
+| `StatCards` | parametre alan VC | `ResultDashboardDto` | 4 sayı kartı |
+| `LatestOrders`, `BestSellers`, `StatusCounts` | parametre alan VC | `ResultDashboardDto` | Son siparişler, en çok satanlar, durum sayıları |
+| `OrderItems` | parametre alan VC | `ResultOrderDto` | Sipariş satırları ve toplamlar |
+| `OrderHistory` | parametre alan VC | `ResultOrderDto` | Durum geçmişi |
+| `OrderStatusForm` | parametre alan VC | `ResultOrderDto` | **State**: `AllowedNextStatuses`'tan durum butonları |
+| `OrderCustomer` | parametre alan VC | `ResultOrderDto` | Masa / müşteri bilgileri |
+| `ErrorMessage` | parametre alan VC | `string?` | Kural hatası kutusu |
+| `CategorySelect` | veriyi kendisi çeken VC | `List<ResultCategoryDto>` | Kategori `<select>`'i (ürün filtresi + ürün formu) |
+
+Çağrılar: `<vc:stat-cards dashboard="@Model" />`, `<vc:order-status-form order="@Model" />` gibi. Görünümleri `Areas/Admin/Views/Shared/Components/<Ad>/Default.cshtml`'de.
 
 `CategorySelectViewComponent.InvokeAsync(string name, int? selected, string? emptyText = null, string? elementId = null, string cssClass = "adm-select")`: varsayılan değerli parametreler `<vc:...>` etiketinde yazılmayabilir. Filtrede `empty-text="Tüm Kategoriler"` verilir (en üste boş seçenek), formda verilmez (ürünün mutlaka kategorisi olmalı).
 

@@ -178,3 +178,12 @@ Giriş ve çıkış çerezle ilgili olduğu için `AccountController`'da (SignIn
 | `ProductOptionsViewComponent` | Ürün detayındaki seçenekler | `List<ResultProductOptionDto>` + `ResultProductDto` |
 | `RelatedProductsViewComponent` | Benzer ürünler | `List<ResultProductDto>` |
 | `CategorySelectViewComponent` | Admin kategori açılır listesi | `List<ResultCategoryDto>` |
+| `NavbarViewComponent`, `FooterViewComponent` | Üst menü, alt bilgi | `string` (sayfa adı) |
+| `CartToastViewComponent` | Sepet bildirimi | `string?` (TempData) |
+| `HomeHero/OrderWays/About/Offer/Reviews`, `MenuHeader`, `MenuPromo`, `CartHeader` | Statik bölümler | — |
+| `ProductCard`, `DetailBreadcrumb`, `ProductGallery` | Ürün kartı, detay üst kısmı, fotoğraf | `ResultProductDto` |
+| `CartItems`, `ChannelPicker`, `CheckoutForm`, `CartSummary` | Sepet adımları ve özet | `ResultCartDto` |
+| `OrderReceipt` | Onay fişi | `ResultOrderDto` |
+| `ErrorMessage` (admin) | Kural hatası kutusu | `string?` |
+| `StatCards`, `LatestOrders`, `BestSellers`, `StatusCounts` (admin) | Panel bölümleri | `ResultDashboardDto` |
+| `OrderItems`, `OrderHistory`, `OrderStatusForm`, `OrderCustomer` (admin) | Sipariş detayı bölümleri | `ResultOrderDto` |

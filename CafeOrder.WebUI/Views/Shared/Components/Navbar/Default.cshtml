@@ -1,6 +1,7 @@
+@* NavbarViewComponent: model = sayfa adı (home | menu | detail | cart | other). *@
+@model string
 @{
-    // home | menu | detail | cart | other
-    var page = ViewData["NavPage"] as string ?? "other";
+    var page = Model;
     var isHome = page == "home";
 }
 <!-- ============ NAVBAR (bütün müşteri sayfalarında ortak) ============ -->

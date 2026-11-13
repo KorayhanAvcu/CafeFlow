@@ -18,18 +18,18 @@
   <span class="adm-badge @AdminDisplay.StatusBadge(order.Status)" style="font-size:.9rem;padding:8px 14px">@AdminDisplay.StatusLabel(order.Status)</span>
 </div>
 
-<partial name="_ErrorMessage" model="@((string?)ViewBag.Error)" />
+<vc:error-message message="@((string?)ViewBag.Error)" />
 
 <div class="row g-4">
   <div class="col-xl-8">
-    <partial name="_OrderItems" model="Model" />
+    <vc:order-items order="@Model" />
 
-    <partial name="_OrderHistory" model="Model" />
+    <vc:order-history order="@Model" />
   </div>
 
   <div class="col-xl-4">
-    <partial name="_OrderStatusForm" model="Model" />
+    <vc:order-status-form order="@Model" />
 
-    <partial name="_OrderCustomer" model="Model" />
+    <vc:order-customer order="@Model" />
   </div>
 </div>

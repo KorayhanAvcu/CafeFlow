@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="~/css/cart.css" asp-append-version="true" />
 }
 
-  <partial name="_CartHeader" />
+  <vc:cart-header />
 
   <main class="cf-cart-section">
     <div class="container">
@@ -27,21 +27,21 @@
       <div class="row g-4">
         <div class="col-lg-8">
 
-          <partial name="_CartItems" model="Model" />
+          <vc:cart-items cart="@Model" />
 
           @if (!isEmpty)
           {
-            <partial name="_ChannelPicker" model="Model" />
+            <vc:channel-picker cart="@Model" />
 
             <!-- 3. Bilgiler ve sipariş -->
             @if (channel != null)
             {
-              <partial name="_CheckoutForm" model="Model" />
+              <vc:checkout-form cart="@Model" />
             }
           }
         </div>
 
-        <partial name="_CartSummary" model="Model" />
+        <vc:cart-summary cart="@Model" />
       </div>
     </div>
   </main>

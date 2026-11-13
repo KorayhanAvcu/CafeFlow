@@ -17,7 +17,7 @@
   </div>
 </div>
 
-<partial name="_ErrorMessage" model="@((string?)ViewBag.Error)" />
+<vc:error-message message="@((string?)ViewBag.Error)" />
 
 <form method="post" action="/admin/products/save" class="adm-card">
   @Html.AntiForgeryToken()

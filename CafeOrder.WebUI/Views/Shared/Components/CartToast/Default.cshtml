@@ -1,0 +1,8 @@
+@* One-time message after a cart action (Post/Redirect/Get). site.js shows it and hides it after a moment. *@
+@model string?
+@{
+    var message = Model;   // CartToastViewComponent TempData["CartToast"]'tan okudu
+}
+<div class="cf-toast@(message is null ? "" : " show")" id="cfToast" role="status" aria-live="polite" data-auto-hide="@(message is null ? null : "true")">
+  <i class="bi bi-check-circle-fill"></i> <span id="cfToastText">@message</span>
+</div>
