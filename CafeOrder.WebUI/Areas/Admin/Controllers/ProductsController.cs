@@ -1,5 +1,4 @@
 using CafeOrder.BusinessLayer.Exceptions;
-using CafeOrder.BusinessLayer.Services.Categories;
 using CafeOrder.BusinessLayer.Services.Products;
 using CafeOrder.DtoLayer.Dtos.ProductDtos;
 using Microsoft.AspNetCore.Mvc;
@@ -14,29 +13,25 @@ namespace CafeOrder.WebUI.Areas.Admin.Controllers;
 public class ProductsController : AdminControllerBase
 {
     private readonly IProductService _productService;
-    private readonly ICategoryService _categoryService;
 
-    public ProductsController(IProductService productService, ICategoryService categoryService)
+    public ProductsController(IProductService productService)
     {
         _productService = productService;
-        _categoryService = categoryService;
     }
 
     /// <summary>Ürün listesi; kategori ve ada göre filtre (filtreyi servis uygular).</summary>
     [HttpGet("")]
     public async Task<IActionResult> Index(int? category, string? q)
     {
-        ViewBag.Categories = await _categoryService.GetAllAsync();
         ViewBag.Category = category;
         ViewBag.Search = q;
         return View(await _productService.GetAdminListAsync(category, q));
     }
 
-    /// <summary>Boş "yeni ürün" formu (kategori listesiyle).</summary>
+    /// <summary>Boş "yeni ürün" formu. Kategori listesini formdaki CategorySelect ViewComponent'i getirir.</summary>
     [HttpGet("new")]
     public async Task<IActionResult> Create()
     {
-        ViewBag.Categories = await _categoryService.GetAllAsync();
         return View("Form", await _productService.GetFormAsync(null));
     }
 
@@ -46,7 +41,6 @@ public class ProductsController : AdminControllerBase
     {
         try
         {
-            ViewBag.Categories = await _categoryService.GetAllAsync();
             return View("Form", await _productService.GetFormAsync(id));
         }
         catch (BusinessException)
@@ -67,9 +61,8 @@ public class ProductsController : AdminControllerBase
         }
         catch (BusinessException ex)
         {
-            // Hata: formu yazılanlarla tekrar göster (kategori listesi tekrar yüklenmeli).
+            // Hata: formu yazılanlarla tekrar göster (kategori listesini CategorySelect ViewComponent'i kendisi yükler).
             ViewBag.Error = ex.Message;
-            ViewBag.Categories = await _categoryService.GetAllAsync();
             return View("Form", form);
         }
     }
@@ -110,7 +103,6 @@ public class ProductsController : AdminControllerBase
     private async Task<IActionResult> ShowListWithErrorAsync(string error)
     {
         ViewBag.Error = error;
-        ViewBag.Categories = await _categoryService.GetAllAsync();
         return View("Index", await _productService.GetAdminListAsync(null, null));
     }
 }

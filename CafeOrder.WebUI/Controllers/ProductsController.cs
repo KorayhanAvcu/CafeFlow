@@ -1,4 +1,3 @@
-using CafeOrder.BusinessLayer.Services.Categories;
 using CafeOrder.BusinessLayer.Services.Products;
 using CafeOrder.DtoLayer.Dtos.ProductDtos;
 using Microsoft.AspNetCore.Mvc;
@@ -10,27 +9,24 @@ namespace CafeOrder.WebUI.Controllers;
 public class ProductsController : Controller
 {
     private readonly IProductService _productService;
-    private readonly ICategoryService _categoryService;
 
-    public ProductsController(IProductService productService, ICategoryService categoryService)
+    public ProductsController(IProductService productService)
     {
         _productService = productService;
-        _categoryService = categoryService;
     }
 
-    /// <summary>Menü. Filtreler adres çubuğundan gelir: /products?category=cakes&amp;q=latte</summary>
+    /// <summary>Menü. Filtreler adres çubuğundan gelir: /products?category=pastalar&amp;q=latte. Kategori düğmelerini CategoryFilter ViewComponent'i çizer; ViewBag'e sadece seçili filtre yazılır.</summary>
     [HttpGet("")]
     public async Task<IActionResult> Index(string? category, string? q)
     {
         var products = await _productService.GetMenuAsync(category, q);
 
-        ViewBag.Categories = await _categoryService.GetActiveAsync();
         ViewBag.Category = category;
         ViewBag.Search = q;
         return View(products);
     }
 
-    /// <summary>Ürün detayı: /products/7</summary>
+    /// <summary>Ürün detayı: /products/7. Seçenekleri ProductOptions, benzer ürünleri RelatedProducts ViewComponent'i getirir.</summary>
     [HttpGet("{id:int}")]
     public async Task<IActionResult> Detail(int id)
     {
@@ -41,8 +37,6 @@ public class ProductsController : Controller
             return View("NotFound");
         }
 
-        ViewBag.Options = await _productService.GetOptionsAsync();
-        ViewBag.Related = await _productService.GetRelatedAsync(product.Id, product.CategoryId, 4);
         return View(product);
     }
 }

@@ -1,0 +1,31 @@
+@* Sipariş türü seçimi (Teslimat / Gel-Al / Masa). "Devam" denince POST /cart/channel ile Session'a yazılır. *@
+@model ResultCartDto
+@{
+    OrderChannel? channel = Model.Channel;
+    OrderChannel[] channels = { OrderChannel.Delivery, OrderChannel.Pickup, OrderChannel.Table };
+}
+<!-- 2. Sipariş türü: seçip "Devam" denince sunucuya gider, ücret yeniden hesaplanır -->
+<section class="cf-panel" id="orderType">
+  <div class="cf-panel-head">
+    <h2 class="cf-panel-title"><span class="cf-step">2</span> Siparişinizi Nasıl Almak İstersiniz?</h2>
+  </div>
+  <form method="post" asp-action="Channel">
+    <div class="cf-type-grid">
+      @foreach (OrderChannel item in channels)
+      {
+        <label class="cf-type">
+          <input type="radio" name="channel" value="@item" checked="@(channel == item)" />
+          <span class="cf-type-card">
+            <span class="cf-type-check"><i class="bi bi-check-lg"></i></span>
+            <span class="cf-type-icon"><i class="bi @Display.ChannelIcon(item)"></i></span>
+            <span class="cf-type-text">
+              <span class="cf-type-name">@Display.ChannelName(item)</span>
+              <span class="cf-type-desc">@Display.ChannelText(item)</span>
+            </span>
+          </span>
+        </label>
+      }
+    </div>
+    <button type="submit" class="btn cf-btn-outline mt-3">Devam</button>
+  </form>
+</section>

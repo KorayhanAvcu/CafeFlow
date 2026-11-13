@@ -1,0 +1,15 @@
+@* Durumlara göre sipariş sayıları; her satır o duruma filtrelenmiş listeye gider. *@
+@model ResultDashboardDto
+<section class="adm-card">
+  <div class="pg-card-head"><h2>Durumlara göre siparişler</h2></div>
+  <div class="pg-card-body">
+    <ul class="pg-meters">
+      @foreach (var item in Model.StatusCounts)
+      {
+        <li>
+          <a href="/admin/orders?status=@item.Key" class="pg-meter-top text-decoration-none"><span>@AdminDisplay.StatusLabel(item.Key)</span><strong>@item.Value</strong></a>
+        </li>
+      }
+    </ul>
+  </div>
+</section>

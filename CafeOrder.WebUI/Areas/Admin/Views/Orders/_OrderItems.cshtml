@@ -1,0 +1,52 @@
+@* Sipariş satırları tablosu ve toplamlar. *@
+@model ResultOrderDto
+@{
+    var order = Model;
+}
+<section class="adm-card mb-4" aria-labelledby="itemsTitle">
+  <div class="ord-card-head">
+    <h2 id="itemsTitle"><i class="bi bi-cup-hot"></i> Ürünler</h2>
+    <span class="adm-counter m-0"><strong>@order.Details.Sum(d => d.Quantity)</strong> ürün</span>
+  </div>
+  <div class="adm-table-wrap">
+    <table class="adm-table">
+      <thead>
+        <tr>
+          <th scope="col">Ürün</th>
+          <th scope="col" class="end">Birim fiyat</th>
+          <th scope="col" class="num">Adet</th>
+          <th scope="col" class="end">Tutar</th>
+        </tr>
+      </thead>
+      <tbody>
+        @foreach (var line in order.Details)
+        {
+          <tr>
+            <td class="cell-main" data-label="Ürün">
+              <strong>@line.ProductName</strong>
+              @if (line.Options.Count > 0)
+              {
+                <span class="ord-options">@string.Join(" · ", line.Options.Select(o => $"{AdminDisplay.OptionGroupLabel(o.GroupKey)}: {o.Value} (+{AdminDisplay.Money(o.PriceDelta)})"))</span>
+              }
+              else
+              {
+                <span class="ord-options">Taban fiyat @AdminDisplay.Money(line.BasePrice)</span>
+              }
+            </td>
+            <td data-label="Birim fiyat" class="end">@AdminDisplay.Money(line.UnitPrice)</td>
+            <td data-label="Adet" class="num"><span class="adm-pill-num">@line.Quantity</span></td>
+            <td data-label="Tutar" class="end"><span class="ord-total">@AdminDisplay.Money(line.LineTotal)</span></td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  <ul class="ord-totals">
+    <li><span>Ara toplam</span><span>@AdminDisplay.Money(order.Subtotal)</span></li>
+    @if (order.Channel == OrderChannel.Delivery)
+    {
+      <li><span>Teslimat ücreti</span><span>@(order.DeliveryFee == 0 ? "Ücretsiz" : AdminDisplay.Money(order.DeliveryFee))</span></li>
+    }
+    <li class="grand"><span>Toplam</span><span>@AdminDisplay.Money(order.Total)</span></li>
+  </ul>
+</section>

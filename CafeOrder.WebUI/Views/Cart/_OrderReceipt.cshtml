@@ -1,0 +1,31 @@
+@* Sipariş fişi: satırlar, ara toplam, teslimat ücreti ve toplam. *@
+@model ResultOrderDto
+<ul class="cf-sum-rows">
+  @foreach (var line in Model.Details)
+  {
+    <li>
+      <span>
+        @line.Quantity × @line.ProductName
+        @if (line.Options.Count > 0)
+        {
+          <small class="d-block text-muted">@string.Join(" · ", line.Options.Select(o => Display.OptionText(o.GroupKey, o.Value)))</small>
+        }
+      </span>
+      <span>@Display.Money(line.LineTotal)</span>
+    </li>
+  }
+</ul>
+
+<ul class="cf-sum-rows">
+  <li><span>Ara toplam</span><span>@Display.Money(Model.Subtotal)</span></li>
+  @if (Model.Channel == OrderChannel.Delivery)
+  {
+    <li><span>Teslimat ücreti</span><span class="@(Model.DeliveryFee == 0 ? "cf-free" : "")">@(Model.DeliveryFee == 0 ? "Ücretsiz" : Display.Money(Model.DeliveryFee))</span></li>
+  }
+</ul>
+
+<div class="cf-grand">
+  <span>Toplam<small>Kafede veya teslimatta ödenir</small></span>
+  <strong>@Display.Money(Model.Total)</strong>
+</div>
+

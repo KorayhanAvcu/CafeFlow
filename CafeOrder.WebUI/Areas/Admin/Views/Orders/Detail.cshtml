@@ -1,7 +1,6 @@
 @model ResultOrderDto
 @{
     var order = Model;
-    List<OrderStatus> allowedNext = order.AllowedNextStatuses;   // STATE: OrderService.GetByIdAsync doldurur
     ViewData["Title"] = $"{order.OrderNo} · CafeFlow Yönetim Paneli";
     ViewData["AdminPage"] = "orders";
     ViewData["Crumb"] = $"Siparişler / {order.OrderNo}";
@@ -23,149 +22,14 @@
 
 <div class="row g-4">
   <div class="col-xl-8">
-    <section class="adm-card mb-4" aria-labelledby="itemsTitle">
-      <div class="ord-card-head">
-        <h2 id="itemsTitle"><i class="bi bi-cup-hot"></i> Ürünler</h2>
-        <span class="adm-counter m-0"><strong>@order.Details.Sum(d => d.Quantity)</strong> ürün</span>
-      </div>
-      <div class="adm-table-wrap">
-        <table class="adm-table">
-          <thead>
-            <tr>
-              <th scope="col">Ürün</th>
-              <th scope="col" class="end">Birim fiyat</th>
-              <th scope="col" class="num">Adet</th>
-              <th scope="col" class="end">Tutar</th>
-            </tr>
-          </thead>
-          <tbody>
-            @foreach (var line in order.Details)
-            {
-              <tr>
-                <td class="cell-main" data-label="Ürün">
-                  <strong>@line.ProductName</strong>
-                  @if (line.Options.Count > 0)
-                  {
-                    <span class="ord-options">@string.Join(" · ", line.Options.Select(o => $"{AdminDisplay.OptionGroupLabel(o.GroupKey)}: {o.Value} (+{AdminDisplay.Money(o.PriceDelta)})"))</span>
-                  }
-                  else
-                  {
-                    <span class="ord-options">Taban fiyat @AdminDisplay.Money(line.BasePrice)</span>
-                  }
-                </td>
-                <td data-label="Birim fiyat" class="end">@AdminDisplay.Money(line.UnitPrice)</td>
-                <td data-label="Adet" class="num"><span class="adm-pill-num">@line.Quantity</span></td>
-                <td data-label="Tutar" class="end"><span class="ord-total">@AdminDisplay.Money(line.LineTotal)</span></td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-      <ul class="ord-totals">
-        <li><span>Ara toplam</span><span>@AdminDisplay.Money(order.Subtotal)</span></li>
-        @if (order.Channel == OrderChannel.Delivery)
-        {
-          <li><span>Teslimat ücreti</span><span>@(order.DeliveryFee == 0 ? "Ücretsiz" : AdminDisplay.Money(order.DeliveryFee))</span></li>
-        }
-        <li class="grand"><span>Toplam</span><span>@AdminDisplay.Money(order.Total)</span></li>
-      </ul>
-    </section>
+    <partial name="_OrderItems" model="Model" />
 
-    <section class="adm-card" aria-labelledby="historyTitle">
-      <div class="ord-card-head">
-        <h2 id="historyTitle"><i class="bi bi-clock-history"></i> Durum geçmişi</h2>
-      </div>
-      <div class="ord-card-body">
-        <ul class="ord-timeline">
-          @foreach (var h in order.StatusHistories.OrderBy(h => h.ChangedAt).ThenBy(h => h.Id))
-          {
-            <li>
-              <strong>@(h.FromStatus is null ? "Sipariş alındı" : $"{AdminDisplay.StatusLabel(h.FromStatus.Value)} → {AdminDisplay.StatusLabel(h.ToStatus)}")</strong>
-              <small>@AdminDisplay.Date(h.ChangedAt)</small>
-              @if (!string.IsNullOrEmpty(h.Note))
-              {
-                <p>“@h.Note”</p>
-              }
-            </li>
-          }
-        </ul>
-      </div>
-    </section>
+    <partial name="_OrderHistory" model="Model" />
   </div>
 
   <div class="col-xl-4">
-    <section class="adm-card mb-4" aria-labelledby="statusTitle">
-      <div class="ord-card-head">
-        <h2 id="statusTitle"><i class="bi bi-arrow-repeat"></i> Durumu güncelle</h2>
-      </div>
-      <div class="ord-card-body">
-        @if (allowedNext.Count == 0)
-        {
-          <div class="adm-callout info m-0">
-            <i class="bi bi-lock"></i>
-            <span>Bu siparişin durumu <strong>@AdminDisplay.StatusLabel(order.Status)</strong>; artık değiştirilemez.</span>
-          </div>
-        }
-        else
-        {
-          <form method="post" asp-area="Admin" asp-controller="Orders" asp-action="ChangeStatus" asp-route-id="@order.Id">
-            @* asp-action sayesinde form tag helper antiforgery token'ı kendisi ekler. *@
-            <label class="adm-label" for="note">Not <span class="opt">(isteğe bağlı)</span></label>
-            <textarea class="adm-textarea" id="note" name="note" maxlength="300" placeholder="ör. Müşteri ekstra peçete istedi"></textarea>
-            <div class="ord-actions">
-              @foreach (OrderStatus target in allowedNext)
-              {
-                if (target == OrderStatus.Cancelled)
-                {
-                  <button type="submit" name="target" value="@target" class="adm-btn @AdminDisplay.ActionButtonClass(target)" onclick="return confirm('Bu sipariş iptal edilsin mi?');">
-                    <i class="bi @AdminDisplay.ActionIcon(target)"></i> @AdminDisplay.ActionLabel(target)
-                  </button>
-                }
-                else
-                {
-                  <button type="submit" name="target" value="@target" class="adm-btn @AdminDisplay.ActionButtonClass(target)">
-                    <i class="bi @AdminDisplay.ActionIcon(target)"></i> @AdminDisplay.ActionLabel(target)
-                  </button>
-                }
-              }
-            </div>
-            <p class="adm-hint mt-3 mb-0">Sadece izin verilen sonraki adımlar gösterilir. Her değişiklik mutfağa, kasaya ve yöneticiye bildirilir.</p>
-          </form>
-        }
-      </div>
-    </section>
+    <partial name="_OrderStatusForm" model="Model" />
 
-    <section class="adm-card" aria-labelledby="customerTitle">
-      <div class="ord-card-head">
-        <h2 id="customerTitle"><i class="bi bi-person"></i> @(order.Channel == OrderChannel.Table ? "Masa" : "Müşteri")</h2>
-      </div>
-      <div class="ord-card-body">
-        <dl class="ord-dl">
-          @if (order.Channel == OrderChannel.Table)
-          {
-            <dt>Masa</dt><dd>@order.TableNumber</dd>
-            <dt>Bölge</dt><dd>@order.TableArea</dd>
-          }
-          else
-          {
-            <dt>Ad Soyad</dt><dd>@order.CustomerFullName</dd>
-            <dt>Telefon</dt><dd>@order.CustomerPhone</dd>
-          }
-          @if (order.Channel == OrderChannel.Delivery)
-          {
-            <dt>Adres</dt><dd>@order.Address</dd>
-            @if (!string.IsNullOrEmpty(order.AddressNotes))
-            {
-              <dt>Adres notu</dt><dd>@order.AddressNotes</dd>
-            }
-          }
-          @if (order.Channel == OrderChannel.Pickup && order.PickupTime is not null)
-          {
-            <dt>Teslim alma</dt><dd>@AdminDisplay.Date(order.PickupTime.Value)</dd>
-          }
-          <dt>Sipariş notu</dt><dd>@(string.IsNullOrEmpty(order.Note) ? "—" : order.Note)</dd>
-        </dl>
-      </div>
-    </section>
+    <partial name="_OrderCustomer" model="Model" />
   </div>
 </div>

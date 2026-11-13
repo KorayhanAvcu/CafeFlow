@@ -1,0 +1,25 @@
+@* Durum geçmişi (zaman çizelgesi). *@
+@model ResultOrderDto
+@{
+    var order = Model;
+}
+<section class="adm-card" aria-labelledby="historyTitle">
+  <div class="ord-card-head">
+    <h2 id="historyTitle"><i class="bi bi-clock-history"></i> Durum geçmişi</h2>
+  </div>
+  <div class="ord-card-body">
+    <ul class="ord-timeline">
+      @foreach (var h in order.StatusHistories.OrderBy(h => h.ChangedAt).ThenBy(h => h.Id))
+      {
+        <li>
+          <strong>@(h.FromStatus is null ? "Sipariş alındı" : $"{AdminDisplay.StatusLabel(h.FromStatus.Value)} → {AdminDisplay.StatusLabel(h.ToStatus)}")</strong>
+          <small>@AdminDisplay.Date(h.ChangedAt)</small>
+          @if (!string.IsNullOrEmpty(h.Note))
+          {
+            <p>“@h.Note”</p>
+          }
+        </li>
+      }
+    </ul>
+  </div>
+</section>

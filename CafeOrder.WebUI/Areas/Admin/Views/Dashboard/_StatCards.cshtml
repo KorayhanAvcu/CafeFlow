@@ -1,0 +1,12 @@
+@* Panelin üstündeki 4 sayı kartı. *@
+@model ResultDashboardDto
+<section class="adm-stats">
+  <div class="adm-stat"><span class="adm-stat-icon adm-tone-rose"><i class="bi bi-bag-check"></i></span>
+    <div><div class="adm-stat-value">@Model.TodayOrders</div><div class="adm-stat-label">Bugünkü sipariş</div></div></div>
+  <div class="adm-stat"><span class="adm-stat-icon adm-tone-green"><i class="bi bi-cash-coin"></i></span>
+    <div><div class="adm-stat-value">@AdminDisplay.Money(Model.TodayRevenue)</div><div class="adm-stat-label">Bugünkü ciro</div></div></div>
+  <div class="adm-stat"><span class="adm-stat-icon adm-tone-peach"><i class="bi bi-fire"></i></span>
+    <div><div class="adm-stat-value">@Model.OpenOrders</div><div class="adm-stat-label">Açık sipariş</div></div></div>
+  <div class="adm-stat"><span class="adm-stat-icon adm-tone-blue"><i class="bi bi-calendar-week"></i></span>
+    <div><div class="adm-stat-value">@AdminDisplay.Money(Model.WeekRevenue)</div><div class="adm-stat-label">Son 7 gün</div></div></div>
+</section>

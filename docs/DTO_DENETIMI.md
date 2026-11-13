@@ -173,3 +173,8 @@ Giriş ve çıkış çerezle ilgili olduğu için `AccountController`'da (SignIn
 | `CartDrawerViewComponent` | Sağdan açılan sepet paneli | `ResultOrderDto` |
 | `AdminSidebarViewComponent` | Admin sol menüsü ve sayıları | DTO listelerinin sayısı |
 | `AdminNotificationsViewComponent` | Üst çubuktaki bildirim zili | `List<ResultNotificationDto>` |
+| `CategoryShowcaseViewComponent` | Ana sayfa kategori kartları | `List<ResultCategoryDto>` |
+| `CategoryFilterViewComponent` | Menü kategori düğmeleri | `List<ResultCategoryDto>` |
+| `ProductOptionsViewComponent` | Ürün detayındaki seçenekler | `List<ResultProductOptionDto>` + `ResultProductDto` |
+| `RelatedProductsViewComponent` | Benzer ürünler | `List<ResultProductDto>` |
+| `CategorySelectViewComponent` | Admin kategori açılır listesi | `List<ResultCategoryDto>` |

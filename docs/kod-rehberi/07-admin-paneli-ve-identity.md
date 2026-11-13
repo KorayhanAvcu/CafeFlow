@@ -383,7 +383,7 @@ public async Task SaveAsync(UpdateCategoryDto dto)
 }
 ```
 - **"Tek form" hilesi:** Form her zaman `UpdateXDto` ile açılıyor; `Id = 0` yeni kayıt demek. Tek bir `Form.cshtml` hem ekleme hem düzenleme yapıyor.
-- `ProductsController.Save` hata durumunda `ViewBag.Categories`'i **tekrar yüklüyor**; ViewBag bir sonraki isteğe taşınmadığı için açılır liste boş kalırdı.
+- Ürün formundaki ve filtre çubuğundaki kategori açılır listesini `CategorySelectViewComponent` çiziyor (`<vc:category-select name="CategoryId" selected="@Model.CategoryId" element-id="category" css-class="adm-select w-100" />`). Eskiden `ProductsController` beş ayrı yerde `ViewBag.Categories` dolduruyordu (Index, Create, Edit, Save hata dalı ve ShowListWithErrorAsync); biri unutulsa liste boş kalırdı. Artık controller kategori servisine hiç bağlı değil.
 - **Silme neden POST?** GET bir link olurdu; tarayıcı eklentileri veya botlar linkleri "ziyaret edip" veriyi silebilirdi. Silme formlarında `onsubmit="return confirm(...)"` var.
 - `TablesController.Index`: liste ve form aynı sayfada. `?edit=3` verilirse form o masayla dolar; `TableService.GetFormAsync(null)` yeni masa için "en büyük numara + 1" önerir.
 - `Regenerate`: kart kaybolunca yeni QR üretir, eski kart çalışmaz.
@@ -413,6 +413,21 @@ public async Task SaveAsync(UpdateCategoryDto dto)
 - `User`: view'larda da erişilebilen `ClaimsPrincipal`.
 - `?.` ve `??` zinciri: claim yoksa → kullanıcı adı → "Admin".
 - `InvokeAsync("AdminSidebar", new { activePage = page })`: anonim nesnedeki property adı, view component'in `InvokeAsync(string activePage)` parametresiyle eşleşiyor.
+
+### Admin partial'ları ve CategorySelectViewComponent
+
+| Parça | Tür | Model | Ne çizer |
+|---|---|---|---|
+| `Dashboard/_StatCards` | partial | `ResultDashboardDto` | 4 sayı kartı |
+| `Dashboard/_LatestOrders`, `_BestSellers`, `_StatusCounts` | partial | `ResultDashboardDto` | Son siparişler, en çok satanlar, durum sayıları |
+| `Orders/_OrderItems` | partial | `ResultOrderDto` | Sipariş satırları ve toplamlar |
+| `Orders/_OrderHistory` | partial | `ResultOrderDto` | Durum geçmişi |
+| `Orders/_OrderStatusForm` | partial | `ResultOrderDto` | **State**: `AllowedNextStatuses`'tan durum butonları |
+| `Orders/_OrderCustomer` | partial | `ResultOrderDto` | Masa / müşteri bilgileri |
+| `Shared/_ErrorMessage` | partial | `string?` | Kural hatası kutusu |
+| `CategorySelectViewComponent` | View Component | `List<ResultCategoryDto>` | Kategori `<select>`'i (ürün filtresi + ürün formu) |
+
+`CategorySelectViewComponent.InvokeAsync(string name, int? selected, string? emptyText = null, string? elementId = null, string cssClass = "adm-select")`: varsayılan değerli parametreler `<vc:...>` etiketinde yazılmayabilir. Filtrede `empty-text="Tüm Kategoriler"` verilir (en üste boş seçenek), formda verilmez (ürünün mutlaka kategorisi olmalı).
 
 ### AdminSidebarViewComponent
 ```csharp

@@ -1,0 +1,16 @@
+@* En çok satan ürünler (OrderService'te SelectMany + GroupBy ile hesaplanır). *@
+@model ResultDashboardDto
+<section class="adm-card">
+  <div class="pg-card-head"><h2>En çok satanlar</h2></div>
+  <div class="adm-table-wrap">
+    <table class="adm-table">
+      <thead><tr><th>Ürün</th><th class="num">Satılan</th><th class="end">Ciro</th></tr></thead>
+      <tbody>
+        @foreach (var item in Model.BestSellers)
+        {
+          <tr><td>@item.Name</td><td class="num">@item.Quantity</td><td class="end">@AdminDisplay.Money(item.Revenue)</td></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>

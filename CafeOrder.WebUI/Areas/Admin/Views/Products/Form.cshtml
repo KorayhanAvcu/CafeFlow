@@ -6,7 +6,6 @@
     ViewData["Title"] = (isNew ? "Yeni Ürün" : Model.Name) + " · CafeFlow Yönetim Paneli";
     ViewData["AdminPage"] = "products";
     ViewData["Crumb"] = isNew ? "Yeni Ürün" : "Ürünü Düzenle";
-    List<ResultCategoryDto> categories = ViewBag.Categories;
     // Sayı kutusu (type="number") her dilde noktalı değer bekler: 185.50
     string price = Model.BasePrice == 0 ? "" : Model.BasePrice.ToString(CultureInfo.InvariantCulture);
 }
@@ -30,12 +29,7 @@
     </div>
     <div class="col-md-4">
       <label class="adm-label" for="category">Kategori</label>
-      <select class="adm-select w-100" id="category" name="CategoryId">
-        @foreach (var c in categories)
-        {
-          <option value="@c.Id" selected="@(Model.CategoryId == c.Id)">@c.Name</option>
-        }
-      </select>
+      <vc:category-select name="CategoryId" selected="@Model.CategoryId" element-id="category" css-class="adm-select w-100" />
     </div>
     <div class="col-md-4">
       <label class="adm-label" for="price">Fiyat (₺)</label>

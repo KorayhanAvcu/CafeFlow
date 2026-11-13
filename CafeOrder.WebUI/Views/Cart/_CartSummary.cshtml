@@ -1,0 +1,38 @@
+@* Sipariş özeti: ara toplam, teslimat ücreti (Strategy) ve "Siparişi Ver" butonu. *@
+@model ResultCartDto
+@{
+    ResultOrderDto order = Model.Order;
+    OrderChannel? channel = Model.Channel;
+    ResultTableDto? table = Model.Table;
+    CreateOrderDto form = Model.Form;
+    var isEmpty = order.Details.Count == 0;
+}
+<!-- Özet: bütün tutarları OrderService.CalculateAsync hesapladı -->
+<div class="col-lg-4">
+  <aside class="cf-summary" id="summary">
+    <div class="cf-summary-head"><h2>Sipariş Özeti</h2></div>
+    <div class="cf-summary-body">
+      <ul class="cf-sum-rows">
+        <li><span>Ara toplam</span><span>@Display.Money(order.Subtotal)</span></li>
+        <li><span>Teslimat Ücreti</span><span>@(channel == null ? "—" : order.DeliveryFee == 0 ? "Ücretsiz" : Display.Money(order.DeliveryFee))</span></li>
+      </ul>
+      @if (channel == OrderChannel.Delivery && order.DeliveryFee > 0)
+      {
+        <p class="small text-muted">@Display.Money(Model.FreeDeliveryFrom) ve üzeri siparişlerde teslimat ücretsiz.</p>
+      }
+
+      <div class="cf-grand">
+        <span>Toplam</span>
+        <strong>@Display.Money(order.Total)</strong>
+      </div>
+
+      <button type="submit" form="checkoutForm" class="btn cf-btn-primary cf-btn-lg w-100" disabled="@(isEmpty || channel == null)">
+        <i class="bi bi-lock"></i> Siparişi Ver
+      </button>
+      @if (!isEmpty && channel == null)
+      {
+        <p class="small text-muted mt-2">Önce siparişinizi nasıl almak istediğinizi seçin.</p>
+      }
+    </div>
+  </aside>
+</div>

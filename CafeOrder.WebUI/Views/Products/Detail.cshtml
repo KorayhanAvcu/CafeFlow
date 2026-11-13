@@ -3,58 +3,20 @@
     ViewData["Title"] = $"{Model.Name} — CafeFlow";
     ViewData["Description"] = Model.Description;
     ViewData["NavPage"] = "detail";
-
-    List<ResultProductOptionDto> options = ViewBag.Options;
-    List<ResultProductDto> related = ViewBag.Related;
-    var sizes = options.Where(o => o.GroupKey == OptionGroups.Size).ToList();
-    var milks = options.Where(o => o.GroupKey == OptionGroups.Milk).ToList();
-    var shots = options.Where(o => o.GroupKey == OptionGroups.ExtraShot).ToList();
-    var syrups = options.Where(o => o.GroupKey == OptionGroups.Syrup).ToList();
-    var startPrice = Model.BasePrice;
-    if (Model.IsCustomizable)
-    {
-        startPrice += sizes.Where(o => o.IsDefault).Sum(o => o.PriceDelta) + milks.Where(o => o.IsDefault).Sum(o => o.PriceDelta);
-    }
 }
 @section Styles {
     <link rel="stylesheet" href="~/css/inner.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/product-detail.css" asp-append-version="true" />
 }
 
-  <div class="cf-detail-head">
-    <div class="container">
-      <nav aria-label="Sayfa yolu">
-        <div class="cf-breadcrumb">
-          <a href="/"><i class="bi bi-house-heart"></i> Ana Sayfa</a>
-          <i class="bi bi-chevron-right"></i>
-          <a href="/products">Menümüz</a>
-          <i class="bi bi-chevron-right"></i>
-          <a href="/products?category=@Model.CategorySlug">@Model.CategoryName</a>
-          <i class="bi bi-chevron-right"></i>
-          <span aria-current="page">@Model.Name</span>
-        </div>
-      </nav>
-      <a href="/products" class="cf-back-link"><span><i class="bi bi-arrow-left"></i></span> Menüye Dön</a>
-    </div>
-  </div>
+  <partial name="_DetailBreadcrumb" model="Model" />
 
   <main>
     <section class="cf-detail-section">
       <div class="container">
         <div class="row g-5">
 
-          <!-- Fotoğraf -->
-          <div class="col-lg-6">
-            <div class="cf-gallery">
-              <div class="cf-gallery-main">
-                <img src="@Model.ImageUrl" alt="@Model.Name" data-fallback="@Model.CategorySlug" />
-                @if (Model.Badge != null)
-                {
-                  <span class="cf-tag @Display.BadgeClass(Model.Badge)">@Model.Badge</span>
-                }
-              </div>
-            </div>
-          </div>
+          <partial name="_ProductGallery" model="Model" />
 
           <!-- Bilgiler ve seçenekler -->
           <div class="col-lg-6">
@@ -77,79 +39,7 @@
               <input type="hidden" name="productId" value="@Model.Id" />
               <input type="hidden" name="returnUrl" value="/products/@Model.Id" />
 
-              @if (Model.IsCustomizable)
-              {
-                <fieldset class="cf-opt-section">
-                  <legend>Boyut Seçin</legend>
-                  <div class="cf-size-grid">
-                    @foreach (var o in sizes)
-                    {
-                      <label class="cf-size" data-size="@o.Value">
-                        <input type="radio" name="sizeId" value="@o.Id" checked="@o.IsDefault" />
-                        <span class="cf-size-card">
-                          <span class="cf-cup" aria-hidden="true"><i class="bi bi-cup-straw"></i></span>
-                          <span class="cf-size-name">@o.Value</span>
-                          <span class="cf-size-price">@(o.PriceDelta > 0 ? "+" + Display.Money(o.PriceDelta) : "Taban fiyat")</span>
-                        </span>
-                      </label>
-                    }
-                  </div>
-                </fieldset>
-
-                <fieldset class="cf-opt-section">
-                  <legend>Süt Seçin</legend>
-                  <div class="cf-milk-row">
-                    @foreach (var o in milks)
-                    {
-                      <label class="cf-milk">
-                        <input type="radio" name="milkId" value="@o.Id" checked="@o.IsDefault" />
-                        <span>@Display.OptionText(o.GroupKey, o.Value) @if (o.PriceDelta > 0) { <small>+@Display.Money(o.PriceDelta)</small> }</span>
-                      </label>
-                    }
-                  </div>
-                </fieldset>
-
-                <fieldset class="cf-opt-section">
-                  <legend>Ekstralar</legend>
-                  <div class="cf-addon-grid">
-                    @foreach (var o in shots)
-                    {
-                      <label class="cf-addon">
-                        <input type="checkbox" name="optionIds" value="@o.Id" />
-                        <span class="cf-addon-card">
-                          <span class="cf-addon-icon"><i class="bi bi-lightning-charge"></i></span>
-                          <span class="cf-addon-text"><strong>Ekstra Espresso Shot</strong><small>+@Display.Money(o.PriceDelta)</small></span>
-                          <span class="cf-check"><i class="bi bi-check-lg"></i></span>
-                        </span>
-                      </label>
-                    }
-                  </div>
-                </fieldset>
-
-                <fieldset class="cf-opt-section">
-                  <legend>Şurup</legend>
-                  <div class="cf-milk-row">
-                    <label class="cf-milk">
-                      <input type="radio" name="syrupId" value="" checked />
-                      <span>Şurupsuz</span>
-                    </label>
-                    @foreach (var o in syrups)
-                    {
-                      <label class="cf-milk">
-                        <input type="radio" name="syrupId" value="@o.Id" />
-                        <span>@Display.OptionText(o.GroupKey, o.Value) <small>+@Display.Money(o.PriceDelta)</small></span>
-                      </label>
-                    }
-                  </div>
-                </fieldset>
-              }
-
-              <div class="cf-breakdown">
-                <div class="cf-bd-total">
-                  <span>@(Model.IsCustomizable ? "Başlangıç fiyatı (seçenekler sepette eklenir)" : "Adet fiyatı")</span>
-                  <strong>@Display.Money(startPrice)</strong>
-                </div>
-              </div>
+              <vc:product-options product="@Model" />
 
               <div class="cf-buy-row">
                 <label class="visually-hidden" for="quantity">Adet</label>
@@ -164,23 +54,5 @@
       </div>
     </section>
 
-    @if (related.Count > 0)
-    {
-      <section class="cf-related">
-        <div class="container">
-          <div class="cf-section-head">
-            <span class="cf-eyebrow">Yanında iyi gider</span>
-            <h2 class="cf-section-title">Bunlara da Bayılabilirsiniz...</h2>
-          </div>
-          <div class="row g-4">
-            @foreach (var product in related)
-            {
-              <div class="col-12 col-sm-6 col-lg-3">
-                <partial name="_ProductCard" model="product" />
-              </div>
-            }
-          </div>
-        </div>
-      </section>
-    }
+    <vc:related-products product-id="@Model.Id" category-id="@Model.CategoryId" />
   </main>

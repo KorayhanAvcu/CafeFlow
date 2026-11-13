@@ -1,0 +1,37 @@
+@* Masa veya müşteri bilgileri, adres, teslim saati ve not. *@
+@model ResultOrderDto
+@{
+    var order = Model;
+}
+<section class="adm-card" aria-labelledby="customerTitle">
+  <div class="ord-card-head">
+    <h2 id="customerTitle"><i class="bi bi-person"></i> @(order.Channel == OrderChannel.Table ? "Masa" : "Müşteri")</h2>
+  </div>
+  <div class="ord-card-body">
+    <dl class="ord-dl">
+      @if (order.Channel == OrderChannel.Table)
+      {
+        <dt>Masa</dt><dd>@order.TableNumber</dd>
+        <dt>Bölge</dt><dd>@order.TableArea</dd>
+      }
+      else
+      {
+        <dt>Ad Soyad</dt><dd>@order.CustomerFullName</dd>
+        <dt>Telefon</dt><dd>@order.CustomerPhone</dd>
+      }
+      @if (order.Channel == OrderChannel.Delivery)
+      {
+        <dt>Adres</dt><dd>@order.Address</dd>
+        @if (!string.IsNullOrEmpty(order.AddressNotes))
+        {
+          <dt>Adres notu</dt><dd>@order.AddressNotes</dd>
+        }
+      }
+      @if (order.Channel == OrderChannel.Pickup && order.PickupTime is not null)
+      {
+        <dt>Teslim alma</dt><dd>@AdminDisplay.Date(order.PickupTime.Value)</dd>
+      }
+      <dt>Sipariş notu</dt><dd>@(string.IsNullOrEmpty(order.Note) ? "—" : order.Note)</dd>
+    </dl>
+  </div>
+</section>

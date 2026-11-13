@@ -1,0 +1,15 @@
+@* Ürün fotoğrafı ve rozeti. *@
+@model ResultProductDto
+<!-- Fotoğraf -->
+<div class="col-lg-6">
+  <div class="cf-gallery">
+    <div class="cf-gallery-main">
+      <img src="@Model.ImageUrl" alt="@Model.Name" data-fallback="@Model.CategorySlug" />
+      @if (Model.Badge != null)
+      {
+        <span class="cf-tag @Display.BadgeClass(Model.Badge)">@Model.Badge</span>
+      }
+    </div>
+  </div>
+</div>
+

@@ -1,0 +1,67 @@
+@* Sepet satırları: ürün, seçenekler, adet +/- ve kaldır. Fiyatlar her seferinde sunucuda yeniden hesaplanır. *@
+@model ResultCartDto
+@{
+    ResultOrderDto order = Model.Order;
+    OrderChannel? channel = Model.Channel;
+    ResultTableDto? table = Model.Table;
+    CreateOrderDto form = Model.Form;
+    var isEmpty = order.Details.Count == 0;
+}
+<!-- 1. Ürünler -->
+<section class="cf-panel">
+  <div class="cf-panel-head">
+    <h2 class="cf-panel-title"><span class="cf-step">1</span> Ürünleriniz</h2>
+    @if (!isEmpty)
+    {
+      <form method="post" asp-action="Clear">
+        <button type="submit" class="cf-clear-btn"><i class="bi bi-trash3"></i> Sepeti boşalt</button>
+      </form>
+    }
+  </div>
+
+  @if (isEmpty)
+  {
+    <div class="cf-empty-cart">
+      <h2>Sepetiniz biraz yalnız görünüyor...</h2>
+      <p>Hadi onu tatlı bir şeyle dolduralım!</p>
+      <a href="/products" class="btn cf-btn-primary cf-btn-lg">Menümüzü Keşfedin <i class="bi bi-arrow-right"></i></a>
+    </div>
+  }
+
+  @for (var i = 0; i < order.Details.Count; i++)
+  {
+    var line = order.Details[i];
+    <article class="cf-item">
+      <a href="/products/@line.ProductId" class="cf-item-thumb">
+        <img src="@line.ProductImageUrl" alt="@line.ProductName" data-fallback="@line.ProductCategorySlug" />
+      </a>
+      <div class="cf-item-info">
+        <span class="cf-cat-label">@line.ProductCategoryName</span>
+        <h3 class="cf-item-name"><a href="/products/@line.ProductId">@line.ProductName</a></h3>
+        @if (line.Options.Count > 0)
+        {
+          <div class="cf-opt-tags">
+            @foreach (var option in line.Options)
+            {
+              <span class="cf-opt-tag">@Display.OptionText(option.GroupKey, option.Value)</span>
+            }
+          </div>
+        }
+        <form method="post" asp-action="Update" class="cf-item-actions">
+          <input type="hidden" name="index" value="@i" />
+          <button type="submit" name="quantity" value="0" class="cf-link-btn muted"><i class="bi bi-trash3"></i> Kaldır</button>
+        </form>
+      </div>
+      <div class="cf-item-side">
+        <span class="cf-unit">Adedi @Display.Money(line.UnitPrice)</span>
+        <form method="post" asp-action="Update" class="cf-stepper">
+          <input type="hidden" name="index" value="@i" />
+          <button type="submit" name="quantity" value="@(line.Quantity - 1)" aria-label="Azalt"><i class="bi bi-dash"></i></button>
+          <span>@line.Quantity</span>
+          <button type="submit" name="quantity" value="@(line.Quantity + 1)" aria-label="Artır"><i class="bi bi-plus"></i></button>
+        </form>
+        <span class="cf-line-total">@Display.Money(line.LineTotal)</span>
+      </div>
+    </article>
+  }
+</section>

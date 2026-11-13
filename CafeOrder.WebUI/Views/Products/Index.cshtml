@@ -4,7 +4,6 @@
     ViewData["Description"] = "CafeFlow'un el yapımı kahvelerini, imza içeceklerini, pastalarını, fırın ürünlerini ve atıştırmalıklarını keşfedin. Birkaç dokunuşla online sipariş verin.";
     ViewData["NavPage"] = "menu";
 
-    List<ResultCategoryDto> categories = ViewBag.Categories;
     string? selected = ViewBag.Category;
     var isFiltered = selected != null || !string.IsNullOrEmpty(ViewBag.Search);
 }
@@ -12,46 +11,13 @@
     <link rel="stylesheet" href="~/css/inner.css" asp-append-version="true" />
 }
 
-  <!-- ============ SAYFA BAŞLIĞI ============ -->
-  <header class="cf-page-header">
-    <div class="cf-blob cf-blob-1"></div>
-    <div class="cf-blob cf-blob-2"></div>
-    <span class="cf-deco cf-deco-1" aria-hidden="true"><i class="bi bi-cup-hot"></i></span>
-    <span class="cf-deco cf-deco-2" aria-hidden="true"><i class="bi bi-flower1"></i></span>
-    <span class="cf-deco cf-deco-3" aria-hidden="true"><i class="bi bi-cake2"></i></span>
-    <span class="cf-deco cf-deco-4" aria-hidden="true"><i class="bi bi-heart"></i></span>
-
-    <div class="container position-relative">
-      <nav aria-label="Sayfa yolu">
-        <div class="cf-breadcrumb">
-          <a href="/"><i class="bi bi-house-heart"></i> Ana Sayfa</a>
-          <i class="bi bi-chevron-right"></i>
-          <span aria-current="page">Menümüz</span>
-        </div>
-      </nav>
-      <h1 class="cf-page-title">Küçük ama <em>Lezzetli</em> Bir Şey</h1>
-      <p class="cf-page-sub">
-        El yapımı kahvelerimizi, nefis tatlılarımızı, ferahlatıcı içeceklerimizi ve taze hazırlanan lezzetlerimizi keşfedin.
-      </p>
-    </div>
-  </header>
+  <partial name="_MenuHeader" />
 
   <!-- ============ MENÜ: KATEGORİLER, ARAMA, ÜRÜNLER ============ -->
   <main class="cf-menu-section">
     <div class="container">
 
-      <!-- Kategoriler: her biri bir link, filtre adres çubuğunda durur -->
-      <nav class="cf-cat-scroll" id="categoryBar" aria-label="Ürün kategorileri">
-        <a href="/products" class="cf-pill@(selected == null ? " active" : "")">
-          <i class="bi bi-grid"></i>Tüm Ürünler <span class="cf-pill-count">@categories.Sum(c => c.ProductCount)</span>
-        </a>
-        @foreach (var category in categories)
-        {
-          <a href="/products?category=@category.Slug" class="cf-pill@(selected == category.Slug ? " active" : "")">
-            <i class="bi @(category.Icon ?? "bi-tag")"></i>@category.Name <span class="cf-pill-count">@category.ProductCount</span>
-          </a>
-        }
-      </nav>
+      <vc:category-filter selected="@selected" />
 
       <!-- Arama: GET formu, filtrelemeyi sunucu yapar -->
       <form class="cf-toolbar" method="get" action="/products">
@@ -92,29 +58,6 @@
         }
       </div>
 
-      <!-- ============ TANITIM ALANI ============ -->
-      <section class="cf-promo mt-5" aria-labelledby="promoTitle">
-        <div class="row align-items-center g-4">
-          <div class="col-lg-7">
-            <span class="cf-offer-pill"><i class="bi bi-heart"></i> Mükemmel ikili</span>
-            <h2 class="cf-promo-title" id="promoTitle">Kahveniz Tatlı Bir Eşlikçiyi Hak Ediyor!</h2>
-            <p class="cf-promo-text">Dilediğiniz el yapımı kahveyi en sevdiğiniz pasta dilimiyle eşleştirin.</p>
-            <a href="/products?category=pastalar#categoryBar" class="btn cf-btn-dark cf-btn-lg">
-              İkilileri Keşfet <i class="bi bi-arrow-right"></i>
-            </a>
-          </div>
-          <div class="col-lg-5">
-            <div class="cf-promo-photos position-relative">
-              <div class="cf-promo-photo">
-                <img src="https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=500&q=80" alt="Latte art yapılmış latte" data-fallback="coffee" loading="lazy" />
-              </div>
-              <span class="cf-promo-plus" aria-hidden="true"><i class="bi bi-plus-lg"></i></span>
-              <div class="cf-promo-photo">
-                <img src="https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=500&q=80" alt="Katlı pasta dilimi" data-fallback="cake" loading="lazy" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <partial name="_MenuPromo" />
     </div>
   </main>

@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using CafeOrder.BusinessLayer.Services.Categories;
 using CafeOrder.BusinessLayer.Services.Products;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,20 +7,17 @@ namespace CafeOrder.WebUI.Controllers;
 /// <summary>Ana sayfa ve hata sayfaları.</summary>
 public class HomeController : Controller
 {
-    private readonly ICategoryService _categoryService;
     private readonly IProductService _productService;
 
-    public HomeController(ICategoryService categoryService, IProductService productService)
+    public HomeController(IProductService productService)
     {
-        _categoryService = categoryService;
         _productService = productService;
     }
 
-    /// <summary>Ana sayfa: ürünü olan aktif kategoriler (ViewBag) ve rozetli 6 öne çıkan ürün (model).</summary>
+    /// <summary>Ana sayfa: rozetli 6 öne çıkan ürün (model). Kategori kartlarını CategoryShowcase ViewComponent'i kendisi getirir; bölümler partial'lara ayrılmıştır.</summary>
     [HttpGet("/")]
     public async Task<IActionResult> Index()
     {
-        ViewBag.Categories = await _categoryService.GetActiveWithProductsAsync();
         return View(await _productService.GetFeaturedAsync(6));
     }
 

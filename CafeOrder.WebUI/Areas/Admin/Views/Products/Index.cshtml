@@ -3,7 +3,6 @@
     ViewData["Title"] = "Ürünler · CafeFlow Yönetim Paneli";
     ViewData["AdminPage"] = "products";
     ViewData["Crumb"] = "Ürünler";
-    List<ResultCategoryDto> categories = ViewBag.Categories;
     int? selected = ViewBag.Category;
 }
 
@@ -20,13 +19,7 @@
 <section class="adm-card">
   <form class="adm-toolbar" method="get" action="/admin/products">
     <input type="search" class="adm-input" name="q" value="@ViewBag.Search" placeholder="Ada göre ara..." />
-    <select class="adm-select" name="category">
-      <option value="">Tüm Kategoriler</option>
-      @foreach (var c in categories)
-      {
-        <option value="@c.Id" selected="@(selected == c.Id)">@c.Name</option>
-      }
-    </select>
+    <vc:category-select name="category" selected="@selected" empty-text="Tüm Kategoriler" />
     <button type="submit" class="adm-btn adm-btn-light">Filtrele</button>
   </form>
 

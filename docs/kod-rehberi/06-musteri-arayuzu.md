@@ -55,13 +55,13 @@ Bugünkü testte bunu bizzat yaşadık: boş bir oturumla `/cart`'tan token alma
 [HttpGet("/")]
 public async Task<IActionResult> Index()
 {
-    ViewBag.Categories = await _categoryService.GetActiveWithProductsAsync();
     return View(await _productService.GetFeaturedAsync(6));
 }
 ```
 - `[HttpGet("/")]`: başında `/` olduğu için controller'ın route ön ekinden bağımsız, mutlak bir adres.
-- **Controller hiçbir hesap yapmıyor:** "ürünü olmayan kategoriyi gösterme" kuralı `CategoryService.GetActiveWithProductsAsync` içinde. Controller sadece servisten DTO alıp sayfaya veriyor.
-- **Model ve ViewBag:** Sayfanın asıl verisi **model** olarak gidiyor (`View(...)` → view'da `@model List<ResultProductDto>`). Ek liste `ViewBag` ile gidiyor; içinde yine DTO var (`List<ResultCategoryDto>`). `ViewBag` `dynamic`'tir, derleyici tip kontrolü yapmaz.
+- **Controller hiçbir hesap yapmıyor:** Sayfanın asıl verisi **model** olarak gidiyor (`View(...)` → view'da `@model List<ResultProductDto>`).
+- **Kategori kartları controller'da değil:** Eskiden `ViewBag.Categories` dolduruluyordu. Artık `CategoryShowcaseViewComponent` bu listeyi `CategoryService.GetActiveWithProductsAsync()` ile **kendisi** çekiyor ("ürünü olmayan kategoriyi gösterme" kuralı o serviste). Controller bir şey bilmek zorunda değil; `ViewBag` `dynamic` olduğu için kaybolan tip kontrolü de geri geldi (VC view'ında `@model List<ResultCategoryDto>`).
+- Ana sayfanın geri kalanı partial'lara bölündü: `_Hero`, `_OrderWays`, `_About`, `_Offer`, `_Reviews` (hepsi `Views/Home/` altında, statik içerik). Öne çıkan ürünler ortak `_ProductCard` partial'ı ile çiziliyor.
 
 ```csharp
 [HttpGet("/error")]
@@ -99,13 +99,12 @@ public class ProductsController : Controller
 
 ```csharp
         var products = await _productService.GetMenuAsync(category, q);
-        ViewBag.Categories = await _categoryService.GetActiveAsync();
         ViewBag.Category = category;
         ViewBag.Search = q;
         return View(products);
     }
 ```
-Filtre ve arama **sunucuda**. View'da arama kutusu `<form method="get" action="/products">`: GET formu, yani değerler adres çubuğuna yazılıyor. Sayfayı yer imlerine ekleyebilir veya linki paylaşabilirsin. Kategori seçiliyken arama yapılınca kategori kaybolmasın diye formda gizli bir `<input name="category">` var.
+Kategori düğmelerini `CategoryFilterViewComponent` çiziyor (`<vc:category-filter selected="@selected" />`); controller ViewBag'e sadece **seçili filtreyi** yazıyor, kategori listesini değil. Filtre ve arama **sunucuda**. View'da arama kutusu `<form method="get" action="/products">`: GET formu, yani değerler adres çubuğuna yazılıyor. Sayfayı yer imlerine ekleyebilir veya linki paylaşabilirsin. Kategori seçiliyken arama yapılınca kategori kaybolmasın diye formda gizli bir `<input name="category">` var.
 
 ```csharp
     [HttpGet("{id:int}")]
@@ -117,11 +116,10 @@ Filtre ve arama **sunucuda**. View'da arama kutusu `<form method="get" action="/
             Response.StatusCode = 404;
             return View("NotFound");        // özel 404 sayfası
         }
-        ViewBag.Options = await _productService.GetOptionsAsync();
-        ViewBag.Related = await _productService.GetRelatedAsync(product.Id, product.CategoryId, 4);
         return View(product);
     }
 ```
+Seçenekleri `ProductOptionsViewComponent` (`<vc:product-options product="@Model" />`), benzer ürünleri `RelatedProductsViewComponent` (`<vc:related-products product-id="@Model.Id" category-id="@Model.CategoryId" />`) kendisi getiriyor. Controller'ın işi sadece ürünü bulmak.
 `return NotFound()` yerine özel bir view döndürülüyor ve status code elle 404 yapılıyor. Böylece genel 404 sayfası yerine "bu ürün bulunamadı" sayfası çıkıyor.
 
 ---
@@ -312,6 +310,34 @@ public class CartDrawerViewComponent : ViewComponent
 ```
 Sağdan açılan sepet paneli (Bootstrap Offcanvas). Fiyatları yine `OrderService` hesaplıyor (Pickup = ücretsiz, çünkü panelde sadece ara toplam gösteriliyor). Layout bunu sadece ana sayfa, menü ve detay sayfasında çağırıyor.
 
+### Sayfa parçaları: veri isteyen → View Component, istemeyen → partial
+
+Kural basit: **bir parça kendi verisini servisten çekmesi gerekiyorsa View Component, verisini çağıran sayfanın modelinden alıyorsa (ya da hiç verisi yoksa) partial.**
+
+| View Component (`WebUI/ViewComponents/MenuViewComponents.cs`) | Servis çağrısı | Nerede | Çağrı |
+|---|---|---|---|
+| `CategoryShowcaseViewComponent` | `CategoryService.GetActiveWithProductsAsync()` | Ana sayfa kategori kartları | `@await Component.InvokeAsync("CategoryShowcase")` |
+| `CategoryFilterViewComponent` | `CategoryService.GetActiveAsync()` | Menü kategori düğmeleri | `<vc:category-filter selected="@selected" />` |
+| `ProductOptionsViewComponent` | `ProductService.GetOptionsAsync()` | Detaydaki boy/süt/ekstra/şurup | `<vc:product-options product="@Model" />` |
+| `RelatedProductsViewComponent` | `ProductService.GetRelatedAsync(id, kategori, 4)` | Detaydaki benzer ürünler | `<vc:related-products product-id="..." category-id="..." />` |
+| `CartCountViewComponent`, `CartDrawerViewComponent` | Session + `OrderService.CalculateAsync` | Navbar rozeti, sepet paneli | `@await Component.InvokeAsync("CartCount")` |
+
+- **`<vc:...>` etiketi:** View Component'i HTML etiketi gibi çağırmanın yolu. Adı kebab-case yazılır (`CategoryFilter` → `category-filter`), parametreler de öyle (`productId` → `product-id`). Çalışması için `_ViewImports.cshtml`'e `@addTagHelper *, CafeOrder.WebUI` satırı eklendi (projenin kendi derlemesindeki VC'leri tag helper yapar). Avantajı: parametre adları derleme anında kontrol edilir; `InvokeAsync("...", new { ... })` gibi anonim nesne yazmaya gerek kalmaz.
+- **Dikkat (yaşadık):** `<vc:category-filter selected="@selected" />` etiketinde `selected` null olunca VC'ye `""` (boş metin) gelebiliyor. Bu yüzden "Tüm Ürünler" düğmesi seçili görünmüyordu. VC içinde `string.IsNullOrEmpty(selected) ? null : selected` ile düzeltildi.
+- VC view'ları `Views/Shared/Components/<Ad>/Default.cshtml` yolunda.
+
+| Partial | Model | Ne çizer |
+|---|---|---|
+| `Home/_Hero`, `_OrderWays`, `_About`, `_Offer`, `_Reviews` | — | Ana sayfanın statik bölümleri |
+| `Shared/_ProductCard` | `ResultProductDto` | Ürün kartı (ana sayfa, menü, benzer ürünler) |
+| `Products/_MenuHeader`, `_MenuPromo` | — | Menü başlığı ve alt tanıtım kutusu |
+| `Products/_DetailBreadcrumb`, `_ProductGallery` | `ResultProductDto` | Detayın sayfa yolu ve fotoğrafı |
+| `Cart/_CartHeader` | — | Sepet başlığı |
+| `Cart/_CartItems`, `_ChannelPicker`, `_CheckoutForm`, `_CartSummary` | `ResultCartDto` | Sepetin 3 adımı ve özet |
+| `Cart/_OrderReceipt` | `ResultOrderDto` | Onay sayfasındaki fiş |
+
+Partial, çağıran sayfanın klasöründe (`Views/Cart/_CartItems.cshtml`), bulunamazsa `Views/Shared/`'da aranır. Çağrı: `<partial name="_CartItems" model="Model" />`. Partial'lar veri **çekmez**; bu yüzden `Cart/Index.cshtml` artık sadece iskelet: başlık + 4 partial çağrısı.
+
 ---
 
 ## 8. Layout ve view dosyaları
@@ -356,21 +382,23 @@ Her view'dan önce çalışır: "bütün sayfalar `_Layout` kullansın."
 - **`<!body ...>`:** Başındaki `!` o eleman için tag helper işlemeyi kapatır. Ana sayfa `ViewData["BodyAttributes"]` ile body'ye Bootstrap scroll-spy özellikleri ekliyor; `@Html.Raw` bu metni HTML olarak (kaçış yapmadan) basıyor. Normalde `@` ile basılan her şey **HTML encode** edilir (`<` → `&lt;`). Bu XSS saldırılarına karşı otomatik bir korumadır. `Html.Raw` bu korumayı kapatır, bu yüzden **sadece sunucunun kendi ürettiği metinle** kullanılmalı (burada öyle).
 - `data-open-cart="@(cond ? "true" : null)"`: Razor'da bir attribute'un değeri `null` ise attribute **hiç yazılmaz**. Bu küçük ama kullanışlı bir Razor özelliği.
 
-### `Products/Detail.cshtml`: önemli kısımlar
+### `ProductOptions/Default.cshtml` (ürün detayındaki seçenekler): önemli kısımlar
 ```razor
-@model ResultProductDto
+@model List<ResultProductOptionDto>
 @{
-    List<ResultProductOptionDto> options = ViewBag.Options;
+    ResultProductDto product = ViewBag.Product;   // VC InvokeAsync(product) ile verdi
+    var options = Model;
     var sizes  = options.Where(o => o.GroupKey == "Size").ToList();
     var milks  = options.Where(o => o.GroupKey == "Milk").ToList();
     var shots  = options.Where(o => o.GroupKey == "ExtraShot").ToList();
     var syrups = options.Where(o => o.GroupKey == "Syrup").ToList();
-    var startPrice = Model.BasePrice;
-    if (Model.IsCustomizable)
+    var startPrice = product.BasePrice;
+    if (product.IsCustomizable)
         startPrice += sizes.Where(o => o.IsDefault).Sum(o => o.PriceDelta) + milks.Where(o => o.IsDefault).Sum(o => o.PriceDelta);
 }
 ```
-- `List<...> options = ViewBag.Options;`: `dynamic`'ten tipli bir değişkene atama. Bu satırdan sonra derleyici yardım edebiliyor.
+- Seçenek listesi VC'nin **modeli** (`List<ResultProductOptionDto>`), ürün ise `ViewBag.Product` ile geliyor: `ResultProductDto product = ViewBag.Product;` `dynamic`'ten tipli değişkene atama; bu satırdan sonra derleyici yardım edebiliyor.
+- Form etiketi (`<form ... asp-action="Add">`) `Products/Detail.cshtml`'de kaldı; VC sadece formun **içindeki** seçenek alanlarını çiziyor. Böylece seçimler aynı formla `/cart/add`'e gidiyor.
 - `startPrice`: Varsayılan seçimlerle (Orta +15, Normal Süt 0) başlangıç fiyatı → 160 + 15 = **175**. Ekran görüntüsünde "Başlangıç fiyatı ₺175,00" yazmasının sebebi bu. Bu değer **sadece bilgi amaçlı**; seçim değiştikçe güncellenmiyor (JavaScript yok). Ekranda da *"options are added in the cart"* yazıyor.
 
 ```razor

@@ -1,0 +1,69 @@
+@* Müşteri bilgileri formu. Hangi alanların çıkacağı sipariş türüne göre değişir; hata olunca yazılanlar Model.Form'dan geri gelir. *@
+@model ResultCartDto
+@{
+    ResultOrderDto order = Model.Order;
+    OrderChannel? channel = Model.Channel;
+    ResultTableDto? table = Model.Table;
+    CreateOrderDto form = Model.Form;
+    var isEmpty = order.Details.Count == 0;
+}
+<section class="cf-panel">
+  <div class="cf-panel-head">
+    <h2 class="cf-panel-title"><span class="cf-step">3</span> Bilgileriniz</h2>
+  </div>
+  <form method="post" asp-action="Checkout" id="checkoutForm" class="cf-details">
+    @if (channel == OrderChannel.Table)
+    {
+      if (table != null)
+      {
+        <div class="cf-table-card">
+          <span class="cf-table-num">@table.Number</span>
+          <div><small>Sipariş verdiğiniz masa</small><strong>Masa @table.Number · @table.Area</strong></div>
+        </div>
+      }
+      else
+      {
+        <div class="cf-notice">
+          <i class="bi bi-qr-code-scan"></i>
+          <div>
+            <strong>Masanızdaki QR kodu okutun</strong>
+            <a href="/cart?qr=CF-T07-GUL" class="cf-text-link">Masa okutmayı dene (demo)</a>
+          </div>
+        </div>
+      }
+    }
+    else
+    {
+      <div class="row g-3 pb-3">
+        <div class="col-md-6">
+          <label class="cf-label" for="fullName">Ad Soyad</label>
+          <input class="cf-input" id="fullName" name="FullName" value="@form.FullName" />
+        </div>
+        <div class="col-md-6">
+          <label class="cf-label" for="phone">Telefon</label>
+          <input class="cf-input" id="phone" name="Phone" value="@form.Phone" />
+        </div>
+        @if (channel == OrderChannel.Delivery)
+        {
+          <div class="col-12">
+            <label class="cf-label" for="address">Teslimat Adresi</label>
+            <textarea class="cf-textarea" id="address" name="Address" rows="2">@form.Address</textarea>
+          </div>
+          <div class="col-12">
+            <label class="cf-label" for="addressNotes">Adres Notu (isteğe bağlı)</label>
+            <input class="cf-input" id="addressNotes" name="AddressNotes" value="@form.AddressNotes" />
+          </div>
+        }
+        @if (channel == OrderChannel.Pickup)
+        {
+          <div class="col-md-6">
+            <label class="cf-label" for="pickupTime">Teslim Alma Saati</label>
+            <input class="cf-input" id="pickupTime" name="PickupTime" type="datetime-local" value="@form.PickupTime?.ToString("yyyy-MM-ddTHH:mm")" />
+          </div>
+        }
+      </div>
+    }
+    <label class="cf-label" for="note">Not (isteğe bağlı)</label>
+    <textarea class="cf-textarea" id="note" name="Note" rows="2" maxlength="300">@form.Note</textarea>
+  </form>
+</section>

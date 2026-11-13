@@ -1,0 +1,46 @@
+@* STATE: durum butonları sabit değil; OrderService.GetByIdAsync'in doldurduğu AllowedNextStatuses listesinden çizilir. *@
+@model ResultOrderDto
+@{
+    var order = Model;
+    List<OrderStatus> allowedNext = order.AllowedNextStatuses;
+}
+<section class="adm-card mb-4" aria-labelledby="statusTitle">
+  <div class="ord-card-head">
+    <h2 id="statusTitle"><i class="bi bi-arrow-repeat"></i> Durumu güncelle</h2>
+  </div>
+  <div class="ord-card-body">
+    @if (allowedNext.Count == 0)
+    {
+      <div class="adm-callout info m-0">
+        <i class="bi bi-lock"></i>
+        <span>Bu siparişin durumu <strong>@AdminDisplay.StatusLabel(order.Status)</strong>; artık değiştirilemez.</span>
+      </div>
+    }
+    else
+    {
+      <form method="post" asp-area="Admin" asp-controller="Orders" asp-action="ChangeStatus" asp-route-id="@order.Id">
+        @* asp-action sayesinde form tag helper antiforgery token'ı kendisi ekler. *@
+        <label class="adm-label" for="note">Not <span class="opt">(isteğe bağlı)</span></label>
+        <textarea class="adm-textarea" id="note" name="note" maxlength="300" placeholder="ör. Müşteri ekstra peçete istedi"></textarea>
+        <div class="ord-actions">
+          @foreach (OrderStatus target in allowedNext)
+          {
+            if (target == OrderStatus.Cancelled)
+            {
+              <button type="submit" name="target" value="@target" class="adm-btn @AdminDisplay.ActionButtonClass(target)" onclick="return confirm('Bu sipariş iptal edilsin mi?');">
+                <i class="bi @AdminDisplay.ActionIcon(target)"></i> @AdminDisplay.ActionLabel(target)
+              </button>
+            }
+            else
+            {
+              <button type="submit" name="target" value="@target" class="adm-btn @AdminDisplay.ActionButtonClass(target)">
+                <i class="bi @AdminDisplay.ActionIcon(target)"></i> @AdminDisplay.ActionLabel(target)
+              </button>
+            }
+          }
+        </div>
+        <p class="adm-hint mt-3 mb-0">Sadece izin verilen sonraki adımlar gösterilir. Her değişiklik mutfağa, kasaya ve yöneticiye bildirilir.</p>
+      </form>
+    }
+  </div>
+</section>

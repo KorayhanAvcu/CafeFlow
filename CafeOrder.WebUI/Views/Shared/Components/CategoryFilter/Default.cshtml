@@ -1,0 +1,17 @@
+@* CategoryFilterViewComponent: menüdeki kategori düğmeleri. Her düğme bir link; filtre adres çubuğunda durur. *@
+@model List<ResultCategoryDto>
+@{
+    string? selected = ViewBag.Selected;
+}
+<!-- Kategoriler: her biri bir link, filtre adres çubuğunda durur -->
+<nav class="cf-cat-scroll" id="categoryBar" aria-label="Ürün kategorileri">
+  <a href="/products" class="cf-pill@(selected == null ? " active" : "")">
+    <i class="bi bi-grid"></i>Tüm Ürünler <span class="cf-pill-count">@Model.Sum(c => c.ProductCount)</span>
+  </a>
+  @foreach (var category in Model)
+  {
+    <a href="/products?category=@category.Slug" class="cf-pill@(selected == category.Slug ? " active" : "")">
+      <i class="bi @(category.Icon ?? "bi-tag")"></i>@category.Name <span class="cf-pill-count">@category.ProductCount</span>
+    </a>
+  }
+</nav>
