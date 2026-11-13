@@ -22,7 +22,7 @@ WebUI (controller, view)  ──DTO──►  BusinessLayer (servis, desenler)  
 | Sayfa DTO'ları | Birden fazla veri gösteren sayfaların tek bir DTO'su var: `ResultCartDto` (sepet), `ResultDashboardDto` (panel), `ResultOrderListDto` (sipariş listesi), `ResultNotificationPageDto` (bildirimler). |
 
 ### Entity'lerin kullanıldığı yer neden doğru?
-Desenler (Factory Method, Decorator, Strategy, Chain, State, Observer) BusinessLayer içinde `Order`, `OrderDetail`, `Product` entity'leri üzerinde çalışır. Bu bilinçli bir tercih: EF Core sadece entity'leri tanır ve izler (change tracking). Sipariş tek transaction'da kaydedilirken müşteri, kalemler ve seçeneklerle birlikte bütün nesne grafiği entity olmak zorunda. Servis işini entity'lerle yapar, dışarıya sonucu AutoMapper ile DTO'ya çevirip verir.
+Desenler (Factory Method, Decorator, Strategy, Chain, State, Observer) BusinessLayer içinde `Order`, `OrderDetail`, `Product` entity'leri üzerinde çalışır. Bu bilinçli bir tercih: EF Core sadece entity'leri tanır ve izler (change tracking). Sipariş tek transaction'da kaydedilirken müşteri, kalemler ve seçeneklerle birlikte bütün nesne grafiği entity olmak zorunda. Servis işini entity'lerle yapar, dışarıya sonucu Mapster ile DTO'ya çevirip verir.
 
 ### State ve arayüz
 Admin sipariş detayındaki izinli durum düğmeleri için gereken liste `OrderService.GetByIdAsync` içinde hesaplanıp `ResultOrderDto.AllowedNextStatuses` olarak geliyor. WebUI State sınıfını hiç tanımıyor.
@@ -53,7 +53,7 @@ Bütün metotların kodda da Türkçe `/// <summary>` açıklaması var (302 met
 | `GetFeaturedAsync` | Ana sayfa: rozetli ilk N ürün | `int` | `List<ResultProductDto>` |
 | `GetActiveByIdAsync` | Ürün detay sayfası; pasifse null | `int` | `ResultProductDto?` |
 | `GetRelatedAsync` | Aynı kategoriden diğer ürünler | `int`, `int`, `int` | `List<ResultProductDto>` |
-| `GetOptionsAsync` | Boyut, süt, shot, şurup seçenekleri | — | `List<ResultProductOptionDto>` |
+| `GetOptionsAsync` | Boyut, süt, shot, krema, şurup seçenekleri | — | `List<ResultProductOptionDto>` |
 | `GetAllAsync` | Admin listesi: bütün ürünler | — | `List<ResultProductDto>` |
 | `GetAdminListAsync` | Admin listesi, kategori ve ada göre filtreli | `int?`, `string?` | `List<ResultProductDto>` |
 | `GetFormAsync` | Admin formu: id null → boş form, değilse dolu form | `int?` | `UpdateProductDto` |

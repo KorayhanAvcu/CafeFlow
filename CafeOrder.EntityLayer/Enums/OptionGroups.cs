@@ -6,4 +6,5 @@ public static class OptionGroups
     public const string Milk = "Milk";
     public const string ExtraShot = "ExtraShot";
     public const string Syrup = "Syrup";
+    public const string Cream = "Cream";
 }

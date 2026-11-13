@@ -891,7 +891,7 @@ CartController.Checkout
       ▼
 OrderService.PlaceOrderAsync
       │
-      ├─ AutoMapper ............ CreateOrderDto → Order(form)
+      ├─ Mapster ............... CreateOrderDto → Order(form)
       ├─ TableRepository ....... QR → aktif masa (yoksa null)
       ├─ CustomerRepository .... telefon → var olan / yeni müşteri
       │

@@ -60,7 +60,7 @@ public static class SeedData
         context.Products.Add(CreateProduct(snacks, "Hindi ve Brie Panini", 255, "1528736235302-52922df5c122", "Füme hindi, kremamsı brie ve incir reçeli, altın rengine kadar preslenir.", null, false, false));
         context.Products.Add(CreateProduct(snacks, "Tavuklu Sezar Dürüm", 245, "1626700051175-6818013e1d4f", "Izgara tavuk, çıtır marul, parmesan ve ev yapımı sezar sos.", null, false, false));
 
-        // 3) Ürün seçenekleri: boyut, süt, ekstra shot, şurup (özelleştirilebilir ürünlerin hepsi bunları kullanır)
+        // 3) Ürün seçenekleri: boyut, süt, ekstra shot, şurup, krema (özelleştirilebilir ürünlerin hepsi bunları kullanır)
         context.ProductOptions.Add(new ProductOption { GroupKey = OptionGroups.Size, Value = "Küçük", PriceDelta = 0 });
         context.ProductOptions.Add(new ProductOption { GroupKey = OptionGroups.Size, Value = "Orta", PriceDelta = 15, IsDefault = true });
         context.ProductOptions.Add(new ProductOption { GroupKey = OptionGroups.Size, Value = "Büyük", PriceDelta = 30 });
@@ -70,6 +70,7 @@ public static class SeedData
         context.ProductOptions.Add(new ProductOption { GroupKey = OptionGroups.ExtraShot, Value = "Evet", PriceDelta = 20 });
         context.ProductOptions.Add(new ProductOption { GroupKey = OptionGroups.Syrup, Value = "Vanilya Şurubu", PriceDelta = 10 });
         context.ProductOptions.Add(new ProductOption { GroupKey = OptionGroups.Syrup, Value = "Karamel Şurubu", PriceDelta = 10 });
+        context.ProductOptions.Add(new ProductOption { GroupKey = OptionGroups.Cream, Value = "Krema", PriceDelta = 15 });
 
         // 4) QR kodlu masalar
         context.Tables.Add(new Table { Number = 7, Area = "Bahçe Köşesi", QrToken = "CF-T07-GUL", IsActive = true });

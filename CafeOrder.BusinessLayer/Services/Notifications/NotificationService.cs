@@ -1,4 +1,4 @@
-using AutoMapper;
+using MapsterMapper;
 using CafeOrder.DataAccessLayer.Repositories.Notifications;
 using CafeOrder.DtoLayer.Dtos.NotificationDtos;
 using CafeOrder.EntityLayer.Entities;

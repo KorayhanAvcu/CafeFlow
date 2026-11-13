@@ -1,4 +1,4 @@
-using AutoMapper;
+using MapsterMapper;
 using CafeOrder.BusinessLayer.Creation;
 using CafeOrder.BusinessLayer.Events;
 using CafeOrder.BusinessLayer.Exceptions;

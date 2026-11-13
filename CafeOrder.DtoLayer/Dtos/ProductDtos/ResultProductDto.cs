@@ -2,7 +2,7 @@
 
 /// <summary>
 /// Ürün listelerinde ve ürün detayında ekrana giden veri.
-/// CategoryName, CategorySlug, CategoryIcon: AutoMapper bunları Category.Name, Category.Slug,
+/// CategoryName, CategorySlug, CategoryIcon: Mapster bunları Category.Name, Category.Slug,
 /// Category.Icon'dan kendisi doldurur (isim birleştirme / "flattening").
 /// </summary>
 public class ResultProductDto

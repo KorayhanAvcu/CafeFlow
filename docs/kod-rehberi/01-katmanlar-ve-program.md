@@ -24,7 +24,7 @@
 EntityLayer        → (hiçbir projeyi tanımaz)  + Microsoft.Extensions.Identity.Stores
 DtoLayer           → EntityLayer                (sadece enum'lar için)
 DataAccessLayer    → EntityLayer                + EF Core SqlServer + Identity.EntityFrameworkCore
-BusinessLayer      → DataAccessLayer, DtoLayer, EntityLayer + AutoMapper
+BusinessLayer      → DataAccessLayer, DtoLayer, EntityLayer + Mapster
 WebUI              → hepsi                      + EF Core Design (migration komutları için)
 ```
 
@@ -174,11 +174,14 @@ builder.Services.AddSingleton(builder.Configuration.GetSection("Pricing").Get<Pr
 
 Not: Microsoft'un önerdiği yol `builder.Services.Configure<PricingOptions>(...)` ve `IOptions<PricingOptions>` kullanmaktır. Burada sade olsun diye nesnenin kendisi kaydediliyor. Bunun sonucu: `appsettings.json` uygulama çalışırken değiştirilirse yeni değerler okunmaz, uygulamayı yeniden başlatmak gerekir.
 
-### 4.8 AutoMapper
+### 4.8 Mapster
 ```csharp
-builder.Services.AddAutoMapper(typeof(GeneralMapping));
+TypeAdapterConfig mapsterConfig = TypeAdapterConfig.GlobalSettings;
+mapsterConfig.Scan(typeof(GeneralMapping).Assembly);
+builder.Services.AddSingleton(mapsterConfig);
+builder.Services.AddScoped<IMapper, ServiceMapper>();
 ```
-"`GeneralMapping`'in bulunduğu assembly'deki bütün `Profile` sınıflarını tara ve `IMapper`'ı DI'a ekle." Bölüm 03'te ayrıntısı var.
+"`GeneralMapping`'in bulunduğu assembly'deki bütün `IRegister` sınıflarını tara, kurallarını ayarlara ekle ve `IMapper`'ı DI'a ekle." Bölüm 03'te ayrıntısı var (AutoMapper'dan neden geçildiği dahil).
 
 ### 4.9 Repository ve servis kayıtları
 ```csharp
@@ -286,7 +289,7 @@ Kestrel (web sunucusu) isteği alır
  → DI: yeni scope açılır. ProductsController oluşturulurken constructor'ı IProductService ve ICategoryService ister
        → ProductService oluşturulur; o da IProductRepository, ICategoryRepository... ister
        → repository'ler oluşturulur; onlar CafeOrderDbContext ister → bu istek için TEK bir DbContext
- → Detail(2) çalışır → servis → repository → EF Core → SQL → entity → AutoMapper → DTO
+ → Detail(2) çalışır → servis → repository → EF Core → SQL → entity → Mapster → DTO
  → return View(product) → Razor, Views/Products/Detail.cshtml'i HTML'e çevirir
  → cevap middleware'lerden geri çıkar → tarayıcı
  → scope kapanır: DbContext ve bütün scoped nesneler Dispose edilir

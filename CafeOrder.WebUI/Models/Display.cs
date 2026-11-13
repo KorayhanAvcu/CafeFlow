@@ -31,13 +31,14 @@ public static class Display
     }
 
     /// <summary>
-    /// Seçeneğin okunur hali: boyutta "Büyük" → "Büyük boy", ekstra shot'ta "Evet" → "Ekstra shot".
+    /// Seçeneğin okunur hali: boyutta "Büyük" → "Büyük boy", ekstra shot'ta "Evet" → "Ekstra shot", kremada "Krema" → "Çırpılmış krema".
     /// Süt ve şurup adları veride zaten tam ("Yulaf Sütü", "Vanilya Şurubu"), olduğu gibi yazılır.
     /// </summary>
     public static string OptionText(string groupKey, string value)
     {
         if (groupKey == OptionGroups.Size) return value + " boy";
         if (groupKey == OptionGroups.ExtraShot) return "Ekstra shot";
+        if (groupKey == OptionGroups.Cream) return "Çırpılmış krema";
         return value;
     }
 

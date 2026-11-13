@@ -14,7 +14,7 @@ Durum değişirken (POST /admin/orders/{id}/status → OrderService.ChangeStatus
 
 ## 1. Decorator: seçeneklere göre ürün fiyatı
 
-**Amaç:** Kahveye boyut, süt, ekstra shot ve şurup gibi seçenekler eklendiğinde birim fiyatı, her seçeneği taban fiyatın üstüne bir "kat" olarak sararak hesaplamak. Yeni bir seçenek türü eklendiğinde hesap kodu değişmez.
+**Amaç:** Kahveye boyut, süt, ekstra shot, krema ve şurup gibi seçenekler eklendiğinde birim fiyatı, her seçeneği taban fiyatın üstüne bir "kat" olarak sararak hesaplamak. Yeni bir seçenek türü eklendiğinde hesap kodu değişmez.
 
 | Sınıf | Görevi |
 |---|---|
@@ -25,8 +25,8 @@ Durum değişirken (POST /admin/orders/{id}/status → OrderService.ChangeStatus
 **Tetiklendiği akış:** Sepet sayfası, sepet paneli ve sipariş kaydı. Hepsi `OrderService.CalculateOrderAsync` → `CalculateUnitPrice` üzerinden çalışır. Fiyatlar her seferinde veritabanından okunur; tarayıcıdan gelen fiyat kullanılmaz.
 
 ```text
-Vanilyalı Latte 160 → Büyük +30 → Yulaf Sütü +15 → Ekstra shot +20 = 225 ₺
-new OptionPriceDecorator(new OptionPriceDecorator(new OptionPriceDecorator(new BaseProductPrice(160), 30), 15), 20)
+Vanilyalı Latte 160 → Büyük +30 → Yulaf Sütü +15 → Ekstra shot +20 → Krema +15 = 240 ₺
+new OptionPriceDecorator(new OptionPriceDecorator(new OptionPriceDecorator(new OptionPriceDecorator(new BaseProductPrice(160), 30), 15), 20), 15)
 ```
 
 ## 2. Strategy: kanala göre teslimat ücreti

@@ -16,7 +16,7 @@ Kod okumaya yeni başlayanlar için bütün kodu satır satır anlatan rehber: *
 
 - **Ana Sayfa:** kategoriler ve öne çıkan (rozetli) ürünler veritabanından gelir
 - **Ürünler:** arama ve kategori filtresi; ikisi de sunucuda uygulanır (`/products?category=pastalar&q=latte`)
-- **Ürün Detay:** açıklama, fiyat; boyut, süt, ekstra shot ve şurup seçimi; aynı kategoriden diğer ürünler
+- **Ürün Detay:** açıklama, fiyat; boyut, süt, ekstra shot, krema ve şurup seçimi; aynı kategoriden diğer ürünler
 - **Sepet:** Session'da tutulur; teslimat, gel-al veya QR ile masa siparişi; bütün tutarları sunucu hesaplar
 - **Sipariş onayı:** sipariş numarası ve özet
 
@@ -47,7 +47,7 @@ Bütün sayfalar diğer MVC projelerindeki gibi çalışır: controller veriyi *
 
 - .NET 8, ASP.NET Core MVC, Razor
 - Entity Framework Core 8, SQL Server (Express veya LocalDB)
-- AutoMapper 13 (Entity ↔ DTO eşlemesi)
+- Mapster 10 (Entity ↔ DTO eşlemesi; ücretsiz, MIT lisanslı)
 - ASP.NET Core Identity (giriş, rol, şifre özeti, kilitleme)
 - Session (müşteri sepeti)
 - Bootstrap 5, verilen CafeFlow HTML/CSS/JS tasarımı
@@ -61,7 +61,7 @@ CafeOrder.WebUI           Controller'lar, Razor sayfaları, Session sepeti (Cart
                           Identity ayarları, servis kayıtları (Program.cs)
        ↓
 CafeOrder.BusinessLayer   Services (ICategoryService / CategoryService ...), 6 tasarım deseni,
-                          AutoMapper profili (Mapping/GeneralMapping), BusinessException
+                          Mapster eşlemeleri (Mapping/GeneralMapping), BusinessException
        ↓
 CafeOrder.DataAccessLayer GenericRepository<T> + tablo başına bir repository, DbContext,
                           tablo ayarları, migration, başlangıç verileri
@@ -75,8 +75,8 @@ CafeOrder.DtoLayer        Ekran ile servis arasında taşınan veri: Result / Cr
 Akış her yerde aynı:
 
 1. Controller servisi çağırır; formdan gelen veri **Create/Update DTO** olarak gider.
-2. Servis DTO'yu AutoMapper ile **entity**'ye çevirir, kuralları uygular (hata varsa `BusinessException`), repository ile kaydeder.
-3. Okurken servis repository'den entity'yi alır, AutoMapper ile **Result DTO**'ya çevirip döner.
+2. Servis DTO'yu Mapster ile **entity**'ye çevirir, kuralları uygular (hata varsa `BusinessException`), repository ile kaydeder.
+3. Okurken servis repository'den entity'yi alır, Mapster ile **Result DTO**'ya çevirip döner.
 4. Controller DTO'yu view'a verir (`return View(products)`); view `@model List<ResultProductDto>` ile çizer.
 
 Entity'ler WebUI'a hiç çıkmaz (Identity'deki `AppUser` hariç). Tasarım desenleri BusinessLayer içinde entity üzerinde çalışır.
@@ -107,7 +107,7 @@ Entity'ler WebUI'a hiç çıkmaz (Identity'deki `AppUser` hariç). Tasarım dese
 CafeOrder.EntityLayer/       Entities (Product, Order ...), Enums (OrderStatus, OrderChannel ...)
 CafeOrder.DataAccessLayer/   Context (DbContext, SeedData), Repositories/<Tablo>, Migrations
 CafeOrder.DtoLayer/          Dtos/<Tablo>Dtos (ResultXDto, CreateXDto, UpdateXDto, CartItemDto, CreateOrderDto)
-CafeOrder.BusinessLayer/     Services/<Tablo>, Mapping (AutoMapper), Exceptions
+CafeOrder.BusinessLayer/     Services/<Tablo>, Mapping (Mapster), Exceptions
                              Pricing (Decorator), Pricing/Fees (Strategy), Validation (Chain),
                              Creation (Factory Method), States (State), Events (Observer)
 CafeOrder.WebUI/             Controllers, Views, Cart (Session), ViewComponents,
@@ -124,7 +124,7 @@ Views/Cart/Index.cshtml            form → POST /cart/checkout (CreateOrderDto)
 CartController.Checkout            sipariş türünü ve sepeti Session'dan okur
   ↓
 OrderService.PlaceOrderAsync
-  1. AutoMapper                    CreateOrderDto → Order
+  1. Mapster                       CreateOrderDto → Order
   2. Masa / müşteri                QR koduyla masa, telefonla kayıtlı müşteri bulunur
   3. Factory Method                Delivery / Pickup / TableOrderCreator siparişi kurar
   4. Decorator + Strategy          birim fiyatlar, ara toplam, teslimat ücreti hesaplanır
@@ -143,7 +143,7 @@ Admin sipariş detayında bir durum düğmesine bastığında: `OrdersController
 
 | Desen | Kullanıldığı yer | Çözdüğü iş |
 |---|---|---|
-| Decorator | `BusinessLayer/Pricing` | Boyut, süt, shot ve şurup seçeneklerini ürün fiyatına ekler |
+| Decorator | `BusinessLayer/Pricing` | Boyut, süt, shot, krema ve şurup seçeneklerini ürün fiyatına ekler |
 | Strategy | `BusinessLayer/Pricing/Fees` | Teslimat, gel-al ve masa için farklı ücret kuralları uygular |
 | Chain of Responsibility | `BusinessLayer/Validation` | Ürün, adet, kanal bilgisi ve tutar kontrollerini sırayla çalıştırır |
 | Factory Method | `BusinessLayer/Creation` | Siparişi kanala göre oluşturur |
@@ -277,7 +277,7 @@ sqllocaldb start MSSQLLocalDB
 |---|---|---|
 | Kategori | 8 | 7 aktif, 1 pasif |
 | Ürün | 20 | 7 tanesi özelleştirilebilir |
-| Ürün seçeneği | 9 | Boyut, süt, ekstra shot, şurup |
+| Ürün seçeneği | 10 | Boyut, süt, ekstra shot, krema, şurup |
 | Masa | 2 | `CF-T07-GUL` (Masa 7), `CF-T12-SEFTALI` (Masa 12) |
 | Admin hesabı | 1 | E-posta `appsettings.Development.json`'dan, şifre User Secrets'tan |
 

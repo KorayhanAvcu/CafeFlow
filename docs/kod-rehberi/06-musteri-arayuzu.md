@@ -61,7 +61,7 @@ public async Task<IActionResult> Index()
 - `[HttpGet("/")]`: başında `/` olduğu için controller'ın route ön ekinden bağımsız, mutlak bir adres.
 - **Controller hiçbir hesap yapmıyor:** Sayfanın asıl verisi **model** olarak gidiyor (`View(...)` → view'da `@model List<ResultProductDto>`).
 - **Kategori kartları controller'da değil:** Eskiden `ViewBag.Categories` dolduruluyordu. Artık `CategoryShowcaseViewComponent` bu listeyi `CategoryService.GetActiveWithProductsAsync()` ile **kendisi** çekiyor ("ürünü olmayan kategoriyi gösterme" kuralı o serviste). Controller bir şey bilmek zorunda değil; `ViewBag` `dynamic` olduğu için kaybolan tip kontrolü de geri geldi (VC view'ında `@model List<ResultCategoryDto>`).
-- Ana sayfanın geri kalanı View Component'lere bölündü: `HomeHero`, `HomeOrderWays`, `HomeAbout`, `HomeOffer`, `HomeReviews` (statik içerik). Öne çıkan ürünler ortak `ProductCard` View Component'i ile çiziliyor.
+- Ana sayfanın geri kalanı View Component'lere bölündü: `HomeHero`, `HomeOrderWays`, `HomeAbout`, `HomeOffer`, `HomeReviews` (statik içerik). `HomeOffer` bir "latte + pasta" önerisidir; indirim kodu yoktur, gösterilen ₺385 iki ürünün normal fiyatlarının toplamıdır (eskiden çalışmayan bir PINK20 kodu yazıyordu, kaldırıldı). Öne çıkan ürünler ortak `ProductCard` View Component'i ile çiziliyor.
 
 ```csharp
 [HttpGet("/error")]
@@ -321,7 +321,7 @@ Projede **hiç partial view kalmadı**; sayfanın her parçası bir View Compone
 |---|---|---|---|
 | `CategoryShowcase` | `CategoryService.GetActiveWithProductsAsync()` | Ana sayfa kategori kartları | `@await Component.InvokeAsync("CategoryShowcase")` |
 | `CategoryFilter` | `CategoryService.GetActiveAsync()` | Menü kategori düğmeleri | `<vc:category-filter selected="@selected" />` |
-| `ProductOptions` | `ProductService.GetOptionsAsync()` | Detaydaki boy/süt/ekstra/şurup | `<vc:product-options product="@Model" />` |
+| `ProductOptions` | `ProductService.GetOptionsAsync()` | Detaydaki boy/süt/ekstra (shot, krema)/şurup | `<vc:product-options product="@Model" />` |
 | `RelatedProducts` | `ProductService.GetRelatedAsync(id, kategori, 4)` | Detaydaki benzer ürünler | `<vc:related-products product-id="..." category-id="..." />` |
 | `CartCount`, `CartDrawer` | Session + `OrderService.CalculateAsync` | Navbar rozeti, sepet paneli | `@await Component.InvokeAsync("CartCount")` |
 | `CartToast` | `TempData["CartToast"]` | Sepet bildirimi | `<vc:cart-toast />` |
@@ -397,6 +397,7 @@ Her view'dan önce çalışır: "bütün sayfalar `_Layout` kullansın."
     var sizes  = options.Where(o => o.GroupKey == "Size").ToList();
     var milks  = options.Where(o => o.GroupKey == "Milk").ToList();
     var shots  = options.Where(o => o.GroupKey == "ExtraShot").ToList();
+    var creams = options.Where(o => o.GroupKey == "Cream").ToList();     // shot gibi checkbox (optionIds)
     var syrups = options.Where(o => o.GroupKey == "Syrup").ToList();
     var startPrice = product.BasePrice;
     if (product.IsCustomizable)
@@ -476,7 +477,7 @@ HTML5'in `form="id"` özelliği, düğmeyi uzaktaki bir forma bağlıyor. Tasar�
 ```csharp
 public static string Money(decimal amount) => "₺" + amount.ToString("N2", Turkish);   // Turkish = tr-TR
 public static string BadgeClass(string? badge) { ... "cf-tag-best" ... }
-public static string OptionText(string groupKey, string value) { Size → "Büyük boy", ExtraShot → "Ekstra shot", diğerleri olduğu gibi ("Yulaf Sütü", "Vanilya Şurubu") }
+public static string OptionText(string groupKey, string value) { Size → "Büyük boy", ExtraShot → "Ekstra shot", Cream → "Çırpılmış krema", diğerleri olduğu gibi ("Yulaf Sütü", "Vanilya Şurubu") }
 public static string ChannelName / ChannelIcon / ChannelText(OrderChannel channel)
 ```
 `N2` = binlik ayırıcı + 2 ondalık → `₺1,000.00`. View'larda tekrar eden biçimlendirme mantığı tek bir yerde toplanmış.

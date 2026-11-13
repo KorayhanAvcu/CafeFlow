@@ -1,5 +1,4 @@
-﻿using AutoMapper;
-using CafeOrder.DtoLayer.Dtos.CategoryDtos;
+﻿using CafeOrder.DtoLayer.Dtos.CategoryDtos;
 using CafeOrder.DtoLayer.Dtos.CustomerDtos;
 using CafeOrder.DtoLayer.Dtos.NotificationDtos;
 using CafeOrder.DtoLayer.Dtos.OrderDtos;
@@ -8,63 +7,49 @@ using CafeOrder.DtoLayer.Dtos.ProductOptionDtos;
 using CafeOrder.DtoLayer.Dtos.TableDtos;
 using CafeOrder.EntityLayer.Entities;
 using CafeOrder.EntityLayer.Enums;
+using Mapster;
 
 namespace CafeOrder.BusinessLayer.Mapping;
 
 /// <summary>
-/// AutoMapper eşlemeleri: Entity ↔ DTO.
+/// Mapster eşlemeleri: Entity ↔ DTO. (Mapster ücretsiz ve açık kaynaktır, MIT lisanslı.)
 /// Aynı isimli alanlar kendiliğinden kopyalanır (Name → Name).
-/// "CategoryName" gibi birleşik isimler de kendiliğinden bulunur (Category.Name → CategoryName).
-/// İsmi tutmayan ya da hesaplanan alanlar ForMember ile elle yazılır.
-/// Program.cs'te builder.Services.AddAutoMapper(typeof(GeneralMapping)) ile tanıtılır.
+/// "CategoryName" gibi birleşik isimler de kendiliğinden bulunur (Category.Name → CategoryName; flattening).
+/// İsmi tutmayan ya da hesaplanan alanlar .Map(...) ile elle yazılır.
+/// Burada sadece özel kuralı olan eşlemeler yazılır; kuralı olmayanları (ör. Product → ResultProductDto) Mapster kendisi çıkarır.
+/// Program.cs'te TypeAdapterConfig taranarak (Scan) tanıtılır.
 /// </summary>
-public class GeneralMapping : Profile
+public class GeneralMapping : IRegister
 {
-    public GeneralMapping()
+    /// <summary>Özel kuralı olan eşlemeleri Mapster ayarlarına ekler. Uygulama açılırken bir kez çalışır.</summary>
+    public void Register(TypeAdapterConfig config)
     {
         // ---------- Kategori ----------
-        CreateMap<Category, ResultCategoryDto>()
-            .ForMember(dest => dest.ProductCount, opt => opt.MapFrom(src => src.Products.Count));
-        CreateMap<CreateCategoryDto, Category>();
-        CreateMap<UpdateCategoryDto, Category>();
-        CreateMap<Category, UpdateCategoryDto>();             // düzenleme formunu doldurmak için (CategoryService.GetFormAsync)
-        CreateMap<UpdateCategoryDto, CreateCategoryDto>();    // form Id = 0 ile gelirse yeni kayıt
-
-        // ---------- Ürün ----------
-        CreateMap<Product, ResultProductDto>();               // CategoryName, CategorySlug, CategoryIcon kendiliğinden
-        CreateMap<CreateProductDto, Product>();
-        CreateMap<UpdateProductDto, Product>();
-        CreateMap<Product, UpdateProductDto>();               // düzenleme formu (ProductService.GetFormAsync)
-        CreateMap<UpdateProductDto, CreateProductDto>();
-        CreateMap<ProductOption, ResultProductOptionDto>();
+        // Ürün sayısı entity'de alan olarak yok; Products listesinden sayılır.
+        config.NewConfig<Category, ResultCategoryDto>()
+            .Map(dest => dest.ProductCount, src => src.Products.Count);
 
         // ---------- Masa ----------
-        CreateMap<Table, ResultTableDto>()
-            .ForMember(dest => dest.OrderCount, opt => opt.MapFrom(src => src.Orders.Count));
-        CreateMap<CreateTableDto, Table>();
-        CreateMap<UpdateTableDto, Table>();
-        CreateMap<Table, UpdateTableDto>();                   // düzenleme formu (TableService.GetFormAsync)
-        CreateMap<UpdateTableDto, CreateTableDto>();
+        config.NewConfig<Table, ResultTableDto>()
+            .Map(dest => dest.OrderCount, src => src.Orders.Count);
 
         // ---------- Müşteri ----------
-        CreateMap<Customer, ResultCustomerDto>()
-            .ForMember(dest => dest.OrderCount, opt => opt.MapFrom(src => src.Orders.Count))
-            .ForMember(dest => dest.TotalSpent, opt => opt.MapFrom(src =>
-                src.Orders.Where(o => o.Status != OrderStatus.Cancelled).Sum(o => o.Total)))
-            .ForMember(dest => dest.LastOrderDate, opt => opt.MapFrom(src =>
-                src.Orders.Count == 0 ? (DateTime?)null : src.Orders.Max(o => o.CreatedAt)));
+        // Sipariş sayısı, iptal hariç toplam harcama ve son sipariş tarihi müşterinin siparişlerinden hesaplanır.
+        config.NewConfig<Customer, ResultCustomerDto>()
+            .Map(dest => dest.OrderCount, src => src.Orders.Count)
+            .Map(dest => dest.TotalSpent, src => src.Orders.Where(o => o.Status != OrderStatus.Cancelled).Sum(o => o.Total))
+            .Map(dest => dest.LastOrderDate, src => src.Orders.Count == 0 ? (DateTime?)null : src.Orders.Max(o => o.CreatedAt));
 
         // ---------- Bildirim ----------
-        CreateMap<Notification, ResultNotificationDto>()
-            .ForMember(dest => dest.OrderNo, opt => opt.MapFrom(src => src.Order != null ? src.Order.OrderNo : null));
+        // Bildirimin siparişi silinmiş olabilir; o zaman sipariş numarası boş kalır.
+        config.NewConfig<Notification, ResultNotificationDto>()
+            .Map(dest => dest.OrderNo, src => src.Order != null ? src.Order.OrderNo : null);
 
-        // ---------- Sipariş ----------
-        CreateMap<Order, ResultOrderDto>();                   // CustomerFullName, TableNumber ... kendiliğinden
-        CreateMap<OrderDetail, ResultOrderDetailDto>();       // ProductImageUrl, ProductCategorySlug ... kendiliğinden
-        CreateMap<OrderDetailOption, ResultOrderDetailOptionDto>();
-        CreateMap<OrderStatusHistory, ResultOrderStatusHistoryDto>();
-
-        // Sipariş formu → Order. Müşteri (ad/telefon) OrderService'te ayrıca bulunur ya da oluşturulur.
-        CreateMap<CreateOrderDto, Order>();
+        // Kuralsız (kendiliğinden) eşlemeler, okuyana fikir versin diye:
+        //   Category ↔ UpdateCategoryDto, CreateCategoryDto → Category, UpdateCategoryDto → CreateCategoryDto
+        //   Product → ResultProductDto (CategoryName, CategorySlug, CategoryIcon flattening ile), ProductOption → ResultProductOptionDto
+        //   Product ↔ UpdateProductDto, Table ↔ UpdateTableDto, Create*Dto → entity
+        //   Order → ResultOrderDto (CustomerFullName, TableNumber ... flattening ile), OrderDetail → ResultOrderDetailDto,
+        //   OrderDetailOption → ResultOrderDetailOptionDto, OrderStatusHistory → ResultOrderStatusHistoryDto, CreateOrderDto → Order
     }
 }

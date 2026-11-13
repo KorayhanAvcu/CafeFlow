@@ -8,7 +8,7 @@ Bu klasör, CafeFlow projesindeki **bütün kodu** öğrenmen için yazıldı. H
 |---|---|---|---|
 | 01 | [Katmanlar ve Program.cs](01-katmanlar-ve-program.md) | Projeler birbirini nasıl tanıyor, ayarlar nasıl birleşiyor, DI ömürleri, middleware sırası, attribute routing | 30 dk |
 | 02 | [Entity'ler ve veritabanı](02-entity-ve-veritabani.md) | Tablolar, Fluent API, Restrict, migration geçmişi, seed, generic repository, change tracker, transaction | 45 dk |
-| 03 | [DTO ve AutoMapper](03-dto-ve-automapper.md) | Over-posting, flattening, `Map<T>` ile `Map(src, dest)` farkı, Include tuzakları | 25 dk |
+| 03 | [DTO ve Mapster](03-dto-ve-mapster.md) | Over-posting, flattening, `Map<T>` ile `Map(src, dest)` farkı, Include tuzakları | 25 dk |
 | 04 | [Servisler](04-servisler.md) | CRUD kalıbı, BusinessException, slug üretimi, QR üretimi, IQueryable ile sorgu inşası | 40 dk |
 | 05 | [**OrderService ve 6 desen**](05-siparis-servisi-ve-desenler.md) | Decorator, Strategy, Factory Method, Chain of Responsibility, State, Observer: satır satır, gerçek bir siparişle | 90 dk |
 | 06 | [Müşteri arayüzü](06-musteri-arayuzu.md) | PRG, TempData, antiforgery, Session sepeti, CartController, View Component, Razor layout, JS'siz arayüz | 50 dk |
@@ -62,7 +62,7 @@ Kod çalışıyor ve case'i karşılıyor. Aşağıdakiler "bir sonraki seviye" 
 | 9 | "Hepsini okundu yap" her bildirim için ayrı UPDATE yapıyor | `NotificationService.MarkAllReadAsync` | 04 |
 | 10 | Aynı telefonla gelen farklı isim yok sayılıyor | `PlaceOrderAsync` | 05 |
 | 11 | `DateTime.Now` (UTC değil) | birçok yer | 05 |
-| 12 | AutoMapper 13.0.1 güvenlik uyarısı | `BusinessLayer.csproj` | 03 |
+| 12 | ~~AutoMapper 13.0.1 güvenlik uyarısı~~ → **çözüldü:** ücretsiz Mapster 10'a geçildi | `BusinessLayer.csproj` | 03 |
 | 13 | Birim testi yok | — | — |
 
 ## Bugün bu projede ne yaptık?

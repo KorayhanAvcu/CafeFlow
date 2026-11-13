@@ -34,7 +34,7 @@ public class HomeAboutViewComponent : ViewComponent
     }
 }
 
-/// <summary>Ana sayfadaki kampanya kutusu. Statik içerik (PINK20 kodu sadece görseldir).</summary>
+/// <summary>Ana sayfadaki "Tatlı Pembe Menü" öneri kutusu (latte + pasta). Statik içerik; indirim kodu yoktur.</summary>
 public class HomeOfferViewComponent : ViewComponent
 {
     /// <summary>Default.cshtml'i çizer (veri yok).</summary>

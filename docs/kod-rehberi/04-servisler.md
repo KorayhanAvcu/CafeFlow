@@ -291,7 +291,7 @@ if (!string.IsNullOrWhiteSpace(search))
 var customers = await query.OrderBy(c => c.FullName).ToListAsync();
 return _mapper.Map<List<ResultCustomerDto>>(customers);
 ```
-Salt okunur. Müşteri oluşturma burada değil, `OrderService.PlaceOrderAsync` içinde. Toplam harcama ve son sipariş tarihi AutoMapper'da hesaplanıyor (Bölüm 03).
+Salt okunur. Müşteri oluşturma burada değil, `OrderService.PlaceOrderAsync` içinde. Toplam harcama ve son sipariş tarihi Mapster eşlemesinde hesaplanıyor (Bölüm 03).
 
 ---
 

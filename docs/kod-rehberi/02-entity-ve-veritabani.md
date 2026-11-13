@@ -17,6 +17,7 @@ public static class OptionGroups
     public const string Milk = "Milk";
     public const string ExtraShot = "ExtraShot";
     public const string Syrup = "Syrup";
+    public const string Cream = "Cream";
 }
 
 public static class AppRoles { public const string Admin = "Admin"; }
@@ -232,12 +233,13 @@ Configuration'ı olmayan ilişkiler (Order→Customer, Order→Table, Order→De
 | `20261111112347_AddProductContent` | Products'a About, Allergens, Ingredients kolonları |
 | `20261112185630_RemovePromoCodes` | PromoCodes tablosu ve Orders.Discount, Orders.PromoCode kolonları **silindi** |
 | `20261112191545_RemoveProductContent` | About, Allergens, Ingredients, Popularity **silindi** |
+| `20261113133320_AddCreamOption` | **Veri migration'ı:** tablo yapısı değişmez; daha önce doldurulmuş veritabanına "Krema" seçeneğini (+15 ₺) ekler. Boş veritabanında bir şey yapmaz, orada Krema'yı `SeedData` ekler; böylece seçenek Id'leri her iki durumda da aynı kalır (Krema = 10). |
 
 Bu tablodan öğrenilecekler:
 - Proje bir ara **promosyon kodu** özelliği içeriyordu ve sonra kaldırıldı. Bunun izleri migration geçmişinde kalıyor; migration'lar **silinmez**, geri alma işlemi yeni bir migration ile yapılır.
 - Her migration'ın `Up()` (uygula) ve `Down()` (geri al) metodu var. `RemovePromoCodes.Up` tabloyu siliyor, `Down` geri oluşturuyor.
 - `*.Designer.cs`: o migration anındaki model'in fotoğrafı. `CafeOrderDbContextModelSnapshot.cs`: **şu anki** model. `dotnet ef migrations add X` komutu entity'leri snapshot ile karşılaştırarak farkı bulur.
-- `__EFMigrationsHistory` tablosu hangi migration'ların uygulandığını tutar. Bugün şema scriptini test ederken bu tabloda 5 satır gördük.
+- `__EFMigrationsHistory` tablosu hangi migration'ların uygulandığını tutar. Şu an bu tabloda 6 satır var (son eklenen: `AddCreamOption`).
 
 Yeni migration eklemek için (bilgi olarak):
 ```bash
@@ -260,7 +262,7 @@ context.Categories.Add(hot);
 context.Products.Add(CreateProduct(hot, "Klasik Cappuccino", 145, "1572442388796-...", "...", null, true, true));
 ```
 - `CreateProduct(hot, ...)` içinde `product.Category = hot` atanıyor; **CategoryId değil**, nesnenin kendisi. Henüz `hot.Id` yok (0), çünkü veritabanına yazılmadı. EF Core sıralamayı kendisi çözer: önce kategoriyi INSERT eder, oluşan Id'yi alır ve ürünün `CategoryId`'sine yazar. Buna **relationship fix-up** denir.
-- 8 kategori (Seasonal pasif), 20 ürün (7 tanesi `IsCustomizable`), 9 seçenek, 2 masa.
+- 8 kategori (Seasonal pasif), 20 ürün (7 tanesi `IsCustomizable`), 10 seçenek (Krema dahil), 2 masa.
 - En sonda **tek** `SaveChangesAsync()`. Bütün INSERT'ler tek seferde gönderilir ve EF Core bunları otomatik bir transaction'a sarar.
 - `ImageUrl(id)`: Unsplash adresi üretir. Resimler internetten gelir; internet yoksa `site.js`'teki `data-fallback` mekanizması ikon gösterir.
 

@@ -1,4 +1,4 @@
-@* ProductOptionsViewComponent: boy / süt / ekstra / şurup seçimleri ve başlangıç fiyatı.
+@* ProductOptionsViewComponent: boy / süt / ekstra (shot, krema) / şurup seçimleri ve başlangıç fiyatı.
    Seçilen seçeneklerin sadece Id'leri forma girer; fiyatı sunucu hesaplar (Decorator). *@
 @model List<ResultProductOptionDto>
 @{
@@ -8,6 +8,7 @@
     var milks = options.Where(o => o.GroupKey == OptionGroups.Milk).ToList();
     var shots = options.Where(o => o.GroupKey == OptionGroups.ExtraShot).ToList();
     var syrups = options.Where(o => o.GroupKey == OptionGroups.Syrup).ToList();
+    var creams = options.Where(o => o.GroupKey == OptionGroups.Cream).ToList();
     var startPrice = product.BasePrice;
     if (product.IsCustomizable)
     {
@@ -56,6 +57,17 @@
           <span class="cf-addon-card">
             <span class="cf-addon-icon"><i class="bi bi-lightning-charge"></i></span>
             <span class="cf-addon-text"><strong>Ekstra Espresso Shot</strong><small>+@Display.Money(o.PriceDelta)</small></span>
+            <span class="cf-check"><i class="bi bi-check-lg"></i></span>
+          </span>
+        </label>
+      }
+      @foreach (var o in creams)
+      {
+        <label class="cf-addon">
+          <input type="checkbox" name="optionIds" value="@o.Id" />
+          <span class="cf-addon-card">
+            <span class="cf-addon-icon"><i class="bi bi-cloud"></i></span>
+            <span class="cf-addon-text"><strong>Çırpılmış Krema</strong><small>+@Display.Money(o.PriceDelta)</small></span>
             <span class="cf-check"><i class="bi bi-check-lg"></i></span>
           </span>
         </label>

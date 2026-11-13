@@ -725,3 +725,31 @@ GO
 COMMIT;
 GO
 
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261113133320_AddCreamOption'
+)
+BEGIN
+
+    IF EXISTS (SELECT 1 FROM ProductOptions)
+       AND NOT EXISTS (SELECT 1 FROM ProductOptions WHERE GroupKey = N'Cream')
+        INSERT INTO ProductOptions (GroupKey, Value, PriceDelta, IsDefault) VALUES (N'Cream', N'Krema', 15, 0);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261113133320_AddCreamOption'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261113133320_AddCreamOption', N'8.0.33');
+END;
+GO
+
+COMMIT;
+GO
+

@@ -46,6 +46,7 @@ public static class AdminDisplay
         if (groupKey == OptionGroups.Milk) return "Süt";
         if (groupKey == OptionGroups.ExtraShot) return "Ekstra shot";
         if (groupKey == OptionGroups.Syrup) return "Şurup";
+        if (groupKey == OptionGroups.Cream) return "Krema";
         return groupKey;
     }
 

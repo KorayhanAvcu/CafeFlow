@@ -20,6 +20,8 @@ using CafeOrder.DataAccessLayer.Repositories.Tables;
 using CafeOrder.EntityLayer.Entities;
 using CafeOrder.WebUI.Identity;
 using CafeOrder.WebUI.ModelBinding;
+using Mapster;
+using MapsterMapper;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -60,8 +62,13 @@ builder.Services.ConfigureApplicationCookie(options =>
 // Teslimat ücreti ayarları (appsettings.json → "Pricing")
 builder.Services.AddSingleton(builder.Configuration.GetSection("Pricing").Get<PricingOptions>() ?? new PricingOptions());
 
-// AutoMapper: Entity ↔ DTO eşlemeleri BusinessLayer/Mapping/GeneralMapping.cs içinde.
-builder.Services.AddAutoMapper(typeof(GeneralMapping));
+// Mapster (ücretsiz, MIT): Entity ↔ DTO eşlemeleri BusinessLayer/Mapping/GeneralMapping.cs içinde.
+// Scan, derlemedeki IRegister sınıflarını (GeneralMapping) bulup kurallarını ayarlara ekler.
+// Servisler IMapper (MapsterMapper) alır ve _mapper.Map<T>(...) ile eşleme yapar.
+TypeAdapterConfig mapsterConfig = TypeAdapterConfig.GlobalSettings;
+mapsterConfig.Scan(typeof(GeneralMapping).Assembly);
+builder.Services.AddSingleton(mapsterConfig);
+builder.Services.AddScoped<IMapper, ServiceMapper>();
 
 // Repository'ler
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
