@@ -24,7 +24,7 @@
 EntityLayer        → (hiçbir projeyi tanımaz)  + Microsoft.Extensions.Identity.Stores
 DtoLayer           → EntityLayer                (sadece enum'lar için)
 DataAccessLayer    → EntityLayer                + EF Core SqlServer + Identity.EntityFrameworkCore
-BusinessLayer      → DataAccessLayer, DtoLayer, EntityLayer + Mapster + Microsoft.AspNetCore.App (FrameworkReference)
+BusinessLayer      → DataAccessLayer, DtoLayer, EntityLayer + AutoMapper 12.0.1 + Microsoft.AspNetCore.App (FrameworkReference)
 WebUI              → hepsi                      + EF Core Design (migration komutları için)
 ```
 
@@ -168,7 +168,7 @@ builder.Services.ConfigureApplicationCookie(options =>
 string connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("appsettings.json içinde ConnectionStrings:DefaultConnection yok.");
 builder.Services.AddDataAccessLayer(connectionString);        // DbContext, Unit of Work, repository'ler
-builder.Services.AddBusinessLayer(builder.Configuration);     // ayarlar, Mapster, desenler, servisler
+builder.Services.AddBusinessLayer(builder.Configuration);     // ayarlar, AutoMapper, desenler, servisler
 ```
 Eskiden Program.cs'te 30'dan fazla `AddScoped` satırı vardı. Artık **her katman kendi kayıtlarını kendisi yapıyor**:
 
@@ -216,14 +216,11 @@ Kodda hiçbir yerde `DateTime.Now` yok. Saate ihtiyaç duyan sınıflar (`OrderC
 
 Neden? `DateTime.Now` statik bir çağrıdır; test edilemez. "Geçmiş bir teslim alma saati reddedilir" kuralını test etmek için saati sabitlemek gerekir. `TimeProvider` .NET 8'in hazır soyutlaması: uygulamada `TimeProvider.System` gerçek saati verir, testte `FakeTimeProvider` istenen saati verir. `TryAdd...`: başka biri (ör. bir test) önceden kayıt yaptıysa onun kaydını ezmez.
 
-#### Mapster
+#### AutoMapper
 ```csharp
-TypeAdapterConfig mapsterConfig = TypeAdapterConfig.GlobalSettings;
-mapsterConfig.Scan(typeof(GeneralMapping).Assembly);
-services.AddSingleton(mapsterConfig);
-services.AddScoped<IMapper, ServiceMapper>();
+services.AddAutoMapper(typeof(CategoryMappings).Assembly);
 ```
-"`GeneralMapping`'in bulunduğu assembly'deki bütün `IRegister` sınıflarını tara, kurallarını ayarlara ekle ve `IMapper`'ı DI'a ekle." Bölüm 03'te ayrıntısı var (AutoMapper'dan neden geçildiği dahil).
+"`CategoryMappings`'in bulunduğu projedeki (BusinessLayer) bütün `Profile` sınıflarını bul, kurallarını kaydet ve `IMapper`'ı DI'a ekle." Profile'lar `Mapping/` klasöründe, tablo başına bir dosya. Bölüm 03'te ayrıntısı var.
 
 #### Desen sınıfları da DI'da
 ```csharp
@@ -277,7 +274,7 @@ Hepsi **Scoped**. Neden? Repository'lere bağımlılar ve repository'ler scoped 
 |---|---|---|
 | Transient | Her istendiğinde yeni | Doğrulama halkaları |
 | Scoped | Her HTTP isteğinde bir tane | DbContext, Unit of Work, repository'ler, servisler, observer'lar, `IMapper` |
-| Singleton | Uygulama boyunca tek | `TimeProvider`, `TypeAdapterConfig`, ücret stratejileri, creator'lar, `IOptions<PricingOptions>` |
+| Singleton | Uygulama boyunca tek | `TimeProvider`, AutoMapper'ın kural ayarları, ücret stratejileri, creator'lar, `IOptions<PricingOptions>` |
 
 **Kural:** Bir sınıf kendinden **kısa** ömürlü bir şeye bağımlı olamaz. Singleton → Scoped yasak; Scoped → Singleton serbest; Transient her şeye bağımlı olabilir.
 
@@ -359,7 +356,7 @@ Kestrel (web sunucusu) isteği alır
  → DI: yeni scope açılır. ProductsController oluşturulurken constructor'ı IProductService ve ICategoryService ister
        → ProductService oluşturulur; o da IProductRepository, ICategoryRepository, IUnitOfWork... ister
        → repository'ler ve Unit of Work oluşturulur; onlar CafeOrderDbContext ister → bu istek için TEK bir DbContext
- → Detail(2) çalışır → servis → repository → EF Core → SQL → entity → Mapster → DTO
+ → Detail(2) çalışır → servis → repository → EF Core → SQL → entity → AutoMapper → DTO
  → return View(product) → Razor, Views/Products/Detail.cshtml'i HTML'e çevirir
  → cevap middleware'lerden geri çıkar → tarayıcı
  → scope kapanır: DbContext ve bütün scoped nesneler Dispose edilir

@@ -56,7 +56,7 @@ Projede uygulanan altı desen (case'in önerdiği altılı): **Strategy, Factory
 ```text
 CafeOrder.WebUI            Controller, View, Session sepeti, Identity (admin girişi)
        ↓ tanır
-CafeOrder.BusinessLayer    Servisler (iş kuralları) + 6 tasarım deseni + Mapster
+CafeOrder.BusinessLayer    Servisler (iş kuralları) + 6 tasarım deseni + AutoMapper
        ↓ tanır
 CafeOrder.DataAccessLayer  DbContext, repository'ler, Unit of Work, migration'lar
        ↓ tanır
@@ -73,7 +73,7 @@ CafeOrder.DtoLayer         Ekran ile servis arasında taşınan veri (ResultXDto
 
 Veritabanını değiştirmek istesen sadece DataAccessLayer değişir; kurallar ve sayfalar etkilenmez.
 
-**Neden DTO?** Entity'ler (veritabanı sınıfları) sayfaya hiç gitmez. Sayfa `ResultProductDto` görür, form `CreateOrderDto` gönderir. Böylece kullanıcı forma `Total=1` gibi bir alan ekleyerek fiyatı değiştiremez (buna *over-posting* denir). Entity ↔ DTO çevirisini Mapster yapar.
+**Neden DTO?** Entity'ler (veritabanı sınıfları) sayfaya hiç gitmez. Sayfa `ResultProductDto` görür, form `CreateOrderDto` gönderir. Böylece kullanıcı forma `Total=1` gibi bir alan ekleyerek fiyatı değiştiremez (buna *over-posting* denir). Entity ↔ DTO çevirisini AutoMapper yapar (tablo başına bir `Profile` sınıfı: `CategoryMappings`, `ProductMappings`, `OrderMappings` ...).
 
 | DTO | Ne zaman |
 |---|---|
@@ -93,7 +93,7 @@ Veritabanını değiştirmek istesen sadece DataAccessLayer değişir; kurallar 
 
 ```csharp
 builder.Services.AddDataAccessLayer(connectionString);    // DbContext, repository'ler, Unit of Work
-builder.Services.AddBusinessLayer(builder.Configuration); // servisler, desenler, ayarlar, Mapster
+builder.Services.AddBusinessLayer(builder.Configuration); // servisler, desenler, ayarlar, AutoMapper
 ```
 
 Bu satırlar DI kabına **"biri X isterse ona Y'yi ver"** listesini yazar:
@@ -189,7 +189,7 @@ CartController.Checkout      sepeti, kanalı ve QR'ı Session'dan okur
 CartService.CheckoutAsync    kanalı formdan değil Session'dan alır
   ↓
 OrderService.PlaceOrderAsync
-  1. Mapster                 CreateOrderDto → Order
+  1. AutoMapper              CreateOrderDto → Order
   2. Müşteri / masa          telefonla kayıtlı müşteri, QR ile aktif masa
   3. FACTORY METHOD          kanala uygun creator siparişi kurar
   4. DECORATOR + STRATEGY    OrderPricingService: birim fiyat, ara toplam, ücret
@@ -239,7 +239,7 @@ public async Task<IActionResult> Checkout(CreateOrderDto form)   // form → DTO
 ```csharp
 public async Task<ResultOrderDto> PlaceOrderAsync(CreateOrderDto dto, List<CartItemDto> items, string? qrToken)
 {
-    Order form = _mapper.Map<Order>(dto);                                   // DTO → Entity (Mapster)
+    Order form = _mapper.Map<Order>(dto);                                   // DTO → Entity (AutoMapper)
     form.Customer = await FindOrCreateCustomerAsync(dto.FullName, dto.Phone);
 
     Table? table = null;
@@ -709,7 +709,7 @@ ProductsController.Index(category, q)
         Active(): ürün aktif VE kategorisi aktif
         + kategori filtresi + arama (LIKE)
      ← List<Product>
-  ← Mapster → List<ResultProductDto>
+  ← AutoMapper → List<ResultProductDto>
 → View(products) → HTML
 ```
 

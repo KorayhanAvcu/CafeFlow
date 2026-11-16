@@ -8,7 +8,7 @@ Bu klasör, CafeFlow projesindeki **bütün kodu** öğrenmen için yazıldı. H
 |---|---|---|---|
 | 01 | [Katmanlar ve Program.cs](01-katmanlar-ve-program.md) | Projeler birbirini nasıl tanıyor, ayarlar nasıl birleşiyor, katman kayıtları, Options pattern, TimeProvider, DI ömürleri, middleware sırası, attribute routing | 40 dk |
 | 02 | [Entity'ler ve veritabanı](02-entity-ve-veritabani.md) | Tablolar, Fluent API, Restrict, migration geçmişi, seed, generic repository, Unit of Work, change tracker, SQL'de sayma | 50 dk |
-| 03 | [DTO ve Mapster](03-dto-ve-mapster.md) | Over-posting, flattening, `Map<T>` ile `Map(src, dest)` farkı, Include tuzakları | 25 dk |
+| 03 | [DTO ve AutoMapper](03-dto-ve-automapper.md) | Over-posting, Profile ve `CreateMap`, flattening, `ReverseMap`, `Map<T>` ile `Map(src, dest)` farkı, Include tuzakları | 25 dk |
 | 04 | [Servisler](04-servisler.md) | CRUD kalıbı, Unit of Work ile kaydetme, BusinessException, slug üretimi, QR üretimi | 40 dk |
 | 05 | [**Sipariş servisleri ve 6 desen**](05-siparis-servisi-ve-desenler.md) | Decorator, Strategy, Factory Method, Chain of Responsibility, State, Observer: satır satır, gerçek bir siparişle; desenlerin DI ile bağlanması | 90 dk |
 | 06 | [Müşteri arayüzü](06-musteri-arayuzu.md) | PRG, TempData, antiforgery, Session sepeti, CartController, View Component, Razor layout, JS'siz arayüz | 50 dk |
@@ -27,7 +27,7 @@ Bu klasör, CafeFlow projesindeki **bütün kodu** öğrenmen için yazıldı. H
 | `DataAccessLayer/Migrations/*` | 02 |
 | `DataAccessLayer/Repositories/*`, `DataAccessLayer/UnitOfWork/*` | 02 |
 | `DtoLayer/Dtos/*` | 03 |
-| `BusinessLayer/Mapping/GeneralMapping.cs` | 03 |
+| `BusinessLayer/Mapping/*Mappings.cs` (AutoMapper Profile'ları) | 03 |
 | `BusinessLayer/Exceptions/BusinessException.cs` | 04 |
 | `BusinessLayer/Services/{Categories,Products,Tables,Customers,Notifications}` | 04 |
 | `BusinessLayer/Services/Orders/*`, `BusinessLayer/Services/Dashboard/*` | 05 |
@@ -63,7 +63,7 @@ Kod çalışıyor ve case'i karşılıyor. Aşağıdakiler "bir sonraki seviye" 
 | 9 | ~~"Hepsini okundu yap" her bildirim için ayrı kayıt yapıyor~~ → **çözüldü:** tek `SaveChanges` | `NotificationService.MarkAllReadAsync` | 04 |
 | 10 | Aynı telefonla gelen farklı isim yok sayılıyor | `OrderService.FindOrCreateCustomerAsync` | 05 |
 | 11 | ~~`DateTime.Now` doğrudan çağrılıyor (test edilemez)~~ → **çözüldü:** `TimeProvider`. (Saat hâlâ yerel, UTC değil.) | birçok yer | 01, 05 |
-| 12 | ~~AutoMapper 13.0.1 güvenlik uyarısı~~ → **çözüldü:** ücretsiz Mapster 10'a geçildi | `BusinessLayer.csproj` | 03 |
+| 12 | AutoMapper 12.0.1 için NuGet 3 yüksek önemli güvenlik uyarısı veriyor (açığı kapatan sürümler ticari). Ücretsiz alternatif: Mapster | `BusinessLayer.csproj` | 03 |
 | 13 | ~~Tek `OrderService` her şeyi yapıyor~~ → **çözüldü:** pricing, query, dashboard ve sipariş servisleri ayrıldı | `Services/Orders`, `Services/Dashboard` | 05 |
 | 14 | ~~Servisler `GetQueryable()` ile EF Core'a bağımlı~~ → **çözüldü:** sorgular repository metotlarında | `Repositories/*` | 02, 04 |
 | 15 | Birim testi yok (ama artık desenler DI'dan geldiği için yazması kolay) | — | — |

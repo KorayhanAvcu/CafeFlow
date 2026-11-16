@@ -318,7 +318,7 @@ form.Number = await _tableRepository.GetMaxNumberAsync() + 1;   // hiç masa yok
 var customers = await _customerRepository.SearchWithOrdersAsync(search);   // Include + arama + sıralama repository'de
 return _mapper.Map<List<ResultCustomerDto>>(customers);
 ```
-Salt okunur. Müşteri oluşturma burada değil, `OrderService.PlaceOrderAsync` içinde. Toplam harcama ve son sipariş tarihi Mapster eşlemesinde hesaplanıyor (Bölüm 03).
+Salt okunur. Müşteri oluşturma burada değil, `OrderService.PlaceOrderAsync` içinde. Toplam harcama ve son sipariş tarihi AutoMapper eşlemesinde (`CustomerMappings`) hesaplanıyor (Bölüm 03).
 
 ---
 

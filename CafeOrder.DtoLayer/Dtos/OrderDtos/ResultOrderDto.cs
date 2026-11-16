@@ -4,7 +4,7 @@ namespace CafeOrder.DtoLayer.Dtos.OrderDtos;
 
 /// <summary>
 /// Sipariş (veya hesaplanmış sepet) ekrana böyle gider.
-/// CustomerFullName, CustomerPhone, TableNumber, TableArea: Mapster bunları
+/// CustomerFullName, CustomerPhone, TableNumber, TableArea: AutoMapper bunları
 /// Customer.FullName, Customer.Phone, Table.Number, Table.Area'dan kendisi doldurur.
 /// </summary>
 public class ResultOrderDto

@@ -47,7 +47,7 @@ Bütün sayfalar diğer MVC projelerindeki gibi çalışır: controller veriyi *
 
 - .NET 8, ASP.NET Core MVC, Razor
 - Entity Framework Core 8, SQL Server (Express veya LocalDB)
-- Mapster 10 (Entity ↔ DTO eşlemesi; ücretsiz, MIT lisanslı)
+- AutoMapper 12.0.1 (Entity ↔ DTO eşlemesi; tablo başına bir `Profile` sınıfı)
 - ASP.NET Core Identity (giriş, rol, şifre özeti, kilitleme)
 - Session (müşteri sepeti)
 - Bootstrap 5, verilen CafeFlow HTML/CSS/JS tasarımı
@@ -61,7 +61,7 @@ CafeOrder.WebUI           Controller'lar, Razor sayfaları, Session sepeti (Cart
                           Identity ayarları; Program.cs katmanların kayıt metotlarını çağırır
        ↓
 CafeOrder.BusinessLayer   Services (ICategoryService / CategoryService ...), 6 tasarım deseni,
-                          Mapster eşlemeleri (Mapping/GeneralMapping), BusinessException,
+                          AutoMapper Profile'ları (Mapping/*Mappings), BusinessException,
                           DI kayıtları (BusinessServiceRegistration → AddBusinessLayer)
        ↓
 CafeOrder.DataAccessLayer GenericRepository<T> + tablo başına bir repository, Unit of Work,
@@ -77,8 +77,8 @@ CafeOrder.DtoLayer        Ekran ile servis arasında taşınan veri: Result / Cr
 Akış her yerde aynı:
 
 1. Controller servisi çağırır; formdan gelen veri **Create/Update DTO** olarak gider.
-2. Servis DTO'yu Mapster ile **entity**'ye çevirir, kuralları uygular (hata varsa `BusinessException`), repository'ye ekler ve `IUnitOfWork.SaveChangesAsync()` ile kaydeder.
-3. Okurken servis repository'nin isimli bir metodunu çağırır (`GetMenuAsync`, `GetWithDetailsAsync` ...), gelen entity'yi Mapster ile **Result DTO**'ya çevirip döner. Sorgular (Include, Where, sayfalama) repository'de, SQL'de çalışır.
+2. Servis DTO'yu AutoMapper ile **entity**'ye çevirir, kuralları uygular (hata varsa `BusinessException`), repository'ye ekler ve `IUnitOfWork.SaveChangesAsync()` ile kaydeder.
+3. Okurken servis repository'nin isimli bir metodunu çağırır (`GetMenuAsync`, `GetWithDetailsAsync` ...), gelen entity'yi AutoMapper ile **Result DTO**'ya çevirip döner. Sorgular (Include, Where, sayfalama) repository'de, SQL'de çalışır.
 4. Controller DTO'yu view'a verir (`return View(products)`); view `@model List<ResultProductDto>` ile çizer.
 
 Entity'ler WebUI'a hiç çıkmaz (Identity'deki `AppUser` hariç). Tasarım desenleri BusinessLayer içinde entity üzerinde çalışır. Servisler ve desen sınıfları birbirini `new` ile oluşturmaz; hepsi constructor'dan, DI ile gelir.
@@ -97,7 +97,7 @@ Entity'ler WebUI'a hiç çıkmaz (Identity'deki `AppUser` hariç). Tasarım dese
 |---|---|---|
 | 1 | `CafeOrder.WebUI/Program.cs` → `BusinessLayer/BusinessServiceRegistration.cs`, `DataAccessLayer/DataAccessServiceRegistration.cs` | Hangi interface için hangi sınıfın kullanıldığı (DI kayıtları) |
 | 2 | `CafeOrder.DataAccessLayer/Repositories/GenericRepositories/GenericRepository.cs` + `UnitOfWork/` | Bütün tabloların ortak veritabanı işlemleri ve tek kayıt |
-| 3 | `CafeOrder.BusinessLayer/Mapping/GeneralMapping.cs` | Hangi entity hangi DTO'ya nasıl çevrilir |
+| 3 | `CafeOrder.BusinessLayer/Mapping/*Mappings.cs` (`CategoryMappings`, `ProductMappings`, `OrderMappings` ...) | Hangi entity hangi DTO'ya nasıl çevrilir (AutoMapper Profile) |
 | 4 | `CafeOrder.BusinessLayer/Services/Products/ProductService.cs` | Basit bir servis: DTO alır/döner, kurallar, kaydetme |
 | 5 | `CafeOrder.WebUI/Controllers/ProductsController.cs` + `Views/Products/Index.cshtml` | Verinin sayfaya gelişi |
 | 6 | `CafeOrder.WebUI/Controllers/CartController.cs` | Session sepeti ve sipariş verme |
@@ -109,7 +109,7 @@ Entity'ler WebUI'a hiç çıkmaz (Identity'deki `AppUser` hariç). Tasarım dese
 CafeOrder.EntityLayer/       Entities (Product, Order ...), Enums (OrderStatus, OrderChannel ...)
 CafeOrder.DataAccessLayer/   Context (DbContext, SeedData), Repositories/<Tablo>, UnitOfWork, Migrations
 CafeOrder.DtoLayer/          Dtos/<Tablo>Dtos (ResultXDto, CreateXDto, UpdateXDto, CartItemDto, CreateOrderDto)
-CafeOrder.BusinessLayer/     Services/<Tablo>, Services/Dashboard, Mapping (Mapster), Exceptions
+CafeOrder.BusinessLayer/     Services/<Tablo>, Services/Dashboard, Mapping (AutoMapper Profile'ları), Exceptions
                              Pricing (Decorator), Pricing/Fees (Strategy), Validation (Chain),
                              Creation (Factory Method), States (State), Events (Observer)
 CafeOrder.WebUI/             Controllers, Views, Cart (Session), ViewComponents,
@@ -126,7 +126,7 @@ Views/Cart/Index.cshtml            form → POST /cart/checkout (CreateOrderDto)
 CartController.Checkout            sipariş türünü ve sepeti Session'dan okur
   ↓
 CartService.CheckoutAsync → OrderService.PlaceOrderAsync
-  1. Mapster                       CreateOrderDto → Order
+  1. AutoMapper                    CreateOrderDto → Order
   2. Masa / müşteri                QR koduyla masa, telefonla kayıtlı müşteri bulunur
   3. Factory Method                Delivery / Pickup / TableOrderCreator siparişi kurar
   4. Decorator + Strategy          OrderPricingService: birim fiyatlar, ara toplam, teslimat ücreti

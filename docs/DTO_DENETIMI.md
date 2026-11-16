@@ -22,7 +22,7 @@ WebUI (controller, view)  ──DTO──►  BusinessLayer (servis, desenler)  
 | Sayfa DTO'ları | Birden fazla veri gösteren sayfaların tek bir DTO'su var: `ResultCartDto` (sepet), `ResultDashboardDto` (panel), `ResultOrderListDto` (sipariş listesi), `ResultNotificationPageDto` (bildirimler). |
 
 ### Entity'lerin kullanıldığı yer neden doğru?
-Desenler (Factory Method, Decorator, Strategy, Chain, State, Observer) BusinessLayer içinde `Order`, `OrderDetail`, `Product` entity'leri üzerinde çalışır. Bu bilinçli bir tercih: EF Core sadece entity'leri tanır ve izler (change tracking). Sipariş tek transaction'da (Unit of Work) kaydedilirken müşteri, kalemler, seçenekler ve bildirimlerle birlikte bütün nesne grafiği entity olmak zorunda. Servis işini entity'lerle yapar, dışarıya sonucu Mapster ile DTO'ya çevirip verir.
+Desenler (Factory Method, Decorator, Strategy, Chain, State, Observer) BusinessLayer içinde `Order`, `OrderDetail`, `Product` entity'leri üzerinde çalışır. Bu bilinçli bir tercih: EF Core sadece entity'leri tanır ve izler (change tracking). Sipariş tek transaction'da (Unit of Work) kaydedilirken müşteri, kalemler, seçenekler ve bildirimlerle birlikte bütün nesne grafiği entity olmak zorunda. Servis işini entity'lerle yapar, dışarıya sonucu AutoMapper ile DTO'ya çevirip verir.
 
 ### State ve arayüz
 Admin sipariş detayındaki izinli durum düğmeleri için gereken liste `OrderQueryService.GetByIdAsync` içinde hesaplanıp `ResultOrderDto.AllowedNextStatuses` olarak geliyor. WebUI State sınıfını hiç tanımıyor.

@@ -2,7 +2,7 @@ using CafeOrder.BusinessLayer.Services.Orders;
 using CafeOrder.DataAccessLayer.Repositories.Orders;
 using CafeOrder.DtoLayer.Dtos.OrderDtos;
 using CafeOrder.EntityLayer.Enums;
-using MapsterMapper;
+using AutoMapper;
 
 namespace CafeOrder.BusinessLayer.Services.Dashboard;
 

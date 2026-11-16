@@ -17,7 +17,7 @@ builder.Services.AddControllersWithViews(options =>
 string connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("appsettings.json içinde ConnectionStrings:DefaultConnection yok.");
 builder.Services.AddDataAccessLayer(connectionString);        // DbContext, Unit of Work, repository'ler
-builder.Services.AddBusinessLayer(builder.Configuration);     // ayarlar, Mapster, desenler, servisler
+builder.Services.AddBusinessLayer(builder.Configuration);     // ayarlar, AutoMapper, desenler, servisler
 
 // Session: müşterinin sepeti burada durur.
 builder.Services.AddDistributedMemoryCache();

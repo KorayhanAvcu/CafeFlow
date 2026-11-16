@@ -1,4 +1,4 @@
-using MapsterMapper;
+using AutoMapper;
 using CafeOrder.BusinessLayer.Exceptions;
 using CafeOrder.DataAccessLayer.Repositories.Tables;
 using CafeOrder.DataAccessLayer.UnitOfWork;

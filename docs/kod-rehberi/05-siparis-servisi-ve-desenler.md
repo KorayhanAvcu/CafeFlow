@@ -1006,7 +1006,7 @@ CartController.Checkout
       ▼
 CartService.CheckoutAsync → OrderService.PlaceOrderAsync
       │
-      ├─ Mapster ............... CreateOrderDto → Order(form)
+      ├─ AutoMapper ............ CreateOrderDto → Order(form)
       ├─ CustomerRepository .... telefon → var olan / yeni müşteri
       ├─ TableRepository ....... QR → aktif masa (yoksa null)
       │

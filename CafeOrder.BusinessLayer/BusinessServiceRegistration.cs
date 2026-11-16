@@ -13,8 +13,6 @@ using CafeOrder.BusinessLayer.Services.Orders;
 using CafeOrder.BusinessLayer.Services.Products;
 using CafeOrder.BusinessLayer.Services.Tables;
 using CafeOrder.BusinessLayer.Validation;
-using Mapster;
-using MapsterMapper;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -38,11 +36,10 @@ public static class BusinessServiceRegistration
         // ---- Zaman: DateTime.Now yerine TimeProvider. Testte sahte saat verilebilir.
         services.TryAddSingleton(TimeProvider.System);
 
-        // ---- Mapster: GeneralMapping'deki kurallar taranır; servisler IMapper alır.
-        TypeAdapterConfig mapsterConfig = TypeAdapterConfig.GlobalSettings;
-        mapsterConfig.Scan(typeof(GeneralMapping).Assembly);
-        services.AddSingleton(mapsterConfig);
-        services.AddScoped<IMapper, ServiceMapper>();
+        // ---- AutoMapper: bu projedeki bütün Profile sınıfları (Mapping klasöründeki *Mappings) taranır.
+        // Uygulama açılırken her Profile'ın constructor'ı bir kez çalışır ve CreateMap kuralları kaydedilir.
+        // Servisler constructor'da IMapper alır ve _mapper.Map<T>(...) ile eşleme yapar.
+        services.AddAutoMapper(typeof(CategoryMappings).Assembly);
 
         // ---- STRATEGY: kanal başına bir ücret kuralı. OrderPricingService hepsini alır, Channel'a göre seçer.
         services.AddSingleton<IDeliveryFeeStrategy, DeliveryFeeStrategy>();
