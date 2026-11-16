@@ -17,7 +17,7 @@
   </div>
 </div>
 
-<vc:error-message message="@((string?)ViewBag.Error)" />
+@await Component.InvokeAsync("_AdminErrorMessage", new { message = (string?)ViewBag.Error })
 
 <form method="post" action="/admin/products/save" class="adm-card">
   @Html.AntiForgeryToken()
@@ -29,7 +29,7 @@
     </div>
     <div class="col-md-4">
       <label class="adm-label" for="category">Kategori</label>
-      <vc:category-select name="CategoryId" selected="@Model.CategoryId" element-id="category" css-class="adm-select w-100" />
+      @await Component.InvokeAsync("_AdminCategorySelect", new { name = "CategoryId", selected = Model.CategoryId, elementId = "category", cssClass = "adm-select w-100" })
     </div>
     <div class="col-md-4">
       <label class="adm-label" for="price">Fiyat (₺)</label>

@@ -2,7 +2,7 @@
 
 Case'te listelenen 10 desenden **6 tanesi** uygulanmıştır: Strategy, Factory Method, Observer, State, Decorator ve Chain of Responsibility. Hepsi `CafeOrder.BusinessLayer` içindedir. Sipariş verme ve durum değiştirme akışlarında `OrderService` (`Services/Orders/OrderService.cs`) tarafından çalıştırılır; fiyat hesabı `OrderPricingService`'tedir.
 
-Decorator ve State dışındaki desen sınıfları **Dependency Injection** ile bağlanır (`BusinessLayer/BusinessServiceRegistration.cs`). Servisler bu sınıfları `new` ile oluşturmaz; aynı arayüze yapılmış bütün kayıtları `IEnumerable<T>` olarak alır. Yeni bir kanal, kural veya dinleyici eklemek için yeni bir sınıf yazıp tek satırlık bir kayıt eklemek yeterlidir; servis kodu değişmez.
+Bütün desen sınıfları **Dependency Injection** ile bağlanır (`BusinessLayer/BusinessServiceRegistration.cs`). Servisler bu sınıfları `new` ile oluşturmaz; aynı arayüze yapılmış bütün kayıtları `IEnumerable<T>` olarak alır. Yeni bir kanal, kural veya dinleyici eklemek için yeni bir sınıf yazıp tek satırlık bir kayıt eklemek yeterlidir; servis kodu değişmez.
 
 ```text
 Sipariş verilirken (POST /cart/checkout → OrderService.PlaceOrderAsync)
@@ -24,7 +24,7 @@ Durum değişirken (POST /admin/orders/{id}/status → OrderService.ChangeStatus
 | `Pricing/BaseProductPrice` | En içteki katman: ürünün seçeneksiz fiyatı (`Product.BasePrice`) |
 | `Pricing/OptionPriceDecorator` | İçteki fiyatı sarar ve seçeneğin farkını (`ProductOption.PriceDelta`) ekler |
 
-**Tetiklendiği akış:** Sepet sayfası, sepet paneli ve sipariş kaydı. Hepsi `OrderPricingService.ApplyPricesAsync` → `CalculateUnitPrice` üzerinden çalışır. Decorator'lar `new` ile kurulur; bu doğrudur, çünkü servis değil, çalışma anındaki değerleri (fiyat, seçenek) saran nesnelerdir. Fiyatlar her seferinde veritabanından okunur; tarayıcıdan gelen fiyat kullanılmaz.
+**Tetiklendiği akış:** Sepet sayfası, sepet paneli ve sipariş kaydı. Hepsi `OrderPricingService.ApplyPricesAsync` → `IUnitPriceCalculator.Calculate` üzerinden çalışır. Zinciri kuran `DecoratorUnitPriceCalculator` DI'a kayıtlıdır (Singleton). Decorator katmanları onun içinde `new` ile kurulur; çünkü kaç kat olacağı ve değerleri çalışma anında belli olur. Bu `new`'ler tek sınıfa hapsedildi; `OrderPricingService` decorator sınıflarını tanımaz. Fiyatlar her seferinde veritabanından okunur; tarayıcıdan gelen fiyat kullanılmaz.
 
 ```text
 Vanilyalı Latte 160 → Büyük +30 → Yulaf Sütü +15 → Ekstra shot +20 → Krema +15 = 240 ₺
@@ -90,13 +90,15 @@ Cancelled   Cancelled            (Delivered ve Cancelled son durumdur)
 
 | Sınıf | İzinli sonraki durumlar |
 |---|---|
-| `States/OrderState` (abstract) | `GetAllowedNext()`, `CanMoveTo(target)`, `For(status)` |
+| `States/OrderState` (abstract) | `Status`, `GetAllowedNext()`, `CanMoveTo(target)` |
+| `States/OrderStateProvider` | DI'dan gelen bütün durum sınıflarını `Status`'a göre bir sözlüğe koyar; `Get(status)` |
+| `States/OrderStatusRecorder` | Durum geçmişine "önceki → yeni" satırı ekler |
 | `ReceivedState` | Preparing, Cancelled |
 | `PreparingState` | Ready, Cancelled |
 | `ReadyState` | Delivered |
 | `DeliveredState`, `CancelledState` | (yok) |
 
-**Tetiklendiği akış:** Admin sipariş detayındaki durum düğmeleri → `OrdersController.ChangeStatus` → `OrderService.ChangeStatusAsync`. İzinsiz geçiş `BusinessException` ile reddedilir. İzinli geçişte `OrderStatusHistories` tablosuna "önceki → yeni" kaydı (isteğe bağlı notla) eklenir. Detay sayfası düğmeleri de `GetAllowedNext()` sonucuna göre gösterir (`OrderQueryService.GetByIdAsync` bunu DTO'ya koyar). Durum sınıfları bağımlılıksız olduğu için DI yerine `OrderState.For(status)` statik factory'si ile alınır.
+**Tetiklendiği akış:** Admin sipariş detayındaki durum düğmeleri → `OrdersController.ChangeStatus` → `OrderService.ChangeStatusAsync`. İzinsiz geçiş `BusinessException` ile reddedilir. İzinli geçişte `OrderStatusHistories` tablosuna "önceki → yeni" kaydı (isteğe bağlı notla) eklenir. Detay sayfası düğmeleri de `GetAllowedNext()` sonucuna göre gösterir (`OrderQueryService.GetByIdAsync` bunu DTO'ya koyar). **DI:** Beş durum sınıfı `OrderState` olarak (Singleton) kayıtlıdır; servisler `IOrderStateProvider.Get(status)` ile alır. Yeni bir durum = yeni sınıf + bir kayıt satırı.
 
 ## 6. Observer: mutfak, kasa ve admin bildirimleri
 

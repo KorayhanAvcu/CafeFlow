@@ -11,13 +11,13 @@
     <link rel="stylesheet" href="~/css/inner.css" asp-append-version="true" />
 }
 
-  <vc:menu-header />
+  @await Component.InvokeAsync("_MenuHeader")
 
   <!-- ============ MENÜ: KATEGORİLER, ARAMA, ÜRÜNLER ============ -->
   <main class="cf-menu-section">
     <div class="container">
 
-      <vc:category-filter selected="@selected" />
+      @await Component.InvokeAsync("_MenuCategoryFilter", new { selected = selected })
 
       <!-- Arama: GET formu, filtrelemeyi sunucu yapar -->
       <form class="cf-toolbar" method="get" action="/products">
@@ -53,11 +53,11 @@
         @foreach (var product in Model)
         {
           <div class="col-12 col-sm-6 col-lg-4 col-xl-3 cf-grid-item">
-            <vc:product-card product="@product" />
+            @await Component.InvokeAsync("_ProductCard", new { product = product })
           </div>
         }
       </div>
 
-      <vc:menu-promo />
+      @await Component.InvokeAsync("_MenuPromo")
     </div>
   </main>

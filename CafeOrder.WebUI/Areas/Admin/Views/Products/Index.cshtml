@@ -14,12 +14,12 @@
   <a href="/admin/products/new" class="adm-btn adm-btn-primary"><i class="bi bi-plus-lg"></i> Ürün Ekle</a>
 </div>
 
-<vc:error-message message="@((string?)ViewBag.Error)" />
+@await Component.InvokeAsync("_AdminErrorMessage", new { message = (string?)ViewBag.Error })
 
 <section class="adm-card">
   <form class="adm-toolbar" method="get" action="/admin/products">
     <input type="search" class="adm-input" name="q" value="@ViewBag.Search" placeholder="Ada göre ara..." />
-    <vc:category-select name="category" selected="@selected" empty-text="Tüm Kategoriler" />
+    @await Component.InvokeAsync("_AdminCategorySelect", new { name = "category", selected = selected, emptyText = "Tüm Kategoriler" })
     <button type="submit" class="adm-btn adm-btn-light">Filtrele</button>
   </form>
 

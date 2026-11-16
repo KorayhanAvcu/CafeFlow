@@ -56,7 +56,7 @@ private async Task<IActionResult> ShowListWithErrorAsync(string error)
   <div class="adm-callout warn mb-4" role="alert">...@Model...</div>
 }
 ```
-View'larda: `<vc:error-message message="@((string?)ViewBag.Error)" />`. Sınıf `ErrorMessageViewComponent.Invoke(string? message)`; model metin olduğu için `return View("Default", message)` yazılır.
+View'larda: `@await Component.InvokeAsync("_AdminErrorMessage", new { message = (string?)ViewBag.Error })`. Sınıf `_AdminErrorMessageViewComponent.Invoke(string? message)`; model metin olduğu için `return View("Default", message)` yazılır.
 - Şifre değiştirme başarılı olunca Hesabım sayfası `ResultAccountDto.Succeeded = true` ile doğrudan çizilir ve sayfa "Şifreniz değiştirildi." yazar.
 
 (Müşteri tarafındaki sepet bildirimi, "Ürün sepete eklendi" yazısı, hâlâ TempData ile çalışıyor; Bölüm 06.)
@@ -301,7 +301,7 @@ return View(order);
 İzinli sonraki durumları artık **servis** hesaplıyor ve DTO'ya koyuyor:
 ```csharp
 // OrderQueryService.GetByIdAsync
-dto.AllowedNextStatuses = OrderState.For(order.Status).GetAllowedNext();
+dto.AllowedNextStatuses = _states.Get(order.Status).GetAllowedNext();   // durum sınıfları DI'dan (IOrderStateProvider)
 ```
 View sadece bu listedeki durumların düğmesini çiziyor:
 ```razor
@@ -384,7 +384,7 @@ public async Task SaveAsync(UpdateCategoryDto dto)
 }
 ```
 - **"Tek form" hilesi:** Form her zaman `UpdateXDto` ile açılıyor; `Id = 0` yeni kayıt demek. Tek bir `Form.cshtml` hem ekleme hem düzenleme yapıyor.
-- Ürün formundaki ve filtre çubuğundaki kategori açılır listesini `CategorySelectViewComponent` çiziyor (`<vc:category-select name="CategoryId" selected="@Model.CategoryId" element-id="category" css-class="adm-select w-100" />`). Eskiden `ProductsController` beş ayrı yerde `ViewBag.Categories` dolduruyordu (Index, Create, Edit, Save hata dalı ve ShowListWithErrorAsync); biri unutulsa liste boş kalırdı. Artık controller kategori servisine hiç bağlı değil.
+- Ürün formundaki ve filtre çubuğundaki kategori açılır listesini `_AdminCategorySelectViewComponent` çiziyor (`@await Component.InvokeAsync("_AdminCategorySelect", new { name = "CategoryId", selected = Model.CategoryId" element-id="category" css-class="adm-select w-100" />`). Eskiden `ProductsController` beş ayrı yerde `ViewBag.Categories` dolduruyordu (Index, Create, Edit, Save hata dalı ve ShowListWithErrorAsync); biri unutulsa liste boş kalırdı. Artık controller kategori servisine hiç bağlı değil.
 - **Silme neden POST?** GET bir link olurdu; tarayıcı eklentileri veya botlar linkleri "ziyaret edip" veriyi silebilirdi. Silme formlarında `onsubmit="return confirm(...)"` var.
 - `TablesController.Index`: liste ve form aynı sayfada. `?edit=3` verilirse form o masayla dolar; `TableService.GetFormAsync(null)` yeni masa için "en büyük numara + 1" önerir.
 - `Regenerate`: kart kaybolunca yeni QR üretir, eski kart çalışmaz.
@@ -403,19 +403,19 @@ public async Task SaveAsync(UpdateCategoryDto dto)
     var userName = User.FindFirst(AppClaimsPrincipalFactory.FullNameClaim)?.Value ?? User.Identity?.Name ?? "Admin";
 }
 ...
-@await Component.InvokeAsync("AdminSidebar", new { activePage = page })
+@await Component.InvokeAsync("_AdminSidebar", new { activePage = page })
 ...
 <strong>@ViewData["Crumb"]</strong>                         @* breadcrumb *@
-@await Component.InvokeAsync("AdminNotifications")           @* zil *@
+@await Component.InvokeAsync("_AdminNotifications")           @* zil *@
 ...
 @RenderBody()
 <script src="~/js/admin-shell.js" asp-append-version="true"></script>
 ```
 - `User`: view'larda da erişilebilen `ClaimsPrincipal`.
 - `?.` ve `??` zinciri: claim yoksa → kullanıcı adı → "Admin".
-- `InvokeAsync("AdminSidebar", new { activePage = page })`: anonim nesnedeki property adı, view component'in `InvokeAsync(string activePage)` parametresiyle eşleşiyor.
+- `InvokeAsync("_AdminSidebar", new { activePage = page })`: anonim nesnedeki property adı, view component'in `InvokeAsync(string activePage)` parametresiyle eşleşiyor.
 
-### Admin View Component'leri (`AdminPageViewComponents.cs` ve `CategorySelectViewComponent.cs`)
+### Admin View Component'leri (`Areas/Admin/ViewComponents/<Sayfa>/`, her biri ayrı dosya)
 
 | Parça | Tür | Model | Ne çizer |
 |---|---|---|---|
@@ -428,11 +428,11 @@ public async Task SaveAsync(UpdateCategoryDto dto)
 | `ErrorMessage` | parametre alan VC | `string?` | Kural hatası kutusu |
 | `CategorySelect` | veriyi kendisi çeken VC | `List<ResultCategoryDto>` | Kategori `<select>`'i (ürün filtresi + ürün formu) |
 
-Çağrılar: `<vc:stat-cards dashboard="@Model" />`, `<vc:order-status-form order="@Model" />` gibi. Görünümleri `Areas/Admin/Views/Shared/Components/<Ad>/Default.cshtml`'de.
+Çağrılar: `@await Component.InvokeAsync("_DashboardStatCards", new { dashboard = Model })`, `@await Component.InvokeAsync("_OrderDetailStatusForm", new { order = Model })` gibi. Klasörler: `Layout` (`_AdminSidebar`, `_AdminNotifications`), `Shared` (`_AdminErrorMessage`, `_AdminCategorySelect`), `Dashboard_Index` (`_Dashboard...`), `Orders_Detail` (`_OrderDetail...`). Görünümleri `Areas/Admin/Views/Shared/Components/<Ad>/Default.cshtml`'de.
 
-`CategorySelectViewComponent.InvokeAsync(string name, int? selected, string? emptyText = null, string? elementId = null, string cssClass = "adm-select")`: varsayılan değerli parametreler `<vc:...>` etiketinde yazılmayabilir. Filtrede `empty-text="Tüm Kategoriler"` verilir (en üste boş seçenek), formda verilmez (ürünün mutlaka kategorisi olmalı).
+`_AdminCategorySelectViewComponent.InvokeAsync(string name, int? selected, string? emptyText = null, string? elementId = null, string cssClass = "adm-select")`: varsayılan değerli parametreler anonim nesnede yazılmayabilir. Filtrede `empty-text="Tüm Kategoriler"` verilir (en üste boş seçenek), formda verilmez (ürünün mutlaka kategorisi olmalı).
 
-### AdminSidebarViewComponent
+### _AdminSidebarViewComponent
 ```csharp
 public async Task<IViewComponentResult> InvokeAsync(string activePage)
 {
@@ -450,7 +450,7 @@ Ekran görüntüsündeki rozetler: Categories **8**, Products **20**, Orders **1
 
 **Eskiden burada bir verimsizlik vardı:** Sadece sayıları göstermek için `GetAllAsync()` ile bütün kategoriler (ürünleriyle birlikte!) ve bütün ürünler çekilip `.Count` alınıyordu, hem de her admin sayfasında. Servislere `CountAsync()` eklendi; artık her sayı tek bir `SELECT COUNT(*)`. Bu, "çalışıyor ama ölçeklenmez" kodu fark etmek için güzel bir örnek.
 
-### AdminNotificationsViewComponent
+### _AdminNotificationsViewComponent
 ```csharp
 ViewBag.UnreadCount = await _notificationService.CountUnreadAsync(NotificationTarget.Admin);
 var latest = await _notificationService.GetLatestAsync(NotificationTarget.Admin, 6);

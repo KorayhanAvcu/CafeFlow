@@ -229,6 +229,18 @@ services.AddSingleton<IDeliveryFeeStrategy, DeliveryFeeStrategy>();
 services.AddSingleton<IDeliveryFeeStrategy, PickupFeeStrategy>();
 services.AddSingleton<IDeliveryFeeStrategy, TableFeeStrategy>();
 
+// DECORATOR: birim fiyat hesabı (decorator zinciri bu sınıfın içinde)
+services.AddSingleton<IUnitPriceCalculator, DecoratorUnitPriceCalculator>();
+
+// STATE: durum başına bir sınıf
+services.AddSingleton<OrderState, ReceivedState>();
+services.AddSingleton<OrderState, PreparingState>();
+services.AddSingleton<OrderState, ReadyState>();
+services.AddSingleton<OrderState, DeliveredState>();
+services.AddSingleton<OrderState, CancelledState>();
+services.AddSingleton<IOrderStateProvider, OrderStateProvider>();
+services.AddSingleton<IOrderStatusRecorder, OrderStatusRecorder>();   // durum geçmişi satırları
+
 // FACTORY METHOD: kanal başına bir sipariş kurucu
 services.AddSingleton<OrderCreator, DeliveryOrderCreator>();
 services.AddSingleton<OrderCreator, PickupOrderCreator>();
@@ -242,6 +254,7 @@ services.AddTransient<OrderValidationHandler, OrderAmountHandler>();
 services.AddScoped<IOrderValidationChain, OrderValidationChain>();
 
 // OBSERVER
+services.AddScoped<INotificationWriter, NotificationWriter>();   // observer'ların ortak bildirim yazıcısı
 services.AddScoped<IOrderObserver, KitchenObserver>();
 services.AddScoped<IOrderObserver, CashierObserver>();
 services.AddScoped<IOrderObserver, AdminObserver>();
@@ -251,10 +264,10 @@ services.AddScoped<IOrderEventPublisher, OrderEventPublisher>();
 - `IOrderObserver` istersen **son kayıt** gelir (`AdminObserver`).
 - `IEnumerable<IOrderObserver>` istersen **hepsi**, kayıt sırasıyla gelir.
 
-Dört desen de bunu kullanıyor: `OrderEventPublisher` bütün observer'ları, `OrderPricingService` bütün ücret stratejilerini, `OrderService` bütün creator'ları, `OrderValidationChain` bütün halkaları liste olarak alıyor. Yeni bir kanal, kural veya dinleyici = **yeni bir sınıf + buraya bir satır**. Servislerin koduna dokunulmuyor (Open/Closed). Bölüm 05'te her birini ayrıntılı görüyoruz.
+Beş desen bunu kullanıyor: `OrderEventPublisher` bütün observer'ları, `OrderPricingService` bütün ücret stratejilerini, `OrderService` bütün creator'ları, `OrderValidationChain` bütün halkaları, `OrderStateProvider` bütün durum sınıflarını liste olarak alıyor. Yeni bir kanal, kural, durum veya dinleyici = **yeni bir sınıf + buraya bir satır**. Servislerin koduna dokunulmuyor (Open/Closed). Bölüm 05'te her birini ayrıntılı görüyoruz.
 
 **Ömür seçimleri neden farklı?**
-- Stratejiler ve creator'lar **Singleton**: içlerinde değişen bir durum yok ve sadece singleton şeylere bağımlılar (`IOptions`, `TimeProvider`). Uygulama boyunca bir tane yeterli.
+- Stratejiler, durum sınıfları, fiyat hesaplayıcı ve creator'lar **Singleton**: içlerinde değişen bir durum yok ve sadece singleton ya da thread-safe şeylere bağımlılar (`IOptions`, `TimeProvider`, AutoMapper'ın `IMapper`'ı). Uygulama boyunca bir tane yeterli.
 - Doğrulama halkaları **Transient**: `SetNext` halkanın içindeki `_next` alanını değiştiriyor. Halkalar paylaşılsaydı iki istek aynı anda zinciri kurarken birbirinin bağlantısını bozabilirdi. Transient ile her zincir kendi halkalarını alıyor.
 - Observer'lar ve servisler **Scoped**: repository'ye, dolayısıyla DbContext'e bağımlılar.
 
@@ -363,9 +376,9 @@ Kestrel (web sunucusu) isteği alır
 ```
 Bu zincirdeki **constructor injection** her katmanda aynı. Hiçbir sınıf `new ProductRepository()` demiyor; ihtiyacını constructor'da istiyor, DI kabı veriyor. **Dependency Inversion** (SOLID'deki D) budur: üst katman somut sınıfa değil, interface'e bağımlı.
 
-Desen sınıfları da bu kurala uyuyor: ücret stratejileri, creator'lar, doğrulama halkaları ve observer'lar DI'dan geliyor. Kodda kalan `new`'ler bilinçli:
-- **Entity ve DTO'lar** (`new Order()`, `new Notification()`): veri nesneleri, servis değil.
-- **Decorator** (`new OptionPriceDecorator(price, delta)`): çalışma anında gelen değerleri (fiyat, seçenek) sarıyor. DI'dan gelemez, çünkü kaç kat olacağı ve değerleri her kalemde farklı.
-- **State** (`OrderState.For(status)`): durumsuz, bağımlılığı olmayan küçük sınıflar; statik factory yeterli.
+Desen sınıfları da bu kurala uyuyor: ücret stratejileri, durum sınıfları, creator'lar, doğrulama halkaları, observer'lar ve fiyat hesaplayıcı DI'dan geliyor. Entity'ler (`Order`, `OrderDetail`, `Customer` ...) elle değil, **AutoMapper ile DTO'dan** oluşuyor. `new`'in kaldığı yerler bilinçli:
+- **Decorator katmanları** (`new OptionPriceDecorator(price, delta)`): kaç kat olacağı ve değerleri çalışma anında belli oluyor; DI bilemez. Bu `new`'ler tek bir sınıfa (`DecoratorUnitPriceCalculator`) hapsedildi ve o sınıf `IUnitPriceCalculator` olarak DI'dan geliyor.
+- **İki küçük yazıcı servis** (`NotificationWriter`, `OrderStatusRecorder`): işleri zaten o kaydı üretmek; üretim tek yerde toplandı.
+- **Hata nesneleri, koleksiyonlar, sonuç DTO'ları** (`throw new BusinessException(...)`, `new List<>()`, `new ResultDashboardDto()`): başka uygulamaları olmayan veri kutuları.
 
-Kaba bir kural: **bağımlılığı olan ve davranış taşıyan** sınıf DI'dan gelir; **veri taşıyan** veya çalışma anındaki değerlerden kurulan nesne `new` ile oluşturulur.
+Kaba bir kural: **bağımlılığı olan ve davranış taşıyan** sınıf DI'dan gelir; **entity'ler** AutoMapper ile DTO'dan oluşur; çalışma anındaki değerlerden kurulan nesneler tek bir sınıfa hapsedilir.

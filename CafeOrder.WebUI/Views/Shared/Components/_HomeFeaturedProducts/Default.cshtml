@@ -1,0 +1,26 @@
+@model List<ResultProductDto>
+@* _HomeFeaturedProductsViewComponent: ana sayfadaki popüler ürünler. Her kartı _ProductCard çizer. *@
+  <!-- ============ 4. POPÜLER ÜRÜNLER ============ -->
+  <section id="products" class="cf-section cf-section-tint">
+    <div class="container">
+      <div class="cf-section-head d-md-flex justify-content-between align-items-end text-md-start reveal">
+        <div>
+          <span class="cf-eyebrow">En sevilenler</span>
+          <h2 class="cf-section-title mb-md-0">Bu haftanın popülerleri</h2>
+        </div>
+      </div>
+
+      <div class="row g-4" id="productGrid">
+@foreach (var product in Model)
+{
+        <div class="col-sm-6 col-lg-4 reveal">
+          @await Component.InvokeAsync("_ProductCard", new { product = product })
+        </div>
+}
+      </div>
+
+      <div class="text-center mt-5 reveal">
+        <a href="/products" class="btn cf-btn-outline cf-btn-lg">Tüm menüyü gör <i class="bi bi-arrow-right"></i></a>
+      </div>
+    </div>
+  </section>

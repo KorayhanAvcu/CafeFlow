@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="~/css/cart.css" asp-append-version="true" />
 }
 
-  <vc:cart-header />
+  @await Component.InvokeAsync("_CartHeader")
 
   <main class="cf-cart-section">
     <div class="container">
@@ -27,21 +27,21 @@
       <div class="row g-4">
         <div class="col-lg-8">
 
-          <vc:cart-items cart="@Model" />
+          @await Component.InvokeAsync("_CartItems", new { cart = Model })
 
           @if (!isEmpty)
           {
-            <vc:channel-picker cart="@Model" />
+            @await Component.InvokeAsync("_CartChannelPicker", new { cart = Model })
 
             <!-- 3. Bilgiler ve sipariş -->
             @if (channel != null)
             {
-              <vc:checkout-form cart="@Model" />
+              @await Component.InvokeAsync("_CartCheckoutForm", new { cart = Model })
             }
           }
         </div>
 
-        <vc:cart-summary cart="@Model" />
+        @await Component.InvokeAsync("_CartSummary", new { cart = Model })
       </div>
     </div>
   </main>

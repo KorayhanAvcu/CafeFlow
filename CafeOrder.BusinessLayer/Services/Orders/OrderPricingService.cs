@@ -10,34 +10,36 @@ using AutoMapper;
 namespace CafeOrder.BusinessLayer.Services.Orders;
 
 /// <summary>
-/// Fiyat hesabı. DECORATOR ile birim fiyat, STRATEGY ile kanala göre ücret.
-/// Ücret stratejileri DI'dan gelir (IEnumerable&lt;IDeliveryFeeStrategy&gt;); burada new yok.
+/// Fiyat hesabı. DECORATOR ile birim fiyat (IUnitPriceCalculator), STRATEGY ile kanala göre ücret.
+/// Hepsi DI'dan gelir; sipariş kalemleri AutoMapper ile üründen ve seçeneklerden oluşur. Bu sınıfta new yok.
 /// </summary>
 public class OrderPricingService : IOrderPricingService
 {
     private readonly IProductRepository _productRepository;
     private readonly IProductOptionRepository _productOptionRepository;
     private readonly IReadOnlyDictionary<OrderChannel, IDeliveryFeeStrategy> _feeStrategies;
+    private readonly IUnitPriceCalculator _unitPrice;
     private readonly IMapper _mapper;
 
     public OrderPricingService(
         IProductRepository productRepository,
         IProductOptionRepository productOptionRepository,
         IEnumerable<IDeliveryFeeStrategy> feeStrategies,
+        IUnitPriceCalculator unitPrice,
         IMapper mapper)
     {
         _productRepository = productRepository;
         _productOptionRepository = productOptionRepository;
         // Aynı kanal için iki strateji kaydedilirse burada hata verir (yanlış kaydı erken yakalar).
         _feeStrategies = feeStrategies.ToDictionary(s => s.Channel);
+        _unitPrice = unitPrice;
         _mapper = mapper;
     }
 
     /// <summary>Sepeti fiyatlandırır, kaydetmez.</summary>
     public async Task<ResultOrderDto> CalculateAsync(OrderChannel channel, List<CartItemDto> items)
     {
-        Order order = new Order();
-        order.Channel = channel;
+        Order order = _mapper.Map<Order>(channel);   // sadece kanalı belli, geçici bir sipariş (kaydedilmez)
         await ApplyPricesAsync(order, items);
         return _mapper.Map<ResultOrderDto>(order);
     }
@@ -62,26 +64,17 @@ public class OrderPricingService : IOrderPricingService
             }
 
             List<ProductOption> chosenOptions = allOptions.Where(o => item.OptionIds.Contains(o.Id)).ToList();
-            decimal unitPrice = CalculateUnitPrice(product, chosenOptions);
+            decimal unitPrice = _unitPrice.Calculate(product, chosenOptions);   // DECORATOR
 
-            OrderDetail detail = new OrderDetail();
-            detail.Product = product;
-            detail.ProductId = product.Id;
-            detail.ProductName = product.Name;      // o anki adın kopyası
-            detail.BasePrice = product.BasePrice;   // o anki fiyatın kopyası
+            // Kalem üründen oluşur: ProductId, o anki ad ve taban fiyatın kopyası (OrderMappings).
+            OrderDetail detail = _mapper.Map<OrderDetail>(product);
+            detail.Product = product;   // AYNI izlenen ürün nesnesi bağlanır (kopya olsaydı EF onu yeni ürün sanıp INSERT ederdi)
             detail.UnitPrice = unitPrice;
             detail.Quantity = item.Quantity;
             detail.LineTotal = unitPrice * item.Quantity;
 
-            foreach (ProductOption option in chosenOptions)
-            {
-                OrderDetailOption detailOption = new OrderDetailOption();
-                detailOption.ProductOptionId = option.Id;
-                detailOption.GroupKey = option.GroupKey;
-                detailOption.Value = option.Value;
-                detailOption.PriceDelta = option.PriceDelta;
-                detail.Options.Add(detailOption);
-            }
+            // Seçeneklerin o anki kopyası (grup, değer, fiyat farkı).
+            detail.Options = _mapper.Map<List<OrderDetailOption>>(chosenOptions);
 
             order.Details.Add(detail);
         }
@@ -92,20 +85,6 @@ public class OrderPricingService : IOrderPricingService
         // 4) STRATEGY: sipariş türüne göre ücret kuralı seçilir.
         order.DeliveryFee = order.Details.Count == 0 ? 0 : GetFeeStrategy(order.Channel).Calculate(order.Subtotal);
         order.Total = order.Subtotal + order.DeliveryFee;
-    }
-
-    /// <summary>
-    /// DECORATOR: taban fiyatın üstüne her seçenek bir kat ekler.
-    /// Buradaki new doğrudur: decorator'lar servis değil, çalışma anındaki değerleri (fiyat, seçenek) saran nesnelerdir.
-    /// </summary>
-    private static decimal CalculateUnitPrice(Product product, List<ProductOption> options)
-    {
-        IPriceComponent price = new BaseProductPrice(product.BasePrice);
-        foreach (ProductOption option in options)
-        {
-            price = new OptionPriceDecorator(price, option.PriceDelta);
-        }
-        return price.GetPrice();
     }
 
     /// <summary>STRATEGY: kanala kayıtlı ücret stratejisini verir.</summary>

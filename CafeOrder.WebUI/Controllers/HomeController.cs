@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using CafeOrder.BusinessLayer.Services.Products;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CafeOrder.WebUI.Controllers;
@@ -7,18 +6,14 @@ namespace CafeOrder.WebUI.Controllers;
 /// <summary>Ana sayfa ve hata sayfaları.</summary>
 public class HomeController : Controller
 {
-    private readonly IProductService _productService;
-
-    public HomeController(IProductService productService)
-    {
-        _productService = productService;
-    }
-
-    /// <summary>Ana sayfa: rozetli 6 öne çıkan ürün (model). Kategori kartlarını CategoryShowcase ViewComponent'i kendisi getirir; bölümler partial'lara ayrılmıştır.</summary>
+    /// <summary>
+    /// Ana sayfa. Controller veri getirmez: sayfa ViewComponent'lerden oluşur ve veri gereken bölümler
+    /// (_HomeCategoryShowcase, _HomeFeaturedProducts) veriyi kendisi getirir.
+    /// </summary>
     [HttpGet("/")]
-    public async Task<IActionResult> Index()
+    public IActionResult Index()
     {
-        return View(await _productService.GetFeaturedAsync(6));
+        return View();
     }
 
     /// <summary>Beklenmeyen hata sayfası (Production ortamında). Model: hatayı loglarda bulmaya yarayan istek numarası.</summary>

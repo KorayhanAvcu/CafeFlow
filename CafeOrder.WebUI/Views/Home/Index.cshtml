@@ -1,4 +1,3 @@
-@model List<ResultProductDto>
 @{
     ViewData["Title"] = "CafeFlow — Butik Kafe ve Online Sipariş";
     ViewData["Description"] = "CafeFlow, el yapımı kahveler ve tatlılar sunan butik bir kafe. Online, masadaki QR kodla veya gel-al sipariş verin.";
@@ -8,40 +7,18 @@
 @section Scripts {
     <script src="~/js/home.js" asp-append-version="true"></script>
 }
+@* Ana sayfa bölümlerden oluşur. Veri gereken bölümler (kategoriler, popüler ürünler) veriyi kendisi getirir. *@
 
-  <vc:home-hero />
+  @await Component.InvokeAsync("_HomeHero")
 
-  @await Component.InvokeAsync("CategoryShowcase")
+  @await Component.InvokeAsync("_HomeCategoryShowcase")
 
-  <!-- ============ 4. POPÜLER ÜRÜNLER ============ -->
-  <section id="products" class="cf-section cf-section-tint">
-    <div class="container">
-      <div class="cf-section-head d-md-flex justify-content-between align-items-end text-md-start reveal">
-        <div>
-          <span class="cf-eyebrow">En sevilenler</span>
-          <h2 class="cf-section-title mb-md-0">Bu haftanın popülerleri</h2>
-        </div>
-      </div>
+  @await Component.InvokeAsync("_HomeFeaturedProducts")
 
-      <div class="row g-4" id="productGrid">
-@foreach (var product in Model)
-{
-        <div class="col-sm-6 col-lg-4 reveal">
-          <vc:product-card product="@product" />
-        </div>
-}
-      </div>
+  @await Component.InvokeAsync("_HomeOrderWays")
 
-      <div class="text-center mt-5 reveal">
-        <a href="/products" class="btn cf-btn-outline cf-btn-lg">Tüm menüyü gör <i class="bi bi-arrow-right"></i></a>
-      </div>
-    </div>
-  </section>
+  @await Component.InvokeAsync("_HomeAbout")
 
-  <vc:home-order-ways />
+  @await Component.InvokeAsync("_HomeOffer")
 
-  <vc:home-about />
-
-  <vc:home-offer />
-
-  <vc:home-reviews />
+  @await Component.InvokeAsync("_HomeReviews")

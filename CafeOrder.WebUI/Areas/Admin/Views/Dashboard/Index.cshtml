@@ -12,16 +12,16 @@
   </div>
 </div>
 
-<vc:stat-cards dashboard="@Model" />
+@await Component.InvokeAsync("_DashboardStatCards", new { dashboard = Model })
 
 <div class="row g-4">
   <div class="col-xl-8">
-    <vc:latest-orders dashboard="@Model" />
+    @await Component.InvokeAsync("_DashboardLatestOrders", new { dashboard = Model })
 
-    <vc:best-sellers dashboard="@Model" />
+    @await Component.InvokeAsync("_DashboardBestSellers", new { dashboard = Model })
   </div>
 
   <div class="col-xl-4">
-    <vc:status-counts dashboard="@Model" />
+    @await Component.InvokeAsync("_DashboardStatusCounts", new { dashboard = Model })
   </div>
 </div>

@@ -88,9 +88,9 @@ Eşlemeler `BusinessLayer/Mapping/` klasöründe, **tablo başına bir dosya** o
 | `CategoryMappings.cs` | Create/Update DTO ↔ Category, Category → ResultCategoryDto |
 | `ProductMappings.cs` | Create/Update DTO ↔ Product, Product → ResultProductDto, ProductOption → ResultProductOptionDto |
 | `TableMappings.cs` | Create/Update DTO ↔ Table, Table → ResultTableDto |
-| `CustomerMappings.cs` | Customer → ResultCustomerDto |
+| `CustomerMappings.cs` | Customer → ResultCustomerDto, CreateOrderDto → Customer (yeni müşteri) |
 | `NotificationMappings.cs` | Notification → ResultNotificationDto |
-| `OrderMappings.cs` | CreateOrderDto → Order, Order → ResultOrderDto ve iç içe kalemler |
+| `OrderMappings.cs` | CreateOrderDto → Order, Order → ResultOrderDto ve iç içe kalemler; sipariş oluştururken Product → OrderDetail, ProductOption → OrderDetailOption, OrderChannel → Order |
 
 Hepsi aynı kalıpta:
 ```csharp
@@ -172,6 +172,39 @@ CreateMap<OrderStatusHistory, ResultOrderStatusHistoryDto>();
 - `Order → ResultOrderDto` çevrilirken içindeki `Details` listesi de çevriliyor. Bunun için **eleman tiplerinin** (`OrderDetail → ResultOrderDetailDto`, `OrderDetailOption → ...`, `OrderStatusHistory → ...`) de `CreateMap` ile tanımlanmış olması gerekiyor. Listeyi (`List<A> → List<B>`) ise AutoMapper kendisi hallediyor.
 - `CreateOrderDto → Order`: `Channel`, `Address`, `AddressNotes`, `PickupTime` ve `Note` aynı isimde, otomatik kopyalanıyor. `FullName` ve `Phone` `Order`'da yok; AutoMapper **kaynaktaki fazla alanları yok sayar**. Müşteri bilgisi `OrderService`'te ayrıca işleniyor.
 - `ResultOrderDto.AllowedNextStatuses` kaynakta yok; boş kalıyor ve `OrderQueryService` State'e sorup dolduruyor.
+
+### Entity'ler `new` ile değil, AutoMapper ile oluşur
+Sipariş verilirken oluşan entity'ler de servislerde elle `new`'lenip alan alan doldurulmuyor; kuralları bu Profile'larda:
+
+```csharp
+// Creator'lar: sipariş formu → Order (her creator sonra başka kanalların alanlarını siler)
+Order order = Mapper.Map<Order>(dto);
+
+// OrderService: telefonla kayıtlı müşteri yoksa formdan yeni müşteri (ad ve telefon kırpılarak)
+CreateMap<CreateOrderDto, Customer>()
+    .ForMember(dest => dest.FullName, opt => opt.MapFrom(src => (src.FullName ?? "").Trim()))
+    .ForMember(dest => dest.Phone, opt => opt.MapFrom(src => (src.Phone ?? "").Trim()));
+
+// OrderPricingService: ürün → sipariş kalemi, seçenek → kalem seçeneği
+CreateMap<Product, OrderDetail>()
+    .ForMember(dest => dest.Id, opt => opt.Ignore())                      // !!!
+    .ForMember(dest => dest.ProductId, opt => opt.MapFrom(src => src.Id))
+    .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Name))
+    .ForMember(dest => dest.Product, opt => opt.Ignore())
+    .ForMember(dest => dest.Options, opt => opt.Ignore());
+CreateMap<ProductOption, OrderDetailOption>()
+    .ForMember(dest => dest.Id, opt => opt.Ignore())                      // !!!
+    .ForMember(dest => dest.ProductOptionId, opt => opt.MapFrom(src => src.Id))
+    .ForMember(dest => dest.ProductOption, opt => opt.Ignore());
+
+// OrderPricingService.CalculateAsync: sepet için kanalı belli, geçici (kaydedilmeyen) bir sipariş
+CreateMap<OrderChannel, Order>()
+    .ForMember(dest => dest.Channel, opt => opt.MapFrom(src => src));
+```
+
+**En önemli tuzak: `Id` için `Ignore`.** AutoMapper aynı isimli alanları kopyalar. `Product.Id` (ör. 1) olduğu gibi `OrderDetail.Id`'ye yazılırdı. EF Core bunu "Id'si 1 olan bir kalem" sanar ve INSERT sırasında hata verir ya da yanlış kaydı ezmeye çalışır. Kaynakla hedefte aynı isimde ama **farklı anlamda** bir alan varsa (burada ikisi de `Id` ama biri ürünün, diğeri kalemin kimliği) mutlaka `Ignore` veya `MapFrom` ile açıkça yazılmalı.
+
+**`Product` navigation'ı neden `Ignore`?** Servis aynı izlenen ürün nesnesini `detail.Product = product;` diye kendisi bağlıyor. AutoMapper ürünün bir **kopyasını** oluştursaydı EF onu yeni bir ürün sanıp `Products` tablosuna INSERT ederdi.
 
 ### DI kaydı (`BusinessServiceRegistration`)
 ```csharp

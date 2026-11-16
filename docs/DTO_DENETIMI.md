@@ -111,7 +111,6 @@ Sipariş işleri dört servise bölünmüştür (ayrıntı: kod rehberi Bölüm 
 |---|---|---|---|
 | `CalculateAsync` | Sepeti **kaydetmeden** fiyatlandırır (Decorator + Strategy) | `OrderChannel`, `List<CartItemDto>` | `ResultOrderDto` |
 | `ApplyPricesAsync` | Asıl hesap: fiyatları veritabanından okur, kalemleri kurar, ara toplam ve ücreti hesaplar | `Order`, `List<CartItemDto>` | — |
-| `CalculateUnitPrice` *(private)* | Decorator: taban fiyatı her seçenekle sarar | `Product`, `List<ProductOption>` | `decimal` |
 | `GetFeeStrategy` *(private)* | Strategy: DI'dan gelen stratejilerden kanala uygun olanı seçer | `OrderChannel` | `IDeliveryFeeStrategy` |
 
 **IOrderService / OrderService** (değiştirme)
@@ -121,7 +120,7 @@ Sipariş işleri dört servise bölünmüştür (ayrıntı: kod rehberi Bölüm 
 | `PlaceOrderAsync` | Sipariş verir: Factory Method → Decorator + Strategy → Chain → Observer → tek kayıt (Unit of Work) | `CreateOrderDto`, `List<CartItemDto>`, `string?` (QR) | `ResultOrderDto` |
 | `ChangeStatusAsync` | Durum değiştirir: State kontrolü → geçmiş kaydı → Observer → tek kayıt | `int`, `OrderStatus`, `string?` | — |
 | `GetCreator` *(private)* | Factory Method: DI'dan gelen creator'lardan kanala uygun olanı seçer | `OrderChannel` | `OrderCreator` |
-| `FindOrCreateCustomerAsync` *(private)* | Telefona göre var olan müşteriyi bulur, yoksa yeni müşteri nesnesi döner | `string?`, `string?` | `Customer` |
+| `FindOrCreateCustomerAsync` *(private)* | Telefona göre var olan müşteriyi bulur, yoksa müşteriyi DTO'dan AutoMapper ile oluşturur | `CreateOrderDto` | `Customer` |
 
 **IDashboardService / DashboardService**
 
@@ -190,17 +189,18 @@ Giriş ve çıkış çerezle ilgili olduğu için `AccountController`'da (SignIn
 ### View Component'ler
 | Sınıf | Ne yapar | DTO |
 |---|---|---|
-| `CartCountViewComponent` | Navbar'daki sepet adedi | `int` |
-| `CartDrawerViewComponent` | Sağdan açılan sepet paneli | `ResultOrderDto` |
-| `AdminSidebarViewComponent` | Admin sol menüsü ve sayıları | DTO listelerinin sayısı |
-| `AdminNotificationsViewComponent` | Üst çubuktaki bildirim zili | `List<ResultNotificationDto>` |
-| `CategoryShowcaseViewComponent` | Ana sayfa kategori kartları | `List<ResultCategoryDto>` |
-| `CategoryFilterViewComponent` | Menü kategori düğmeleri | `List<ResultCategoryDto>` |
-| `ProductOptionsViewComponent` | Ürün detayındaki seçenekler | `List<ResultProductOptionDto>` + `ResultProductDto` |
-| `RelatedProductsViewComponent` | Benzer ürünler | `List<ResultProductDto>` |
-| `CategorySelectViewComponent` | Admin kategori açılır listesi | `List<ResultCategoryDto>` |
-| `NavbarViewComponent`, `FooterViewComponent` | Üst menü, alt bilgi | `string` (sayfa adı) |
-| `CartToastViewComponent` | Sepet bildirimi | `string?` (TempData) |
+| `_LayoutCartCountViewComponent` | Navbar'daki sepet adedi | `int` |
+| `_LayoutCartDrawerViewComponent` | Sağdan açılan sepet paneli | `ResultOrderDto` |
+| `_AdminSidebarViewComponent` | Admin sol menüsü ve sayıları | DTO listelerinin sayısı |
+| `_AdminNotificationsViewComponent` | Üst çubuktaki bildirim zili | `List<ResultNotificationDto>` |
+| `_HomeCategoryShowcaseViewComponent` | Ana sayfa kategori kartları | `List<ResultCategoryDto>` |
+| `_HomeFeaturedProductsViewComponent` | Ana sayfa popüler ürünler | `List<ResultProductDto>` |
+| `_MenuCategoryFilterViewComponent` | Menü kategori düğmeleri | `List<ResultCategoryDto>` |
+| `_ProductDetailOptionsViewComponent` | Ürün detayındaki seçenekler | `List<ResultProductOptionDto>` + `ResultProductDto` |
+| `_ProductDetailRelatedViewComponent` | Benzer ürünler | `List<ResultProductDto>` |
+| `_AdminCategorySelectViewComponent` | Admin kategori açılır listesi | `List<ResultCategoryDto>` |
+| `_LayoutNavbarViewComponent`, `_LayoutFooterViewComponent` | Üst menü, alt bilgi | `string` (sayfa adı) |
+| `_LayoutCartToastViewComponent` | Sepet bildirimi | `string?` (TempData) |
 | `HomeHero/OrderWays/About/Offer/Reviews`, `MenuHeader`, `MenuPromo`, `CartHeader` | Statik bölümler | — |
 | `ProductCard`, `DetailBreadcrumb`, `ProductGallery` | Ürün kartı, detay üst kısmı, fotoğraf | `ResultProductDto` |
 | `CartItems`, `ChannelPicker`, `CheckoutForm`, `CartSummary` | Sepet adımları ve özet | `ResultCartDto` |

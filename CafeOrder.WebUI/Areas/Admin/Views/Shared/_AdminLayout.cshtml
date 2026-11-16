@@ -25,7 +25,7 @@
   @Html.AntiForgeryToken()
 
   <!-- ============ ORTAK ADMIN ÇERÇEVESİ: SOL MENÜ ============ -->
-  @await Component.InvokeAsync("AdminSidebar", new { activePage = page })
+  @await Component.InvokeAsync("_AdminSidebar", new { activePage = page })
   <div class="adm-backdrop" id="admBackdrop"></div>
 
   <div class="adm-main">
@@ -58,7 +58,7 @@
         </div>
 
         <!-- Bildirimler (Observer deseninin yazdıkları) -->
-        @await Component.InvokeAsync("AdminNotifications")
+        @await Component.InvokeAsync("_AdminNotifications")
 
         <!-- Profil -->
         <div class="dropdown">

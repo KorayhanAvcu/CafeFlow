@@ -17,7 +17,7 @@
 9. Case'in iş kuralları ve kodları
 10. Teknik beklentiler: SOLID, validasyon, hata yönetimi, async, ilişki bütünlüğü, test
 11. Hepsini bağlayan yer: DI kayıtları
-12. Kodda kalan `new`'ler neden doğru?
+12. `new` nerede kaldı, neden?
 13. Uygulanmayan 4 desen
 14. Sunumda sorulabilecek sorular
 15. Nasıl çalışmalısın?
@@ -138,11 +138,11 @@ CartController lazım → ICartService istiyor
 
 | Ömür | Ne demek | Projede kim |
 |---|---|---|
-| **Scoped** | Her HTTP isteğinde bir tane | DbContext, Unit of Work, repository'ler, servisler, observer'lar, `IMapper` |
-| **Singleton** | Uygulama boyunca tek | Ücret stratejileri, creator'lar, `TimeProvider`, `IOptions<PricingOptions>` |
+| **Scoped** | Her HTTP isteğinde bir tane | DbContext, Unit of Work, repository'ler, servisler, observer'lar, `INotificationWriter` |
+| **Singleton** | Uygulama boyunca tek | Ücret stratejileri, durum sınıfları, creator'lar, `IUnitPriceCalculator`, `IOrderStatusRecorder`, `TimeProvider`, `IOptions<PricingOptions>` |
 | **Transient** | Her istendiğinde yeni | Doğrulama halkaları |
 
-- Stratejiler ve creator'lar **Singleton**: içlerinde değişen bir durum yok.
+- Stratejiler, durum sınıfları ve creator'lar **Singleton**: içlerinde değişen bir durum yok.
 - Doğrulama halkaları **Transient**: `SetNext` halkanın içini değiştiriyor; paylaşılırlarsa iki istek birbirinin zincirini bozabilir.
 - **Kural:** Bir sınıf kendinden kısa ömürlü bir şeye bağımlı olamaz (Singleton → Scoped yasak). Development ortamında ASP.NET Core bunu açılışta kontrol eder.
 
@@ -239,29 +239,28 @@ public async Task<IActionResult> Checkout(CreateOrderDto form)   // form → DTO
 ```csharp
 public async Task<ResultOrderDto> PlaceOrderAsync(CreateOrderDto dto, List<CartItemDto> items, string? qrToken)
 {
-    Order form = _mapper.Map<Order>(dto);                                   // DTO → Entity (AutoMapper)
-    form.Customer = await FindOrCreateCustomerAsync(dto.FullName, dto.Phone);
+    Customer customer = await FindOrCreateCustomerAsync(dto);                // kayıtlı müşteri ya da DTO'dan yeni
 
     Table? table = null;
-    if (form.Channel == OrderChannel.Table && !string.IsNullOrWhiteSpace(qrToken))
+    if (dto.Channel == OrderChannel.Table && !string.IsNullOrWhiteSpace(qrToken))
     {
         string token = qrToken.ToUpper();
         table = await _tableRepository.GetFirstAsync(t => t.QrToken == token && t.IsActive);  // QR → AKTİF masa
     }
 
-    Order order = GetCreator(form.Channel).Create(form, table);   // 1) FACTORY METHOD
-    await _pricing.ApplyPricesAsync(order, items);                // 2) DECORATOR + STRATEGY
-    _validation.Validate(order);                                  // 3) CHAIN (hata → exception)
-    await _orderRepository.AddAsync(order);                       // 4) "eklenecek" diye işaretle
-    await _events.OrderPlacedAsync(order);                        // 5) OBSERVER
-    await _unitOfWork.SaveChangesAsync();                         // 6) TEK TRANSACTION
+    Order order = GetCreator(dto.Channel).Create(dto, customer, table);   // 1) FACTORY METHOD (DTO'dan)
+    await _pricing.ApplyPricesAsync(order, items);                        // 2) DECORATOR + STRATEGY
+    _validation.Validate(order);                                          // 3) CHAIN (hata → exception)
+    await _orderRepository.AddAsync(order);                               // 4) "eklenecek" diye işaretle
+    await _events.OrderPlacedAsync(order);                                // 5) OBSERVER
+    await _unitOfWork.SaveChangesAsync();                                 // 6) TEK TRANSACTION
     return _mapper.Map<ResultOrderDto>(order);
 }
 ```
 
 Case'in örnek süreci bu metotta satır satır var. Sunumda bu metodu gösterip her satırın hangi desen olduğunu anlat.
 
-Constructor'ı: bu sınıf hiçbir şeyi `new`'lemiyor, her şeyi DI'dan alıyor.
+Constructor'ı: bu sınıf **hiçbir nesneyi `new`'lemiyor**; davranışları DI'dan alıyor, entity'leri AutoMapper DTO'dan oluşturuyor.
 
 ```csharp
 public OrderService(
@@ -272,28 +271,27 @@ public OrderService(
     IOrderPricingService pricing,              // Decorator + Strategy
     IOrderValidationChain validation,          // Chain
     IOrderEventPublisher events,               // Observer
+    IOrderStateProvider states,                // State
+    IOrderStatusRecorder statusRecorder,       // durum geçmişi satırları
     IUnitOfWork unitOfWork,                    // Transaction
     TimeProvider time,
     IMapper mapper)
 ```
 
-`OrderService` hangi kanalların, hangi kuralların, hangi bildirimlerin olduğunu **bilmiyor**. Bu yüzden onlar değiştiğinde bu dosya değişmiyor. Case'in *"değişebilir iş kuralları"* cümlesinin koddaki karşılığı bu.
+`OrderService` hangi kanalların, hangi kuralların, hangi durumların, hangi bildirimlerin olduğunu **bilmiyor**. Bu yüzden onlar değiştiğinde bu dosya değişmiyor. Case'in *"değişebilir iş kuralları"* cümlesinin koddaki karşılığı bu.
 
 Müşteri bulma yardımcısı:
 
 ```csharp
-private async Task<Customer> FindOrCreateCustomerAsync(string? fullName, string? phone)
+private async Task<Customer> FindOrCreateCustomerAsync(CreateOrderDto dto)
 {
-    Customer customer = new Customer();
-    customer.FullName = (fullName ?? "").Trim();
-    customer.Phone = (phone ?? "").Trim();
-    if (customer.Phone != "")
+    string phone = (dto.Phone ?? "").Trim();
+    if (phone != "")
     {
-        string p = customer.Phone;
-        var existing = await _customerRepository.GetFirstAsync(c => c.Phone == p);
+        var existing = await _customerRepository.GetFirstAsync(c => c.Phone == phone);
         if (existing != null) return existing;     // aynı telefon → aynı müşteri
     }
-    return customer;                               // yeni müşteri: siparişle birlikte INSERT edilecek
+    return _mapper.Map<Customer>(dto);             // yeni müşteri DTO'dan (ad/telefon kırpılır), siparişle birlikte INSERT edilir
 }
 ```
 
@@ -330,16 +328,24 @@ public class OptionPriceDecorator : IPriceComponent              // SARAN kutu
 }
 ```
 
-Kullanıldığı yer (`OrderPricingService`):
+Zinciri kuran sınıf DI'a kayıtlı bir servis (`Pricing/UnitPriceCalculator.cs`):
 
 ```csharp
-private static decimal CalculateUnitPrice(Product product, List<ProductOption> options)
+public interface IUnitPriceCalculator { decimal Calculate(Product product, IEnumerable<ProductOption> options); }
+
+public class DecoratorUnitPriceCalculator : IUnitPriceCalculator
 {
-    IPriceComponent price = new BaseProductPrice(product.BasePrice);   // 160
-    foreach (ProductOption option in options)
-        price = new OptionPriceDecorator(price, option.PriceDelta);    // sar, sar, sar
-    return price.GetPrice();
+    public decimal Calculate(Product product, IEnumerable<ProductOption> options)
+    {
+        IPriceComponent price = new BaseProductPrice(product.BasePrice);   // 160
+        foreach (ProductOption option in options)
+            price = new OptionPriceDecorator(price, option.PriceDelta);    // sar, sar, sar
+        return price.GetPrice();
+    }
 }
+
+// DI:  services.AddSingleton<IUnitPriceCalculator, DecoratorUnitPriceCalculator>();
+// OrderPricingService:  decimal unitPrice = _unitPrice.Calculate(product, chosenOptions);
 ```
 
 Bellekte oluşan yapı:
@@ -350,8 +356,9 @@ GetPrice() → 160 → 190 → 205 → 225 ₺
 ```
 
 - **Kilit nokta:** `OptionPriceDecorator` hem `IPriceComponent` **oluyor** hem bir `IPriceComponent` **tutuyor**. Bu yüzden kutular istediğin kadar iç içe girebiliyor.
+- **Decorator'daki `new` neden duruyor?** Zincirin kaç katlı olacağı ve her katın değeri sepet satırına göre çalışma anında belli oluyor; DI bunu bilemez. Bu `new`'ler **tek bir sınıfa hapsedildi** ve o sınıf arayüz arkasında DI'dan geliyor. `OrderPricingService` decorator sınıflarını tanımıyor.
 - **Ekranda:** Ürün detayında seçenek seçip sepete ekleyince; sepet sayfasında ve sipariş verirken.
-- **Kural değişirse:** "Büyük boy %20 artırsın" → yeni bir `PercentPriceDecorator` sınıfı. Hesap kodu değişmez.
+- **Kural değişirse:** "Büyük boy %20 artırsın" → yeni bir `PercentPriceDecorator`. Fiyat hesabı tamamen değişirse (ör. kampanya) → yeni bir `IUnitPriceCalculator` yazılıp kayıt satırı değiştirilir; `OrderPricingService` değişmez.
 
 ### 6.2 Strategy: kanala göre ücret
 
@@ -413,64 +420,61 @@ order.DeliveryFee = order.Details.Count == 0 ? 0 : GetFeeStrategy(order.Channel)
 
 **Case:** *"Online, gel-al ve masa siparişleri için türe özgü nesne oluşturma akışları."*
 
-**Desen olmasaydı:** Tek bir metotta "teslimatsa adresi, gel-al'sa saati, masaysa masayı kopyala" karışık dururdu; yanlış kanala yanlış alan girebilirdi.
+**Desen olmasaydı:** Tek bir metotta "teslimatsa adresi, gel-al'sa saati, masaysa masayı al" karışık dururdu; yanlış kanala yanlış alan girebilirdi.
 
 **Kod** (`BusinessLayer/Creation/`):
 
 ```csharp
 public abstract class OrderCreator
 {
-    private readonly TimeProvider _time;
-    protected OrderCreator(TimeProvider time) { _time = time; }
+    protected OrderCreator(IMapper mapper, TimeProvider time, IOrderStatusRecorder statusRecorder) { ... }   // hepsi DI'dan
 
+    protected IMapper Mapper { get; }                      // alt sınıflar DTO'yu Order'a bununla çevirir
     public abstract OrderChannel Channel { get; }          // "ben hangi kanalın creator'ıyım"
 
-    public Order Create(Order form, Table? table)          // ORTAK İSKELET (değiştirilemez)
+    public Order Create(CreateOrderDto dto, Customer customer, Table? table)   // ORTAK İSKELET (değiştirilemez)
     {
-        Order order = CreateForChannel(form, table);       // ← türe özgü kısım ALT SINIFTA
-        order.OrderNo = CreateOrderNo();                   // ortak: CF-1A2B3C4D
-        order.Status = OrderStatus.Received;               // ortak: "Alındı"
-        order.Note = form.Note;
-        order.CreatedAt = _time.GetLocalNow().DateTime;    // ortak: tarih
-
-        OrderStatusHistory history = new OrderStatusHistory();   // ortak: ilk durum kaydı
-        history.ToStatus = OrderStatus.Received;
-        history.ChangedAt = order.CreatedAt;
-        order.StatusHistories.Add(history);
+        Order order = CreateForChannel(dto, customer, table);   // ← türe özgü kısım ALT SINIFTA
+        order.OrderNo = CreateOrderNo();                        // ortak: CF-1A2B3C4D
+        order.Status = OrderStatus.Received;                    // ortak: "Alındı"
+        order.CreatedAt = _time.GetLocalNow().DateTime;         // ortak: tarih
+        _statusRecorder.Record(order, null, OrderStatus.Received, order.CreatedAt);   // ortak: ilk durum kaydı
         return order;
     }
 
-    protected abstract Order CreateForChannel(Order form, Table? table);   // ← FACTORY METHOD
+    protected abstract Order CreateForChannel(CreateOrderDto dto, Customer customer, Table? table);   // ← FACTORY METHOD
 }
 
 public class DeliveryOrderCreator : OrderCreator
 {
-    public DeliveryOrderCreator(TimeProvider time) : base(time) { }
+    public DeliveryOrderCreator(IMapper mapper, TimeProvider time, IOrderStatusRecorder statusRecorder)
+        : base(mapper, time, statusRecorder) { }
     public override OrderChannel Channel => OrderChannel.Delivery;
 
-    protected override Order CreateForChannel(Order form, Table? table)
+    protected override Order CreateForChannel(CreateOrderDto dto, Customer customer, Table? table)
     {
-        Order order = new Order();
-        order.Channel = OrderChannel.Delivery;
-        order.Customer = form.Customer;      // teslimat: müşteri
-        order.Address = form.Address;        // teslimat: adres
-        order.AddressNotes = form.AddressNotes;
-        return order;                        // alma saati, masa → BİLEREK kopyalanmıyor
+        Order order = Mapper.Map<Order>(dto);    // AutoMapper: adres, adres notu, not, saat kopyalanır
+        order.Channel = OrderChannel.Delivery;   // kanal DTO'dan değil, sınıfın kendisinden
+        order.Customer = customer;               // teslimat: müşteri bağlanır
+        order.PickupTime = null;                 // başka kanalın alanı: alınmaz
+        return order;
     }
 }
-// PickupOrderCreator → müşteri + alma saati, TableOrderCreator → masa (TableId)
+// PickupOrderCreator → müşteri + alma saati (adres alınmaz)
+// TableOrderCreator  → TableId (müşteri, adres, saat alınmaz)
 ```
 
 Seçim (`OrderService`):
 
 ```csharp
-_creators = creators.ToDictionary(c => c.Channel);           // constructor'da
-Order order = GetCreator(form.Channel).Create(form, table);  // sipariş verirken
+_creators = creators.ToDictionary(c => c.Channel);                  // constructor'da
+Order order = GetCreator(dto.Channel).Create(dto, customer, table);  // sipariş verirken
 ```
 
 - **`CreateForChannel`** asıl Factory Method: üst sınıf "bir sipariş lazım" diyor, alt sınıf "nasıl kurulacağını" biliyor.
 - **`Create`** bir Template Method: adımların sırası sabit, sadece değişen adım alt sınıfa bırakılmış.
-- **Beyaz liste:** Her alt sınıf sadece kendi alanlarını kopyalıyor; teslimat siparişine alma saati giremez.
+- **DTO ile çalışıyor:** Creator doğrudan `CreateOrderDto` alıyor; `Order`'ı elle değil AutoMapper ile oluşturuyor. Her alt sınıf **başka kanallara ait alanları siliyor**: teslimat siparişine alma saati, masa siparişine adres giremez.
+- **Hiçbir bağımlılık `new`'lenmiyor:** `IMapper`, `TimeProvider` ve `IOrderStatusRecorder` constructor'dan geliyor.
 - **Sipariş numarası rastgele** (GUID'in ilk 8 karakteri): sıralı olsaydı biri `/cart/confirmation/CF-0002` yazıp başkasının siparişini görebilirdi.
 - **Kural değişirse:** Yeni kanal = yeni bir creator sınıfı + bir kayıt satırı.
 
@@ -564,28 +568,33 @@ Alındı ──► Hazırlanıyor ──► Hazır ──► Teslim Edildi (son)
        İptal (son)
 ```
 
-**Kod** (`BusinessLayer/States/OrderState.cs`):
+**Kod** (`BusinessLayer/States/`):
 
 ```csharp
 public abstract class OrderState
 {
-    public abstract List<OrderStatus> GetAllowedNext();                       // "nereye gidebilirim?"
+    public abstract OrderStatus Status { get; }                                // "ben hangi durumum"
+    public abstract List<OrderStatus> GetAllowedNext();                        // "nereye gidebilirim?"
     public bool CanMoveTo(OrderStatus target) { return GetAllowedNext().Contains(target); }
-
-    public static OrderState For(OrderStatus status)                          // enum → durum nesnesi
-    {
-        if (status == OrderStatus.Received)  return new ReceivedState();
-        if (status == OrderStatus.Preparing) return new PreparingState();
-        if (status == OrderStatus.Ready)     return new ReadyState();
-        if (status == OrderStatus.Delivered) return new DeliveredState();
-        return new CancelledState();
-    }
 }
 
+public class ReadyState : OrderState
+{
+    public override OrderStatus Status => OrderStatus.Ready;
+    public override List<OrderStatus> GetAllowedNext() { return new List<OrderStatus> { OrderStatus.Delivered }; }
+}
 // ReceivedState  → Hazırlanıyor, İptal
 // PreparingState → Hazır, İptal
-// ReadyState     → Teslim Edildi
 // DeliveredState, CancelledState → (yok, son durum)
+```
+
+Durum sınıfları DI'a kayıtlı; `OrderStateProvider` hepsini alıp `Status`'a göre bir sözlüğe koyuyor (Strategy ve Factory ile aynı teknik):
+
+```csharp
+services.AddSingleton<OrderState, ReceivedState>();
+services.AddSingleton<OrderState, PreparingState>();
+...
+services.AddSingleton<IOrderStateProvider, OrderStateProvider>();   // IEnumerable<OrderState> → sözlük
 ```
 
 Kullanıldığı yer (`OrderService.ChangeStatusAsync`):
@@ -593,13 +602,13 @@ Kullanıldığı yer (`OrderService.ChangeStatusAsync`):
 ```csharp
 var order = await _orderRepository.GetWithDetailsAsync(id);
 
-OrderState state = OrderState.For(order.Status);
+OrderState state = _states.Get(order.Status);
 if (!state.CanMoveTo(target))
     throw new BusinessException("Sipariş \"" + order.Status.ToText() + "\" durumundan \"" + target.ToText() + "\" durumuna geçemez.");
 
 OrderStatus previous = order.Status;
 order.Status = target;
-order.StatusHistories.Add(new OrderStatusHistory { FromStatus = previous, ToStatus = target, ... });   // geçmiş
+_statusRecorder.Record(order, previous, target, _time.GetLocalNow().DateTime, note);   // geçmiş
 await _events.StatusChangedAsync(order, previous);    // OBSERVER
 await _unitOfWork.SaveChangesAsync();                 // tek kayıt
 ```
@@ -607,11 +616,11 @@ await _unitOfWork.SaveChangesAsync();                 // tek kayıt
 Aynı kural admin sayfasında da kullanılıyor (`OrderQueryService.GetByIdAsync`):
 
 ```csharp
-dto.AllowedNextStatuses = OrderState.For(order.Status).GetAllowedNext();   // sadece bunların düğmesi çizilir
+dto.AllowedNextStatuses = _states.Get(order.Status).GetAllowedNext();   // sadece bunların düğmesi çizilir
 ```
 
 - **İki tüketici:** Servis izinsiz geçişi reddediyor (gerçek güvenlik; form elle gönderilse bile engellenir). Sayfa sadece izinli düğmeleri çiziyor (kullanıcı deneyimi).
-- **Kural değişirse:** "Hazır sipariş de iptal edilebilsin" → `ReadyState`'e tek bir değer eklenir; iptal düğmesi sayfada kendiliğinden çıkar.
+- **Kural değişirse:** "Hazır sipariş de iptal edilebilsin" → `ReadyState`'e tek bir değer eklenir; iptal düğmesi sayfada kendiliğinden çıkar. Yeni bir durum ("Yolda") → yeni bir State sınıfı + bir kayıt satırı; servisler değişmez.
 - **Dürüst not:** Bu, State'in hafif "geçiş tablosu" uygulaması. Klasik GoF State'te davranış da durum sınıfına taşınır (ör. `ReadyState` müşteriye "siparişiniz hazır" der). Case "izinli geçişler" istediği için yeterli.
 
 ### 6.6 Observer: mutfak, kasa ve admin bildirimleri
@@ -638,28 +647,39 @@ public class OrderEventPublisher : IOrderEventPublisher
 }
 ```
 
-**Bir abone** (`KitchenObserver.cs`):
+**Bir abone** (`KitchenObserver.cs`): sadece **hangi olaya, kime, hangi mesaj** gideceğine karar veriyor:
 
 ```csharp
-public async Task OrderPlacedAsync(Order order)
+public class KitchenObserver : IOrderObserver
 {
-    await SendAsync(order, $"Yeni sipariş {order.OrderNo}: hazırlanacak {order.Details.Sum(d => d.Quantity)} ürün.");
-}
+    private readonly INotificationWriter _writer;                       // DI'dan
+    public KitchenObserver(INotificationWriter writer) { _writer = writer; }
 
-public async Task StatusChangedAsync(Order order, OrderStatus previous)
-{
-    if (order.Status == OrderStatus.Cancelled)                 // mutfak SADECE iptalle ilgileniyor
-        await SendAsync(order, $"{order.OrderNo} siparişi iptal edildi. Hazırlamayı durdurun.");
-}
+    public async Task OrderPlacedAsync(Order order)
+        => await _writer.AddAsync(order, NotificationTarget.Kitchen,
+               $"Yeni sipariş {order.OrderNo}: hazırlanacak {order.Details.Sum(d => d.Quantity)} ürün.");
 
-private async Task SendAsync(Order order, string message)
+    public async Task StatusChangedAsync(Order order, OrderStatus previous)
+    {
+        if (order.Status == OrderStatus.Cancelled)                     // mutfak SADECE iptalle ilgileniyor
+            await _writer.AddAsync(order, NotificationTarget.Kitchen, $"{order.OrderNo} siparişi iptal edildi. Hazırlamayı durdurun.");
+    }
+}
+```
+
+Bildirimi hazırlayıp repository'ye ekleyen ortak servis (`NotificationWriter.cs`): eskiden üç observer'da da aynı 6 satır vardı.
+
+```csharp
+public async Task AddAsync(Order order, NotificationTarget target, string message)
 {
-    Notification notification = new Notification();
-    notification.Order = order;                                // Id henüz yok; EF kayıtta bağlar
-    notification.Target = NotificationTarget.Kitchen;
-    notification.Message = message;
-    notification.CreatedAt = _time.GetLocalNow().DateTime;
-    await _notificationRepository.AddAsync(notification);      // sadece işaretle; servis kaydedecek
+    Notification notification = new Notification
+    {
+        Order = order,                                  // Id henüz yok; EF kayıtta OrderId'yi doldurur
+        Target = target,
+        Message = message,
+        CreatedAt = _time.GetLocalNow().DateTime
+    };
+    await _notificationRepository.AddAsync(notification);   // sadece işaretle; servis tek SaveChanges ile yazar
 }
 ```
 
@@ -671,7 +691,7 @@ private async Task SendAsync(Order order, string message)
 
 - **Kilit nokta:** `OrderService` mutfağı tanımıyor, sadece `_events.OrderPlacedAsync(order)` diyor. Hangi olayla ilgileneceğine abone kendisi karar veriyor.
 - Bildirimler `Notifications` tablosuna yazılıyor; admin panelindeki zilde görünüyor. Case buna izin veriyor: *"Gerçek harici servis yerine açıkça belirtilmiş simülasyonlar."*
-- **Kural değişirse:** SMS bildirimi = yeni bir `SmsObserver` + bir kayıt satırı. `OrderService` haberi bile olmaz.
+- **Kural değişirse:** SMS bildirimi = yeni bir `SmsObserver` + bir kayıt satırı. `OrderService` haberi bile olmaz. Bildirimin nereye yazılacağı değişirse (ör. ayrı bir tablo) sadece `NotificationWriter` değişir.
 
 ---
 
@@ -790,11 +810,27 @@ Session'daki sepette fiyat **hiç yok**; sadece ürün Id'si, seçenek Id'leri v
 var products = await _productRepository.GetByIdsWithCategoryAsync(items.Select(i => i.ProductId));  // fiyat DB'den
 var allOptions = await _productOptionRepository.GetAllAsync();
 ...
-detail.ProductName = product.Name;       // o anki adın kopyası
-detail.BasePrice = product.BasePrice;    // o anki fiyatın kopyası
-detail.UnitPrice = unitPrice;            // Decorator'ın hesapladığı
+decimal unitPrice = _unitPrice.Calculate(product, chosenOptions);       // DECORATOR
+
+OrderDetail detail = _mapper.Map<OrderDetail>(product);   // ProductId, o anki ad ve taban fiyatın kopyası
+detail.Product = product;                                  // AYNI izlenen ürün (kopya olsaydı EF onu yeni ürün sanardı)
+detail.UnitPrice = unitPrice;
+detail.Quantity = item.Quantity;
 detail.LineTotal = unitPrice * item.Quantity;
+detail.Options = _mapper.Map<List<OrderDetailOption>>(chosenOptions);   // seçeneklerin o anki kopyası
 ```
+
+Kalem ve seçenek satırları AutoMapper kurallarıyla oluşuyor (`OrderMappings`). Bu kurallarda bilinçli bir tuzak önlemi var:
+
+```csharp
+CreateMap<Product, OrderDetail>()
+    .ForMember(dest => dest.Id, opt => opt.Ignore())                         // Product.Id → OrderDetail.Id KOPYALANMASIN
+    .ForMember(dest => dest.ProductId, opt => opt.MapFrom(src => src.Id))
+    .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Name))
+    ...
+```
+
+AutoMapper aynı isimli alanları kopyalar. `Ignore` olmasaydı ürünün Id'si (ör. 1) kalemin Id'sine yazılır ve EF sabit Id ile INSERT etmeye çalışıp hata verirdi.
 
 Sahte bir seçenek Id'si gönderilirse veritabanındaki listede bulunamaz ve yok sayılır. Aynı seçenek iki kez gönderilse bile bir kez sayılır.
 
@@ -901,15 +937,28 @@ Desenler veritabanına bağımlı olmadığı için veritabanı olmadan test edi
 `BusinessLayer/BusinessServiceRegistration.cs`:
 
 ```csharp
-// Ayarlar ve zaman
+// Ayarlar, zaman, AutoMapper
 services.AddOptions<PricingOptions>().Bind(configuration.GetSection("Pricing"))
         .ValidateDataAnnotations().ValidateOnStart();
 services.TryAddSingleton(TimeProvider.System);
+services.AddAutoMapper(typeof(CategoryMappings).Assembly);
+
+// DECORATOR
+services.AddSingleton<IUnitPriceCalculator, DecoratorUnitPriceCalculator>();
 
 // STRATEGY
 services.AddSingleton<IDeliveryFeeStrategy, DeliveryFeeStrategy>();
 services.AddSingleton<IDeliveryFeeStrategy, PickupFeeStrategy>();
 services.AddSingleton<IDeliveryFeeStrategy, TableFeeStrategy>();
+
+// STATE
+services.AddSingleton<OrderState, ReceivedState>();
+services.AddSingleton<OrderState, PreparingState>();
+services.AddSingleton<OrderState, ReadyState>();
+services.AddSingleton<OrderState, DeliveredState>();
+services.AddSingleton<OrderState, CancelledState>();
+services.AddSingleton<IOrderStateProvider, OrderStateProvider>();
+services.AddSingleton<IOrderStatusRecorder, OrderStatusRecorder>();
 
 // FACTORY METHOD
 services.AddSingleton<OrderCreator, DeliveryOrderCreator>();
@@ -924,6 +973,7 @@ services.AddTransient<OrderValidationHandler, OrderAmountHandler>();
 services.AddScoped<IOrderValidationChain, OrderValidationChain>();
 
 // OBSERVER
+services.AddScoped<INotificationWriter, NotificationWriter>();
 services.AddScoped<IOrderObserver, KitchenObserver>();
 services.AddScoped<IOrderObserver, CashierObserver>();
 services.AddScoped<IOrderObserver, AdminObserver>();
@@ -942,26 +992,45 @@ services.AddScoped<IDashboardService, DashboardService>();
 - `IOrderObserver` istersen **son kayıt** gelir.
 - `IEnumerable<IOrderObserver>` istersen **hepsi**, kayıt sırasıyla gelir.
 
-Dört desen de bunu kullanıyor. Case'in *"genişletilebilir"* kelimesinin kanıtı bu tablo:
+Beş desen bunu kullanıyor: Strategy, Factory Method, Chain, **State** ve Observer. Case'in *"genişletilebilir"* kelimesinin kanıtı bu tablo:
 
 | Yeni kural | Yeni dosya | Kayıt dosyasına eklenen | Değişen servis |
 |---|---|---|---|
 | Yeni kanal ücreti | 1 strateji | 1 satır | yok |
 | Gece teslimat yasağı | 1 halka | 1 satır | yok |
 | SMS bildirimi | 1 observer | 1 satır | yok |
+| Yeni sipariş durumu ("Yolda") | 1 state | 1 satır | yok |
 | Yeni sipariş kanalı | 1 creator + 1 strateji | 2 satır | yok |
+| Kampanyalı fiyat hesabı | 1 `IUnitPriceCalculator` | kayıt satırı değişir | yok |
 
 ---
 
-## 12. Kodda kalan `new`'ler neden doğru?
+## 12. `new` nerede kaldı, neden?
 
-| `new` | Neden DI değil |
+Hedef şuydu: **davranış taşıyan hiçbir sınıf `new`'lenmesin; entity'leri elle değil AutoMapper oluştursun.** Servislerde ve desen sınıflarında artık hiçbir bağımlılık `new`'lenmiyor:
+
+| Eskiden `new` ile | Şimdi |
 |---|---|
-| `new Order()`, `new Notification()`, `new OrderDetail()` | Veri nesnesi, servis değil |
-| `new OptionPriceDecorator(price, 15)` | Çalışma anındaki değeri sarıyor; her kalemde kaç kat olacağı ve değerleri farklı |
-| `OrderState.For(status)` | Durum sınıfları bağımlılıksız ve içlerinde durum tutmuyor |
+| `new ReceivedState()` ... (5 durum) | DI: `IOrderStateProvider` |
+| `new BaseProductPrice`, `new OptionPriceDecorator` (OrderPricingService içinde) | DI: `IUnitPriceCalculator` (decorator zinciri onun içinde) |
+| Creator'da `new Order()` + alan alan kopyalama + sahte "form" Order | `Mapper.Map<Order>(dto)` |
+| `new OrderDetail()` + 8 satır | `_mapper.Map<OrderDetail>(product)` |
+| `new OrderDetailOption()` + 4 satır | `_mapper.Map<List<OrderDetailOption>>(options)` |
+| `new Customer()` + Trim | `_mapper.Map<Customer>(dto)` |
+| 3 observer'da `new Notification()` | DI: `INotificationWriter` |
+| 2 yerde `new OrderStatusHistory()` | DI: `IOrderStatusRecorder` |
 
-**Kural:** Bağımlılığı olan ve iş yapan sınıf DI'dan gelir. Veri taşıyan veya çalışma anındaki değerlerden kurulan nesne `new` ile oluşturulur.
+`new`'in kaldığı yerler ve nedeni:
+
+| `new` | Neden |
+|---|---|
+| `DecoratorUnitPriceCalculator` içindeki decorator katmanları | Kaç kat olacağı ve değerleri çalışma anında belli oluyor; DI bilemez. Tek sınıfa hapsedildi, o sınıf arayüz arkasında DI'dan geliyor. |
+| `NotificationWriter` ve `OrderStatusRecorder` içindeki entity | Bu iki servisin işi zaten o kaydı üretmek; üretim tek yerde toplandı. |
+| `throw new BusinessException("...")` | Hata nesnesi; .NET'te exception böyle oluşturulur. |
+| `new List<>()`, `new Dictionary<>()` | Framework'ün veri yapıları; başka uygulamaları yok. |
+| `new ResultDashboardDto()` gibi sonuç DTO'ları | Servisin kendi çıktısı; içini servis dolduruyor. |
+
+**Sunum cümlesi:** *"Davranış taşıyan her sınıf (servis, repository, strateji, creator, state, doğrulama halkası, observer, fiyat hesaplayıcı) arayüz arkasında ve DI'dan geliyor. Entity'leri AutoMapper DTO'dan oluşturuyor. `new` sadece hata nesnelerinde, koleksiyonlarda, sonuç DTO'larında ve üretimin hapsedildiği iki küçük yazıcı servisinde kaldı."*
 
 ---
 

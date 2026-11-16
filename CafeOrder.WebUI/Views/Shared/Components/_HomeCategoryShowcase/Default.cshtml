@@ -1,0 +1,27 @@
+@* _HomeCategoryShowcaseViewComponent: ana sayfadaki kategori kartları. Model servisten gelir. *@
+@model List<ResultCategoryDto>
+  <!-- ============ 3. KATEGORİLER ============ -->
+  <section id="menu" class="cf-section">
+    <div class="container">
+      <div class="cf-section-head reveal">
+        <span class="cf-eyebrow">Menüyü keşfedin</span>
+        <h2 class="cf-section-title">Her ruh haline tatlı bir şey</h2>
+        <p class="cf-section-sub">Sabahın ilk espressosundan öğleden sonra tatlısına kadar kafemizin favorilerine göz atın.</p>
+      </div>
+
+      <div class="row g-4">
+@{ var tones = new[] { "", " cf-icon-peach", " cf-icon-cream", " cf-icon-rose" }; var toneIndex = 0; }
+@foreach (var category in Model)
+{
+        <div class="col-6 col-lg-3 reveal">
+          <a href="/products?category=@category.Slug" class="cf-category-card">
+            <span class="cf-cat-icon@(tones[toneIndex++ % tones.Length])"><i class="bi @(category.Icon ?? "bi-tag")"></i></span>
+            <h3>@category.Name</h3>
+            <p>@category.Description</p>
+            <span class="cf-cat-link">@category.ProductCount ürün <i class="bi bi-arrow-up-right"></i></span>
+          </a>
+        </div>
+}
+      </div>
+    </div>
+  </section>

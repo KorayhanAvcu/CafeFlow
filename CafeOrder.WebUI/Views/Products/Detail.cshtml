@@ -9,14 +9,14 @@
     <link rel="stylesheet" href="~/css/product-detail.css" asp-append-version="true" />
 }
 
-  <vc:detail-breadcrumb product="@Model" />
+  @await Component.InvokeAsync("_ProductDetailBreadcrumb", new { product = Model })
 
   <main>
     <section class="cf-detail-section">
       <div class="container">
         <div class="row g-5">
 
-          <vc:product-gallery product="@Model" />
+          @await Component.InvokeAsync("_ProductDetailGallery", new { product = Model })
 
           <!-- Bilgiler ve seçenekler -->
           <div class="col-lg-6">
@@ -39,7 +39,7 @@
               <input type="hidden" name="productId" value="@Model.Id" />
               <input type="hidden" name="returnUrl" value="/products/@Model.Id" />
 
-              <vc:product-options product="@Model" />
+              @await Component.InvokeAsync("_ProductDetailOptions", new { product = Model })
 
               <div class="cf-buy-row">
                 <label class="visually-hidden" for="quantity">Adet</label>
@@ -54,5 +54,5 @@
       </div>
     </section>
 
-    <vc:related-products product-id="@Model.Id" category-id="@Model.CategoryId" />
+    @await Component.InvokeAsync("_ProductDetailRelated", new { productId = Model.Id, categoryId = Model.CategoryId })
   </main>

@@ -15,11 +15,13 @@ public class OrderQueryService : IOrderQueryService
     private const int PageSize = 10;
 
     private readonly IOrderRepository _orderRepository;
+    private readonly IOrderStateProvider _states;
     private readonly IMapper _mapper;
 
-    public OrderQueryService(IOrderRepository orderRepository, IMapper mapper)
+    public OrderQueryService(IOrderRepository orderRepository, IOrderStateProvider states, IMapper mapper)
     {
         _orderRepository = orderRepository;
+        _states = states;
         _mapper = mapper;
     }
 
@@ -55,7 +57,7 @@ public class OrderQueryService : IOrderQueryService
         ResultOrderDto dto = _mapper.Map<ResultOrderDto>(order);
 
         // STATE: bu durumdan hangi durumlara geçilebilir? Admin sayfası sadece bunların düğmesini gösterir.
-        dto.AllowedNextStatuses = OrderState.For(order.Status).GetAllowedNext();
+        dto.AllowedNextStatuses = _states.Get(order.Status).GetAllowedNext();
         return dto;
     }
 

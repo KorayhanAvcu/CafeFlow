@@ -5,9 +5,14 @@ namespace CafeOrder.BusinessLayer.States;
 /// <summary>
 /// STATE deseni: her sipariş durumu bir sınıftır ve hangi duruma geçebileceğini kendisi söyler.
 /// Akış: Received → Preparing → Ready → Delivered. İptal sadece Received ve Preparing'den yapılabilir.
+/// Durum sınıfları DI'a kayıtlıdır; IOrderStateProvider hepsini alır ve Status'a göre verir.
+/// Yeni bir durum = yeni bir sınıf + BusinessServiceRegistration'a bir satır.
 /// </summary>
 public abstract class OrderState
 {
+    /// <summary>Bu sınıfın temsil ettiği durum.</summary>
+    public abstract OrderStatus Status { get; }
+
     /// <summary>Bu durumdan geçilebilecek durumlar.</summary>
     public abstract List<OrderStatus> GetAllowedNext();
 
@@ -16,33 +21,13 @@ public abstract class OrderState
     {
         return GetAllowedNext().Contains(target);
     }
-
-    /// <summary>Durum değerine karşılık gelen sınıfı verir.</summary>
-    public static OrderState For(OrderStatus status)
-    {
-        if (status == OrderStatus.Received)
-        {
-            return new ReceivedState();
-        }
-        if (status == OrderStatus.Preparing)
-        {
-            return new PreparingState();
-        }
-        if (status == OrderStatus.Ready)
-        {
-            return new ReadyState();
-        }
-        if (status == OrderStatus.Delivered)
-        {
-            return new DeliveredState();
-        }
-        return new CancelledState();
-    }
 }
 
 /// <summary>Alındı → Hazırlanıyor veya İptal</summary>
 public class ReceivedState : OrderState
 {
+    public override OrderStatus Status => OrderStatus.Received;
+
     /// <summary>Alındı durumundan Hazırlanıyor veya İptal'e geçilebilir.</summary>
     public override List<OrderStatus> GetAllowedNext()
     {
@@ -53,6 +38,8 @@ public class ReceivedState : OrderState
 /// <summary>Hazırlanıyor → Hazır veya İptal</summary>
 public class PreparingState : OrderState
 {
+    public override OrderStatus Status => OrderStatus.Preparing;
+
     /// <summary>Hazırlanıyor durumundan Hazır veya İptal'e geçilebilir.</summary>
     public override List<OrderStatus> GetAllowedNext()
     {
@@ -63,27 +50,33 @@ public class PreparingState : OrderState
 /// <summary>Hazır → Teslim Edildi</summary>
 public class ReadyState : OrderState
 {
-    /// <summary>Hazır durumundan sadece Teslim Edildi'ye geçilebilir (artık iptal edilemez).</summary>
+    public override OrderStatus Status => OrderStatus.Ready;
+
+    /// <summary>Hazır durumundan sadece Teslim Edildi'ye geçilebilir.</summary>
     public override List<OrderStatus> GetAllowedNext()
     {
         return new List<OrderStatus> { OrderStatus.Delivered };
     }
 }
 
-/// <summary>Teslim Edildi: son durum, başka yere geçilemez.</summary>
+/// <summary>Teslim Edildi: son durum, geçiş yok.</summary>
 public class DeliveredState : OrderState
 {
-    /// <summary>Teslim Edildi son durumdur; boş liste döner, hiçbir yere geçilemez.</summary>
+    public override OrderStatus Status => OrderStatus.Delivered;
+
+    /// <summary>Son durum: hiçbir yere geçilemez.</summary>
     public override List<OrderStatus> GetAllowedNext()
     {
         return new List<OrderStatus>();
     }
 }
 
-/// <summary>İptal: son durum, başka yere geçilemez.</summary>
+/// <summary>İptal: son durum, geçiş yok.</summary>
 public class CancelledState : OrderState
 {
-    /// <summary>İptal son durumdur; boş liste döner, hiçbir yere geçilemez.</summary>
+    public override OrderStatus Status => OrderStatus.Cancelled;
+
+    /// <summary>Son durum: hiçbir yere geçilemez.</summary>
     public override List<OrderStatus> GetAllowedNext()
     {
         return new List<OrderStatus>();

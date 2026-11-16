@@ -1,5 +1,6 @@
 using AutoMapper;
 using CafeOrder.DtoLayer.Dtos.CustomerDtos;
+using CafeOrder.DtoLayer.Dtos.OrderDtos;
 using CafeOrder.EntityLayer.Entities;
 using CafeOrder.EntityLayer.Enums;
 
@@ -17,5 +18,10 @@ public class CustomerMappings : Profile
                 src.Orders.Where(o => o.Status != OrderStatus.Cancelled).Sum(o => o.Total)))
             .ForMember(dest => dest.LastOrderDate, opt => opt.MapFrom(src =>
                 src.Orders.Count == 0 ? (DateTime?)null : src.Orders.Max(o => o.CreatedAt)));
+
+        // Sipariş formu → yeni müşteri (telefonla kayıtlı müşteri yoksa). Ad ve telefon kırpılır.
+        CreateMap<CreateOrderDto, Customer>()
+            .ForMember(dest => dest.FullName, opt => opt.MapFrom(src => (src.FullName ?? "").Trim()))
+            .ForMember(dest => dest.Phone, opt => opt.MapFrom(src => (src.Phone ?? "").Trim()));
     }
 }

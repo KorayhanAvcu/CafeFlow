@@ -59,7 +59,7 @@ Kod çalışıyor ve case'i karşılıyor. Aşağıdakiler "bir sonraki seviye" 
 | 5 | ~~`_context.Update(order)` bütün grafiği Modified yapıyor~~ → **çözüldü:** izlenen nesne için sadece `SaveChanges` | `ChangeStatusAsync` | 02, 05 |
 | 6 | ~~Unit of Work yok~~ → **çözüldü:** `IUnitOfWork`; repository'ler kaydetmiyor | `GenericRepository`, `EfUnitOfWork` | 02 |
 | 7 | ~~Admin sipariş listesi ve dashboard bütün siparişleri RAM'e çekiyor~~ → **çözüldü:** filtre, sayma ve sayfalama SQL'de | `OrderQueryService`, `DashboardService` | 05, 07 |
-| 8 | ~~Sidebar bütün kategori ve ürünleri yüklüyor~~ → **çözüldü:** `CountAsync` | `AdminSidebarViewComponent` | 07 |
+| 8 | ~~Sidebar bütün kategori ve ürünleri yüklüyor~~ → **çözüldü:** `CountAsync` | `_AdminSidebarViewComponent` | 07 |
 | 9 | ~~"Hepsini okundu yap" her bildirim için ayrı kayıt yapıyor~~ → **çözüldü:** tek `SaveChanges` | `NotificationService.MarkAllReadAsync` | 04 |
 | 10 | Aynı telefonla gelen farklı isim yok sayılıyor | `OrderService.FindOrCreateCustomerAsync` | 05 |
 | 11 | ~~`DateTime.Now` doğrudan çağrılıyor (test edilemez)~~ → **çözüldü:** `TimeProvider`. (Saat hâlâ yerel, UTC değil.) | birçok yer | 01, 05 |
@@ -82,7 +82,7 @@ Kod çalışıyor ve case'i karşılıyor. Aşağıdakiler "bir sonraki seviye" 
 
 1. **Oku:** Her bölümü ilgili dosya yanında açıkken oku.
 2. **Kır:** Bir kuralı bilerek boz ve sonucu gör. Örneğin `SetNext` içinde `return this;` yaz, sonra adressiz bir teslimat siparişi ver. Ne oldu? (Bölüm 05, Chain)
-3. **İzle:** Visual Studio'da `OrderService.PlaceOrderAsync` başına breakpoint koy, sepetten sipariş ver ve F10/F11 ile her deseni adım adım izle. `OrderPricingService.CalculateUnitPrice` içindeki `price` değişkeninin içini (Decorator katmanları) Watch penceresinde aç.
+3. **İzle:** Visual Studio'da `OrderService.PlaceOrderAsync` başına breakpoint koy, sepetten sipariş ver ve F10/F11 ile her deseni adım adım izle. `DecoratorUnitPriceCalculator.Calculate` içindeki `price` değişkeninin içini (Decorator katmanları) Watch penceresinde aç.
 4. **Genişlet** (her biri tek bir desene dokunur; yeni sınıfı `BusinessServiceRegistration`'a kaydetmeyi unutma):
    - Strategy: hafta sonu teslimat 40 ₺.
    - Chain: gece 23:00–07:00 arası teslimat yok.

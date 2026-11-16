@@ -17,7 +17,7 @@
   </form>
 </div>
 
-<vc:error-message message="@error" />
+@await Component.InvokeAsync("_AdminErrorMessage", new { message = error })
 @if (Model.Succeeded)
 {
   <div class="adm-callout info mb-4" role="status">

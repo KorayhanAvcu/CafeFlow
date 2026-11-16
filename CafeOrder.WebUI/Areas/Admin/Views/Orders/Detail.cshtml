@@ -18,18 +18,18 @@
   <span class="adm-badge @AdminDisplay.StatusBadge(order.Status)" style="font-size:.9rem;padding:8px 14px">@AdminDisplay.StatusLabel(order.Status)</span>
 </div>
 
-<vc:error-message message="@((string?)ViewBag.Error)" />
+@await Component.InvokeAsync("_AdminErrorMessage", new { message = (string?)ViewBag.Error })
 
 <div class="row g-4">
   <div class="col-xl-8">
-    <vc:order-items order="@Model" />
+    @await Component.InvokeAsync("_OrderDetailItems", new { order = Model })
 
-    <vc:order-history order="@Model" />
+    @await Component.InvokeAsync("_OrderDetailHistory", new { order = Model })
   </div>
 
   <div class="col-xl-4">
-    <vc:order-status-form order="@Model" />
+    @await Component.InvokeAsync("_OrderDetailStatusForm", new { order = Model })
 
-    <vc:order-customer order="@Model" />
+    @await Component.InvokeAsync("_OrderDetailCustomer", new { order = Model })
   </div>
 </div>

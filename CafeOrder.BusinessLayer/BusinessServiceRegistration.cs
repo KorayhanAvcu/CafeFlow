@@ -12,6 +12,7 @@ using CafeOrder.BusinessLayer.Services.Notifications;
 using CafeOrder.BusinessLayer.Services.Orders;
 using CafeOrder.BusinessLayer.Services.Products;
 using CafeOrder.BusinessLayer.Services.Tables;
+using CafeOrder.BusinessLayer.States;
 using CafeOrder.BusinessLayer.Validation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -41,12 +42,25 @@ public static class BusinessServiceRegistration
         // Servisler constructor'da IMapper alır ve _mapper.Map<T>(...) ile eşleme yapar.
         services.AddAutoMapper(typeof(CategoryMappings).Assembly);
 
+        // ---- DECORATOR: birim fiyat hesabı. Decorator zinciri bu sınıfın içinde kuruluyor.
+        services.AddSingleton<IUnitPriceCalculator, DecoratorUnitPriceCalculator>();
+
         // ---- STRATEGY: kanal başına bir ücret kuralı. OrderPricingService hepsini alır, Channel'a göre seçer.
         services.AddSingleton<IDeliveryFeeStrategy, DeliveryFeeStrategy>();
         services.AddSingleton<IDeliveryFeeStrategy, PickupFeeStrategy>();
         services.AddSingleton<IDeliveryFeeStrategy, TableFeeStrategy>();
 
+        // ---- STATE: durum başına bir sınıf. IOrderStateProvider hepsini alır, Status'a göre verir.
+        services.AddSingleton<OrderState, ReceivedState>();
+        services.AddSingleton<OrderState, PreparingState>();
+        services.AddSingleton<OrderState, ReadyState>();
+        services.AddSingleton<OrderState, DeliveredState>();
+        services.AddSingleton<OrderState, CancelledState>();
+        services.AddSingleton<IOrderStateProvider, OrderStateProvider>();
+        services.AddSingleton<IOrderStatusRecorder, OrderStatusRecorder>();   // durum geçmişi satırları
+
         // ---- FACTORY METHOD: kanal başına bir sipariş kurucu. OrderService hepsini alır, Channel'a göre seçer.
+        // Creator'lar Order'ı AutoMapper ile DTO'dan oluşturur (IMapper thread-safe, singleton'da kullanılabilir).
         services.AddSingleton<OrderCreator, DeliveryOrderCreator>();
         services.AddSingleton<OrderCreator, PickupOrderCreator>();
         services.AddSingleton<OrderCreator, TableOrderCreator>();
@@ -59,7 +73,8 @@ public static class BusinessServiceRegistration
         services.AddTransient<OrderValidationHandler, OrderAmountHandler>();
         services.AddScoped<IOrderValidationChain, OrderValidationChain>();
 
-        // ---- OBSERVER: sipariş olaylarını dinleyenler (repository kullandıkları için scoped).
+        // ---- OBSERVER: sipariş olaylarını dinleyenler. Bildirimi ortak INotificationWriter yazar (repository kullandığı için scoped).
+        services.AddScoped<INotificationWriter, NotificationWriter>();
         services.AddScoped<IOrderObserver, KitchenObserver>();
         services.AddScoped<IOrderObserver, CashierObserver>();
         services.AddScoped<IOrderObserver, AdminObserver>();

@@ -1,0 +1,66 @@
+@* _LayoutNavbarViewComponent: model = sayfa adı (home | menu | detail | cart | other). *@
+@model string
+@{
+    var page = Model;
+    var isHome = page == "home";
+}
+<!-- ============ NAVBAR (bütün müşteri sayfalarında ortak) ============ -->
+<nav id="mainNav" class="navbar navbar-expand-lg cf-navbar@(isHome ? "" : " cf-navbar-solid") fixed-top">
+  <div class="container">
+    <a class="navbar-brand cf-logo" href="@(isHome ? "#home" : "/")">
+      <span class="cf-logo-mark"><i class="bi bi-cup-hot-fill"></i></span>
+      Cafe<span>Flow</span>
+    </a>
+
+    <div class="d-flex align-items-center gap-2 order-lg-3">
+      @if (page == "cart")
+      {
+        <a href="/cart" class="btn cf-cart-btn active" aria-current="page" aria-label="Sepetiniz">
+          <i class="bi bi-bag-heart"></i>
+          <span class="d-none d-sm-inline">Sepet</span>
+          @await Component.InvokeAsync("_LayoutCartCount")
+        </a>
+      }
+      else if (page == "home" || page == "menu" || page == "detail")
+      {
+        <button class="btn cf-cart-btn" type="button" data-bs-toggle="offcanvas" data-bs-target="#cartDrawer" aria-controls="cartDrawer" aria-label="Sepeti aç">
+          <i class="bi bi-bag-heart"></i>
+          <span class="d-none d-sm-inline">Sepet</span>
+          @await Component.InvokeAsync("_LayoutCartCount")
+        </button>
+      }
+      else
+      {
+        <a href="/cart" class="btn cf-cart-btn" aria-label="Sepetiniz">
+          <i class="bi bi-bag-heart"></i>
+          <span class="d-none d-sm-inline">Sepet</span>
+          @await Component.InvokeAsync("_LayoutCartCount")
+        </a>
+      }
+      <a href="@(isHome ? "#order" : page == "menu" ? "#menuGrid" : "/products")" class="btn cf-btn-primary d-none d-md-inline-flex">Sipariş Ver</a>
+      <button class="navbar-toggler cf-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navLinks" aria-controls="navLinks" aria-expanded="false" aria-label="Menüyü aç/kapat">
+        <i class="bi bi-list"></i>
+      </button>
+    </div>
+
+    <div class="collapse navbar-collapse order-lg-2" id="navLinks">
+      <ul class="navbar-nav mx-auto cf-nav-links">
+        @if (isHome)
+        {
+          <li class="nav-item"><a class="nav-link active" href="#home">Ana Sayfa</a></li>
+          <li class="nav-item"><a class="nav-link" href="#menu">Menü</a></li>
+          <li class="nav-item"><a class="nav-link" href="#about">Hakkımızda</a></li>
+          <li class="nav-item"><a class="nav-link" href="#order">Sipariş</a></li>
+          <li class="nav-item"><a class="nav-link" href="#contact">İletişim</a></li>
+        }
+        else
+        {
+          <li class="nav-item"><a class="nav-link" href="/">Ana Sayfa</a></li>
+          <li class="nav-item"><a class="nav-link@(page == "menu" || page == "detail" ? " active" : "")" @Html.Raw(page == "menu" ? "aria-current=\"page\"" : "") href="/products">Menü</a></li>
+          <li class="nav-item"><a class="nav-link" href="/#about">Hakkımızda</a></li>
+          <li class="nav-item"><a class="nav-link" href="#contact">İletişim</a></li>
+        }
+      </ul>
+    </div>
+  </div>
+</nav>

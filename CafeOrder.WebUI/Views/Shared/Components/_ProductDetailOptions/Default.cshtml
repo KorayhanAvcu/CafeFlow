@@ -1,0 +1,101 @@
+@* _ProductDetailOptionsViewComponent: boy / süt / ekstra (shot, krema) / şurup seçimleri ve başlangıç fiyatı.
+   Seçilen seçeneklerin sadece Id'leri forma girer; fiyatı sunucu hesaplar (Decorator). *@
+@model List<ResultProductOptionDto>
+@{
+    ResultProductDto product = ViewBag.Product;
+    var options = Model;
+    var sizes = options.Where(o => o.GroupKey == OptionGroups.Size).ToList();
+    var milks = options.Where(o => o.GroupKey == OptionGroups.Milk).ToList();
+    var shots = options.Where(o => o.GroupKey == OptionGroups.ExtraShot).ToList();
+    var syrups = options.Where(o => o.GroupKey == OptionGroups.Syrup).ToList();
+    var creams = options.Where(o => o.GroupKey == OptionGroups.Cream).ToList();
+    var startPrice = product.BasePrice;
+    if (product.IsCustomizable)
+    {
+        startPrice += sizes.Where(o => o.IsDefault).Sum(o => o.PriceDelta) + milks.Where(o => o.IsDefault).Sum(o => o.PriceDelta);
+    }
+}
+@if (product.IsCustomizable)
+{
+  <fieldset class="cf-opt-section">
+    <legend>Boyut Seçin</legend>
+    <div class="cf-size-grid">
+      @foreach (var o in sizes)
+      {
+        <label class="cf-size" data-size="@o.Value">
+          <input type="radio" name="sizeId" value="@o.Id" checked="@o.IsDefault" />
+          <span class="cf-size-card">
+            <span class="cf-cup" aria-hidden="true"><i class="bi bi-cup-straw"></i></span>
+            <span class="cf-size-name">@o.Value</span>
+            <span class="cf-size-price">@(o.PriceDelta > 0 ? "+" + Display.Money(o.PriceDelta) : "Taban fiyat")</span>
+          </span>
+        </label>
+      }
+    </div>
+  </fieldset>
+
+  <fieldset class="cf-opt-section">
+    <legend>Süt Seçin</legend>
+    <div class="cf-milk-row">
+      @foreach (var o in milks)
+      {
+        <label class="cf-milk">
+          <input type="radio" name="milkId" value="@o.Id" checked="@o.IsDefault" />
+          <span>@Display.OptionText(o.GroupKey, o.Value) @if (o.PriceDelta > 0) { <small>+@Display.Money(o.PriceDelta)</small> }</span>
+        </label>
+      }
+    </div>
+  </fieldset>
+
+  <fieldset class="cf-opt-section">
+    <legend>Ekstralar</legend>
+    <div class="cf-addon-grid">
+      @foreach (var o in shots)
+      {
+        <label class="cf-addon">
+          <input type="checkbox" name="optionIds" value="@o.Id" />
+          <span class="cf-addon-card">
+            <span class="cf-addon-icon"><i class="bi bi-lightning-charge"></i></span>
+            <span class="cf-addon-text"><strong>Ekstra Espresso Shot</strong><small>+@Display.Money(o.PriceDelta)</small></span>
+            <span class="cf-check"><i class="bi bi-check-lg"></i></span>
+          </span>
+        </label>
+      }
+      @foreach (var o in creams)
+      {
+        <label class="cf-addon">
+          <input type="checkbox" name="optionIds" value="@o.Id" />
+          <span class="cf-addon-card">
+            <span class="cf-addon-icon"><i class="bi bi-cloud"></i></span>
+            <span class="cf-addon-text"><strong>Çırpılmış Krema</strong><small>+@Display.Money(o.PriceDelta)</small></span>
+            <span class="cf-check"><i class="bi bi-check-lg"></i></span>
+          </span>
+        </label>
+      }
+    </div>
+  </fieldset>
+
+  <fieldset class="cf-opt-section">
+    <legend>Şurup</legend>
+    <div class="cf-milk-row">
+      <label class="cf-milk">
+        <input type="radio" name="syrupId" value="" checked />
+        <span>Şurupsuz</span>
+      </label>
+      @foreach (var o in syrups)
+      {
+        <label class="cf-milk">
+          <input type="radio" name="syrupId" value="@o.Id" />
+          <span>@Display.OptionText(o.GroupKey, o.Value) <small>+@Display.Money(o.PriceDelta)</small></span>
+        </label>
+      }
+    </div>
+  </fieldset>
+}
+
+<div class="cf-breakdown">
+  <div class="cf-bd-total">
+    <span>@(product.IsCustomizable ? "Başlangıç fiyatı (seçenekler sepette eklenir)" : "Adet fiyatı")</span>
+    <strong>@Display.Money(startPrice)</strong>
+  </div>
+</div>

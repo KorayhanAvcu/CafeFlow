@@ -18,7 +18,7 @@ namespace CafeOrder.BusinessLayer.Services.Orders;
 /// Sipariş verme ve durum değiştirme. Desenler burada sırayla çalışır:
 /// Sipariş verilirken: Factory Method → Decorator + Strategy → Chain of Responsibility → Observer → kayıt
 /// Durum değişirken:  State → Observer → kayıt
-/// Desenlerin hepsi DI'dan gelir; bu sınıf hiçbir servisi new'lemez.
+/// Desenlerin hepsi DI'dan gelir; bu sınıf hiçbir nesneyi new'lemez. Entity'leri AutoMapper DTO'dan oluşturur.
 /// Sipariş ve bildirimler tek SaveChanges ile (Unit of Work) yazılır: ya hepsi ya hiçbiri.
 /// </summary>
 public class OrderService : IOrderService
@@ -30,6 +30,8 @@ public class OrderService : IOrderService
     private readonly IOrderPricingService _pricing;
     private readonly IOrderValidationChain _validation;
     private readonly IOrderEventPublisher _events;
+    private readonly IOrderStateProvider _states;
+    private readonly IOrderStatusRecorder _statusRecorder;
     private readonly IUnitOfWork _unitOfWork;
     private readonly TimeProvider _time;
     private readonly IMapper _mapper;
@@ -42,6 +44,8 @@ public class OrderService : IOrderService
         IOrderPricingService pricing,
         IOrderValidationChain validation,
         IOrderEventPublisher events,
+        IOrderStateProvider states,
+        IOrderStatusRecorder statusRecorder,
         IUnitOfWork unitOfWork,
         TimeProvider time,
         IMapper mapper)
@@ -54,6 +58,8 @@ public class OrderService : IOrderService
         _pricing = pricing;
         _validation = validation;
         _events = events;
+        _states = states;
+        _statusRecorder = statusRecorder;
         _unitOfWork = unitOfWork;
         _time = time;
         _mapper = mapper;
@@ -64,20 +70,19 @@ public class OrderService : IOrderService
     /// <summary>Sepet sayfasındaki "Siparişi Ver" düğmesi buraya gelir.</summary>
     public async Task<ResultOrderDto> PlaceOrderAsync(CreateOrderDto dto, List<CartItemDto> items, string? qrToken)
     {
-        // DTO → Entity: adres, not, alma saati, sipariş türü kopyalanır.
-        Order form = _mapper.Map<Order>(dto);
-        form.Customer = await FindOrCreateCustomerAsync(dto.FullName, dto.Phone);
+        // Müşteri: telefonla kayıtlıysa o, değilse DTO'dan AutoMapper ile yeni müşteri.
+        Customer customer = await FindOrCreateCustomerAsync(dto);
 
         // Masa siparişinde masa QR koduyla bulunur; müşteri masa numarası yazamaz.
         Table? table = null;
-        if (form.Channel == OrderChannel.Table && !string.IsNullOrWhiteSpace(qrToken))
+        if (dto.Channel == OrderChannel.Table && !string.IsNullOrWhiteSpace(qrToken))
         {
             string token = qrToken.ToUpper();
             table = await _tableRepository.GetFirstAsync(t => t.QrToken == token && t.IsActive);
         }
 
-        // 1) FACTORY METHOD: türe uygun sipariş nesnesi kurulur.
-        Order order = GetCreator(form.Channel).Create(form, table);
+        // 1) FACTORY METHOD: türe uygun creator siparişi DTO'dan kurar.
+        Order order = GetCreator(dto.Channel).Create(dto, customer, table);
 
         // 2) DECORATOR + STRATEGY: fiyatlar ve ücret hesaplanır.
         await _pricing.ApplyPricesAsync(order, items);
@@ -106,8 +111,8 @@ public class OrderService : IOrderService
             throw new BusinessException("Sipariş bulunamadı.");
         }
 
-        // STATE: şu anki durum, hedef duruma geçişe izin veriyor mu?
-        OrderState state = OrderState.For(order.Status);
+        // STATE: şu anki durum, hedef duruma geçişe izin veriyor mu? (durum sınıfları DI'dan)
+        OrderState state = _states.Get(order.Status);
         if (!state.CanMoveTo(target))
         {
             throw new BusinessException("Sipariş \"" + order.Status.ToText() + "\" durumundan \"" + target.ToText() + "\" durumuna geçemez.");
@@ -116,16 +121,8 @@ public class OrderService : IOrderService
         OrderStatus previous = order.Status;
         order.Status = target;
 
-        // Geçmişe yeni bir satır ekle.
-        OrderStatusHistory history = new OrderStatusHistory();
-        history.FromStatus = previous;
-        history.ToStatus = target;
-        history.ChangedAt = _time.GetLocalNow().DateTime;
-        if (!string.IsNullOrWhiteSpace(note))
-        {
-            history.Note = note.Trim();
-        }
-        order.StatusHistories.Add(history);
+        // Geçmişe "önceki → yeni" satırı (isteğe bağlı notla).
+        _statusRecorder.Record(order, previous, target, _time.GetLocalNow().DateTime, note);
 
         // OBSERVER: ilgililere haber ver.
         await _events.StatusChangedAsync(order, previous);
@@ -146,21 +143,21 @@ public class OrderService : IOrderService
         throw new InvalidOperationException(channel + " kanalı için OrderCreator kaydı yok.");
     }
 
-    /// <summary>Aynı telefonla daha önce sipariş veren müşteri tekrar oluşturulmaz; yoksa yeni müşteri nesnesi (kayıtta eklenir).</summary>
-    private async Task<Customer> FindOrCreateCustomerAsync(string? fullName, string? phone)
+    /// <summary>
+    /// Aynı telefonla daha önce sipariş veren müşteri tekrar oluşturulmaz.
+    /// Yoksa müşteri DTO'dan AutoMapper ile oluşur (ad ve telefon kırpılarak; kayıtta siparişle birlikte eklenir).
+    /// </summary>
+    private async Task<Customer> FindOrCreateCustomerAsync(CreateOrderDto dto)
     {
-        Customer customer = new Customer();
-        customer.FullName = (fullName ?? "").Trim();
-        customer.Phone = (phone ?? "").Trim();
-        if (customer.Phone != "")
+        string phone = (dto.Phone ?? "").Trim();
+        if (phone != "")
         {
-            string p = customer.Phone;
-            var existing = await _customerRepository.GetFirstAsync(c => c.Phone == p);
+            var existing = await _customerRepository.GetFirstAsync(c => c.Phone == phone);
             if (existing != null)
             {
                 return existing;
             }
         }
-        return customer;
+        return _mapper.Map<Customer>(dto);
     }
 }
