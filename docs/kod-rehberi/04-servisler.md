@@ -12,22 +12,24 @@ Neredeyse her servis aynı iskeleti izliyor. Bunu bir kez öğrenince hepsini ok
 public class XService : IXService
 {
     private readonly IXRepository _xRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
-    public XService(IXRepository xRepository, IMapper mapper) { ... }   // constructor injection
+    public XService(IXRepository xRepository, IUnitOfWork unitOfWork, IMapper mapper) { ... }   // constructor injection
 
     public async Task<List<ResultXDto>> GetAllAsync()        // OKUMA: entity → DTO
     public async Task CreateAsync(CreateXDto dto)             // EKLEME: DTO → entity → kontrol → kaydet
     {
         X x = _mapper.Map<X>(dto);
         await CheckAsync(x);
-        await _xRepository.CreateAsync(x);
+        await _xRepository.AddAsync(x);          // işaretle
+        await _unitOfWork.SaveChangesAsync();    // yaz
     }
     public async Task UpdateAsync(UpdateXDto dto)             // GÜNCELLEME: kaydı bul → üstüne yaz → kontrol → kaydet
     {
         var x = await GetEntityAsync(dto.Id);
         _mapper.Map(dto, x);
         await CheckAsync(x);
-        await _xRepository.UpdateAsync(x);
+        await _unitOfWork.SaveChangesAsync();    // x zaten izleniyor; Update çağırmaya gerek yok
     }
     public async Task ChangeStatusAsync(int id, bool isActive) // aktif/pasif
     public async Task DeleteAsync(int id)                      // SİLME: önce "silinebilir mi?" kontrolü
@@ -37,11 +39,15 @@ public class XService : IXService
 }
 ```
 
+İki kural her serviste aynı:
+- **Sorgu repository'de yazılı.** Servis `_xRepository.GetAllWithYAsync()` gibi isimli bir metot çağırıyor; `Include`, `Where`, `ToListAsync` servis kodunda yok. BusinessLayer EF Core'u hiç görmüyor (Bölüm 02).
+- **Kaydetme kararı serviste.** Repository'nin `AddAsync`/`Remove` metotları sadece işaretliyor; servis işi bitince `_unitOfWork.SaveChangesAsync()` çağırıyor. İzlenen (veritabanından okunmuş) bir kayıt değiştirildiyse sadece `SaveChangesAsync` yeterli.
+
 ### `await` atamalarında `var`
 Projede `await` ile değer alınan her değişken `var` ile tanımlanıyor:
 ```csharp
 var category = await GetEntityAsync(id);                       // tipi: Category
-var products = await _productRepository.GetQueryable()...ToListAsync();   // tipi: List<Product>
+var products = await _productRepository.GetMenuAsync(category, search);  // tipi: List<Product>
 var exists = await _tableRepository.AnyAsync(t => t.QrToken == token);    // tipi: bool
 ```
 `var` "tipi yazma, derleyici sağ taraftan çıkarsın" demektir. Değişken yine **tam olarak o tipte** olur (C# dinamik değil, statik tiplidir); sadece aynı bilgiyi iki kez yazmıyoruz. Metodun ne döndürdüğü, metodun adından ve arayüzünden zaten belli. Visual Studio'da `var`'ın üstüne fare ile gelince gerçek tip görünür.
@@ -68,20 +74,21 @@ Neden normal `Exception` değil de özel bir sınıf? Controller'lar **sadece** 
 
 ## 1. CategoryService
 
-### GetAllAsync / GetActiveAsync
+### GetAllAsync / GetActiveAsync / CountAsync
 ```csharp
-// Admin: hepsi
-var categories = await _categoryRepository.GetQueryable()
-    .Include(c => c.Products)
-    .OrderBy(c => c.DisplayOrder)
-    .ToListAsync();
+// CategoryService: sadece repository'ye sorar ve DTO'ya çevirir
+var categories = await _categoryRepository.GetAllWithProductsAsync();           // admin: hepsi
+var categories = await _categoryRepository.GetActiveWithActiveProductsAsync();  // müşteri: aktifler
 
-// Müşteri: sadece aktifler ve içlerindeki aktif ürünler
-var categories = await _categoryRepository.GetQueryable()
+// CategoryRepository: sorgunun kendisi
+return await Set
     .Where(c => c.IsActive)
     .Include(c => c.Products.Where(p => p.IsActive))   // filtered include
     .OrderBy(c => c.DisplayOrder)
     .ToListAsync();
+
+// Admin menüsündeki rozet için sadece sayı
+public async Task<int> CountAsync() => await _categoryRepository.CountAsync();   // SELECT COUNT(*)
 ```
 - `Include`, EF Core'a "ilişkili tabloyu da getir" der (SQL'de JOIN). Yazılmazsa `category.Products` boş liste gelir. **EF Core lazy loading açık değil**, yani ilişkiler kendiliğinden yüklenmez.
 - Burada ürünler sadece **saymak** için yükleniyor. Çok sayıda ürün olsaydı `Select(c => new { c, Count = c.Products.Count() })` gibi bir projeksiyonla SQL'de `COUNT` yaptırmak daha verimli olurdu.
@@ -98,13 +105,14 @@ if (category.DisplayOrder == 0)
 }
 category.Slug = await MakeSlugAsync(category.Name, 0);
 category.Icon = "bi-tag";                   // Bootstrap Icons'tan varsayılan ikon
-category.CreatedAt = DateTime.Today;
+category.CreatedAt = _time.GetLocalNow().Date;             // TimeProvider (Bölüm 01)
 
-await _categoryRepository.CreateAsync(category);           // 1. kayıt → Id oluştu
+await _categoryRepository.AddAsync(category);
+await _unitOfWork.SaveChangesAsync();                      // 1. kayıt → Id oluştu
 category.Code = "CAT-" + category.Id.ToString("000");      // CAT-009
-await _categoryRepository.UpdateAsync(category);           // 2. kayıt
+await _unitOfWork.SaveChangesAsync();                      // 2. kayıt (sadece Code kolonu UPDATE)
 ```
-**İki kez kaydetme** nedeni: `Code` Id'den türetiliyor (`CAT-009`) ve Id ancak INSERT'ten sonra belli oluyor. `CreateAsync` dönünce EF Core `category.Id`'yi veritabanının ürettiği değerle doldurmuş oluyor. Bugünkü testte "Test Kategori" Id=9 almıştı; Code'u `CAT-009` oldu.
+**İki kez kaydetme** nedeni: `Code` Id'den türetiliyor (`CAT-009`) ve Id ancak INSERT'ten sonra belli oluyor. İlk `SaveChangesAsync` dönünce EF Core `category.Id`'yi veritabanının ürettiği değerle doldurmuş oluyor. İkinci kayıtta `Update` çağrılmıyor: kategori zaten izleniyor, EF Core değişen `Code` alanını kendisi buluyor. Bugünkü testte "Test Kategori" Id=9 almıştı; Code'u `CAT-009` oldu.
 
 İnce nokta: `Code` kolonu `IsRequired`, ama ilk INSERT'te `Code = ""` (boş metin) gidiyor. Boş metin NULL değil, bu yüzden kabul ediliyor.
 
@@ -118,7 +126,7 @@ _mapper.Map(dto, category);                      // Code, Slug, CreatedAt DTO'da
 if (dto.DisplayOrder == 0) category.DisplayOrder = oldDisplayOrder;
 await CheckAsync(category);
 category.Slug = await MakeSlugAsync(category.Name, category.Id);   // isim değiştiyse slug da değişir
-await _categoryRepository.UpdateAsync(category);
+await _unitOfWork.SaveChangesAsync();
 ```
 Not: Slug değişirse eski adres (`/products?category=eski-ad`) artık çalışmaz. Gerçek bir sitede SEO için eski slug'dan yeniye yönlendirme tutulur.
 
@@ -128,7 +136,8 @@ var category = await GetEntityAsync(id);
 var hasProducts = await _productRepository.AnyAsync(p => p.CategoryId == id);
 if (hasProducts)
     throw new BusinessException(category.Name + " kategorisinde hâlâ ürün var. Önce ürünleri taşıyın veya silin.");
-await _categoryRepository.DeleteAsync(category);
+_categoryRepository.Remove(category);
+await _unitOfWork.SaveChangesAsync();
 ```
 Bugün test ettik: "Sıcak Kahveler kategorisinde hâlâ ürün var. Önce ürünleri taşıyın veya silin." `AnyAsync` → SQL `EXISTS`; bütün ürünleri çekmez, ilk eşleşmede durur.
 
@@ -179,29 +188,35 @@ Adım adım `"Tea & İnfüzyonlar"` için:
 
 ### Statik rozet listesi
 ```csharp
-public static readonly List<string> Badges = new List<string> { "Çok Satan", "Yeni", "Popüler", "Şefin Seçimi" };
+public static readonly IReadOnlyList<string> Badges = new[] { "Çok Satan", "Yeni", "Popüler", "Şefin Seçimi" };
 ```
 Hem admin formundaki açılır liste hem de doğrulama bu listeyi kullanıyor. Tek kaynak (single source of truth).
 
-### ActiveProducts(): tekrar kullanılan sorgu parçası
+Neden `IReadOnlyList`? `public static` bir alan uygulamanın her yerinden erişilebilir. Eskiden `List<string>` idi; herhangi bir kod `ProductService.Badges.Add("x")` yazıp **bütün kullanıcılar için** listeyi değiştirebilirdi. `readonly` sadece alanın başka bir listeye atanmasını engeller, listenin içini değil. `IReadOnlyList` ise `Add`/`Remove` sunmuyor.
+
+### `Active()`: tekrar kullanılan sorgu parçası (ProductRepository'de)
 ```csharp
-private IQueryable<Product> ActiveProducts()
+private IQueryable<Product> Active()
 {
-    return _productRepository.GetQueryable()
+    return Set
         .Include(p => p.Category)
         .Where(p => p.IsActive && p.Category.IsActive);
 }
 ```
-Henüz çalışmamış bir sorgu (`IQueryable`). Müşteri tarafındaki bütün metotlar bunun üstüne ekleme yapıyor. "Menüde görünür" kuralı (ürün aktif **ve** kategorisi aktif) tek bir yerde yazılı. Bu fikir case'teki **Specification** desenine çok yakın: tekrar kullanılabilir bir filtre kuralı. Tam bir Specification için kural bir sınıf olurdu (`ActiveProductSpec : ISpecification<Product>`).
+Henüz çalışmamış bir sorgu (`IQueryable`). `ProductRepository`'nin müşteri tarafı metotları (`GetMenuAsync`, `GetFeaturedAsync`, `GetActiveByIdAsync`, `GetRelatedAsync`) bunun üstüne ekleme yapıyor. `private` olduğu için repository'nin dışına çıkmıyor; servis sadece sonucu (`List<Product>`) görüyor. "Menüde görünür" kuralı (ürün aktif **ve** kategorisi aktif) tek bir yerde yazılı. Bu fikir case'teki **Specification** desenine çok yakın: tekrar kullanılabilir bir filtre kuralı. Tam bir Specification için kural bir sınıf olurdu (`ActiveProductSpec : ISpecification<Product>`).
 
 ### GetMenuAsync: arama ve filtre
 ```csharp
-IQueryable<Product> query = ActiveProducts();
-if (!string.IsNullOrEmpty(category))
-    query = query.Where(p => p.Category.Slug == category);
+// ProductService
+var products = await _productRepository.GetMenuAsync(category, search);
+
+// ProductRepository.GetMenuAsync
+IQueryable<Product> query = Active();
+if (!string.IsNullOrEmpty(categorySlug))
+    query = query.Where(p => p.Category.Slug == categorySlug);
 if (!string.IsNullOrWhiteSpace(search))
     query = query.Where(p => p.Name.Contains(search) || p.Category.Name.Contains(search));
-var products = await query.OrderBy(p => p.Category.DisplayOrder).ThenBy(p => p.Id).ToListAsync();
+return await query.OrderBy(p => p.Category.DisplayOrder).ThenBy(p => p.Id).ToListAsync();
 ```
 - **Koşullu sorgu inşası:** Her `if` sorguya bir `WHERE` daha ekliyor. `ToListAsync()` denene kadar SQL'e gidilmiyor. Sonuçta tek bir SQL üretiliyor.
 - `Contains(search)` → SQL `LIKE '%latte%'`. Büyük/küçük harf duyarlılığını **veritabanının collation'ı** belirler. SQL Server'ın varsayılanı (`..._CI_AS`) duyarsız olduğu için "LATTE" de bulunur.
@@ -210,21 +225,30 @@ var products = await query.OrderBy(p => p.Category.DisplayOrder).ThenBy(p => p.I
 
 ### GetFeaturedAsync / GetRelatedAsync
 ```csharp
-ActiveProducts().Where(p => p.Badge != null).OrderBy(...).Take(count)                  // ana sayfa: rozetliler
-ActiveProducts().Where(p => p.CategoryId == categoryId && p.Id != productId).Take(count) // "Yanında iyi gider"
+Active().Where(p => p.Badge != null).OrderBy(...).Take(count)                  // ana sayfa: rozetliler
+Active().Where(p => p.CategoryId == categoryId && p.Id != productId).Take(count) // "Yanında iyi gider"
 ```
 `Take(count)` → SQL `TOP(@count)`.
 
 ### GetActiveByIdAsync
-Pasif bir ürünün detay sayfası açılmasın diye `FindAsync` değil `ActiveProducts().FirstOrDefaultAsync(...)` kullanılıyor. Bulunamazsa `null` döner ve controller 404 gösterir (testte `/products/9999` → 404).
+Pasif bir ürünün detay sayfası açılmasın diye `FindAsync` değil `_productRepository.GetActiveByIdAsync(id)` (içinde `Active().FirstOrDefaultAsync(...)`) kullanılıyor. Bulunamazsa `null` döner ve controller 404 gösterir (testte `/products/9999` → 404).
+
+### GetAdminListAsync: filtre SQL'de
+```csharp
+var products = await _productRepository.GetAdminListAsync(categoryId, search);
+```
+Eskiden bütün ürünler belleğe çekilip kategori ve ad filtresi C#'ta (`StringComparison.CurrentCultureIgnoreCase`) uygulanıyordu. Artık filtre repository'de `Where` olarak yazılı ve SQL'de çalışıyor. Büyük/küçük harf duyarsızlığı SQL Server'ın collation'ından geliyor (yukarıdaki `GetMenuAsync` gibi). Küçük fark: varsayılan collation Türkçe "ı/I" eşleşmesini bilmiyor.
+
+`ProductService.CountAsync()` ise admin menüsündeki rozet için tek bir `SELECT COUNT(*)`.
 
 ### DeleteAsync
 ```csharp
-var usedInOrders = await _orderRepository.GetQueryable()
-    .AnyAsync(o => o.Details.Any(d => d.ProductId == id));
-if (usedInOrders) throw new BusinessException(product.Name + " appears in past orders. Make it inactive instead.");
+var usedInOrders = await _orderRepository.AnyContainingProductAsync(id);
+if (usedInOrders) throw new BusinessException(product.Name + " geçmiş siparişlerde var, silinemez. Bunun yerine pasif yapın.");
+_productRepository.Remove(product);
+await _unitOfWork.SaveChangesAsync();
 ```
-İç içe `Any` SQL'de `EXISTS (SELECT ... FROM OrderDetails WHERE ...)` olur. ProductService, OrderRepository'yi de istiyor; servis birden fazla repository kullanabilir.
+`AnyContainingProductAsync` SQL'de `EXISTS (SELECT ... FROM OrderDetails WHERE ProductId = @id)` olur. ProductService, OrderRepository'yi de istiyor; servis birden fazla repository kullanabilir.
 
 ### CheckAsync
 ```csharp
@@ -278,17 +302,20 @@ if (table.Number != oldNumber)
 ```
 Kural: masa 7'nin kartı masa 8'e taşındıysa eski kart çalışmamalı.
 
+### GetFormAsync: yeni masa numarası
+```csharp
+form.Number = await _tableRepository.GetMaxNumberAsync() + 1;   // hiç masa yoksa 0 + 1 = 1
+```
+`GetMaxNumberAsync` içinde `MaxAsync(t => (int?)t.Number) ?? 0` var. `(int?)` dönüşümü önemli: boş bir tabloda `MAX` NULL döner; `int` beklenseydi EF Core exception fırlatırdı. Eskiden bu yüzden önce `AnyAsync` ile "masa var mı?" diye ayrı bir sorgu atılıyordu.
+
 ### DeleteAsync
-`Include(t => t.Orders)` ile siparişleri yükleyip `Count > 0` kontrolü yapıyor. (`AnyAsync` ile daha verimli yazılabilirdi; sonuç aynı.)
+`_tableRepository.GetWithOrdersAsync(id)` ile siparişleri yükleyip `Count > 0` kontrolü yapıyor. (`AnyAsync` ile daha verimli yazılabilirdi; sonuç aynı.)
 
 ---
 
 ## 4. CustomerService
 ```csharp
-IQueryable<Customer> query = _customerRepository.GetQueryable().Include(c => c.Orders);
-if (!string.IsNullOrWhiteSpace(search))
-    query = query.Where(c => c.FullName.Contains(search) || c.Phone.Contains(search));
-var customers = await query.OrderBy(c => c.FullName).ToListAsync();
+var customers = await _customerRepository.SearchWithOrdersAsync(search);   // Include + arama + sıralama repository'de
 return _mapper.Map<List<ResultCustomerDto>>(customers);
 ```
 Salt okunur. Müşteri oluşturma burada değil, `OrderService.PlaceOrderAsync` içinde. Toplam harcama ve son sipariş tarihi Mapster eşlemesinde hesaplanıyor (Bölüm 03).
@@ -301,13 +328,11 @@ Sınıfın yorumu önemli: *"Bildirimleri YAZAN taraf Events klasöründeki obse
 ```csharp
 public async Task<List<ResultNotificationDto>> GetAllAsync(NotificationTarget? target, bool unreadOnly)
 {
-    IQueryable<Notification> query = _notificationRepository.GetQueryable().Include(n => n.Order);
-    if (target != null) query = query.Where(n => n.Target == target);
-    if (unreadOnly)     query = query.Where(n => !n.IsRead);
-    ...OrderByDescending(n => n.Id)
+    var notifications = await _notificationRepository.GetFilteredAsync(target, unreadOnly);
+    return _mapper.Map<List<ResultNotificationDto>>(notifications);
 }
 ```
-`Include(n => n.Order)` → mapping'de `OrderNo` için.
+`GetFilteredAsync` repository'de koşullu sorgu kuruyor (`target` varsa `Where`, `unreadOnly` ise `Where`) ve `Include(n => n.Order)` yapıyor (mapping'de `OrderNo` için).
 
 ```csharp
 public async Task MarkAllReadAsync(NotificationTarget? target)
@@ -315,22 +340,21 @@ public async Task MarkAllReadAsync(NotificationTarget? target)
     List<Notification> unread = ...GetWhereAsync(n => !n.IsRead [&& n.Target == target]);
     foreach (Notification notification in unread)
     {
-        notification.IsRead = true;
-        await _notificationRepository.UpdateAsync(notification);   // her biri için ayrı SaveChanges!
+        notification.IsRead = true;               // nesneler izleniyor: EF değişikliği görür
     }
+    await _unitOfWork.SaveChangesAsync();         // hepsi tek SaveChanges
 }
 ```
-**Performans notu (N+1 yazma):** 18 okunmamış bildirim varsa 18 ayrı `UPDATE` + `SaveChanges` turu yapılır. Daha iyi seçenekler:
-- Döngüde sadece `IsRead = true` yazıp en sonda tek bir `SaveChanges` çağırmak (nesneler zaten izleniyor), ya da
-- EF Core 7+ `ExecuteUpdateAsync(s => s.SetProperty(n => n.IsRead, true))` → tek bir SQL `UPDATE ... WHERE`.
+**Eskiden** döngünün içinde her bildirim için `UpdateAsync` → ayrı bir `SaveChanges` çağrılıyordu: 18 okunmamış bildirim = 18 veritabanı turu (N+1 yazma). Unit of Work ile döngü sadece bellekteki değeri değiştiriyor, en sonda **tek** `SaveChanges` bütün UPDATE'leri bir arada gönderiyor.
 
-Ders amaçlı kod okunurluğu tercih edilmiş; gerçek projede fark edilmesi gereken bir nokta.
+Daha da ileri gitmek istersen: EF Core 7+ `ExecuteUpdateAsync(s => s.SetProperty(n => n.IsRead, true))` bildirimleri hiç belleğe çekmeden tek bir SQL `UPDATE ... WHERE` çalıştırır.
 
 ---
 
 ## Kendini sına
 1. Kategori kodunu (`CAT-009`) üretmek için neden iki kez kaydediliyor?
 2. `CheckAsync` içindeki `c.Id != category.Id` olmasaydı, adını değiştirmeden bir kategoriyi kaydetmeye çalışınca ne olurdu?
-3. `ActiveProducts()` neden `List` değil de `IQueryable` döndürüyor?
+3. `ProductRepository.Active()` neden `List` değil de `IQueryable` döndürüyor? Neden `private`?
 4. QR kodlarında neden 0, O, 1 ve I harfleri yok? Kod neden rastgele?
-5. `MarkAllReadAsync` 100 bildirim için kaç SQL turu yapar? Nasıl teke indirirdin?
+5. `MarkAllReadAsync` eskiden 100 bildirim için kaç `SaveChanges` turu yapıyordu? Şimdi kaç? `ExecuteUpdateAsync` ile ne değişirdi?
+6. `CategoryService.UpdateAsync` neden `_categoryRepository.Update(category)` çağırmıyor?

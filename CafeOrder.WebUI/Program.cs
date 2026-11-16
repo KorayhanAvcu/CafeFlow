@@ -1,27 +1,9 @@
-using CafeOrder.BusinessLayer.Events;
-using CafeOrder.BusinessLayer.Services.Account;
-using CafeOrder.BusinessLayer.Services.Cart;
-using CafeOrder.BusinessLayer.Mapping;
-using CafeOrder.BusinessLayer.Pricing;
-using CafeOrder.BusinessLayer.Services.Categories;
-using CafeOrder.BusinessLayer.Services.Customers;
-using CafeOrder.BusinessLayer.Services.Notifications;
-using CafeOrder.BusinessLayer.Services.Orders;
-using CafeOrder.BusinessLayer.Services.Products;
-using CafeOrder.BusinessLayer.Services.Tables;
+using CafeOrder.BusinessLayer;
+using CafeOrder.DataAccessLayer;
 using CafeOrder.DataAccessLayer.Context;
-using CafeOrder.DataAccessLayer.Repositories.Categories;
-using CafeOrder.DataAccessLayer.Repositories.Customers;
-using CafeOrder.DataAccessLayer.Repositories.Notifications;
-using CafeOrder.DataAccessLayer.Repositories.Orders;
-using CafeOrder.DataAccessLayer.Repositories.ProductOptions;
-using CafeOrder.DataAccessLayer.Repositories.Products;
-using CafeOrder.DataAccessLayer.Repositories.Tables;
 using CafeOrder.EntityLayer.Entities;
 using CafeOrder.WebUI.Identity;
 using CafeOrder.WebUI.ModelBinding;
-using Mapster;
-using MapsterMapper;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -30,8 +12,12 @@ var builder = WebApplication.CreateBuilder(args);
 // Formdan gelen ondalık sayılar "185,50" ya da "185.50" yazılsa da doğru okunur (sunucunun diline bakılmaz).
 builder.Services.AddControllersWithViews(options =>
     options.ModelBinderProviders.Insert(0, new DecimalModelBinderProvider()));
-builder.Services.AddDbContext<CafeOrderDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Katmanların kendi kayıtları: her katman neyi kaydettiğini kendisi bilir.
+string connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("appsettings.json içinde ConnectionStrings:DefaultConnection yok.");
+builder.Services.AddDataAccessLayer(connectionString);        // DbContext, Unit of Work, repository'ler
+builder.Services.AddBusinessLayer(builder.Configuration);     // ayarlar, Mapster, desenler, servisler
 
 // Session: müşterinin sepeti burada durur.
 builder.Services.AddDistributedMemoryCache();
@@ -58,42 +44,6 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.LogoutPath = "/admin/logout";
     options.AccessDeniedPath = "/admin/access-denied";
 });
-
-// Teslimat ücreti ayarları (appsettings.json → "Pricing")
-builder.Services.AddSingleton(builder.Configuration.GetSection("Pricing").Get<PricingOptions>() ?? new PricingOptions());
-
-// Mapster (ücretsiz, MIT): Entity ↔ DTO eşlemeleri BusinessLayer/Mapping/GeneralMapping.cs içinde.
-// Scan, derlemedeki IRegister sınıflarını (GeneralMapping) bulup kurallarını ayarlara ekler.
-// Servisler IMapper (MapsterMapper) alır ve _mapper.Map<T>(...) ile eşleme yapar.
-TypeAdapterConfig mapsterConfig = TypeAdapterConfig.GlobalSettings;
-mapsterConfig.Scan(typeof(GeneralMapping).Assembly);
-builder.Services.AddSingleton(mapsterConfig);
-builder.Services.AddScoped<IMapper, ServiceMapper>();
-
-// Repository'ler
-builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
-builder.Services.AddScoped<IProductRepository, ProductRepository>();
-builder.Services.AddScoped<IProductOptionRepository, ProductOptionRepository>();
-builder.Services.AddScoped<ITableRepository, TableRepository>();
-builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
-builder.Services.AddScoped<IOrderRepository, OrderRepository>();
-builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
-
-// Servisler
-builder.Services.AddScoped<ICategoryService, CategoryService>();
-builder.Services.AddScoped<IProductService, ProductService>();
-builder.Services.AddScoped<ITableService, TableService>();
-builder.Services.AddScoped<ICustomerService, CustomerService>();
-builder.Services.AddScoped<INotificationService, NotificationService>();
-builder.Services.AddScoped<IOrderService, OrderService>();
-builder.Services.AddScoped<ICartService, CartService>();
-builder.Services.AddScoped<IAccountService, AccountService>();
-
-// Observer: sipariş olaylarını dinleyenler
-builder.Services.AddScoped<IOrderObserver, KitchenObserver>();
-builder.Services.AddScoped<IOrderObserver, CashierObserver>();
-builder.Services.AddScoped<IOrderObserver, AdminObserver>();
-builder.Services.AddScoped<OrderEventPublisher>();
 
 var app = builder.Build();
 

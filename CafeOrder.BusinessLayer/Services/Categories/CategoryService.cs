@@ -3,9 +3,9 @@ using MapsterMapper;
 using CafeOrder.BusinessLayer.Exceptions;
 using CafeOrder.DataAccessLayer.Repositories.Categories;
 using CafeOrder.DataAccessLayer.Repositories.Products;
+using CafeOrder.DataAccessLayer.UnitOfWork;
 using CafeOrder.DtoLayer.Dtos.CategoryDtos;
 using CafeOrder.EntityLayer.Entities;
-using Microsoft.EntityFrameworkCore;
 
 namespace CafeOrder.BusinessLayer.Services.Categories;
 
@@ -17,22 +17,28 @@ public class CategoryService : ICategoryService
 {
     private readonly ICategoryRepository _categoryRepository;
     private readonly IProductRepository _productRepository;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly TimeProvider _time;
     private readonly IMapper _mapper;
 
-    public CategoryService(ICategoryRepository categoryRepository, IProductRepository productRepository, IMapper mapper)
+    public CategoryService(
+        ICategoryRepository categoryRepository,
+        IProductRepository productRepository,
+        IUnitOfWork unitOfWork,
+        TimeProvider time,
+        IMapper mapper)
     {
         _categoryRepository = categoryRepository;
         _productRepository = productRepository;
+        _unitOfWork = unitOfWork;
+        _time = time;
         _mapper = mapper;
     }
 
     /// <summary>Admin listesi: bütün kategoriler, ürünleriyle birlikte (ürün sayısı için).</summary>
     public async Task<List<ResultCategoryDto>> GetAllAsync()
     {
-        var categories = await _categoryRepository.GetQueryable()
-            .Include(c => c.Products)
-            .OrderBy(c => c.DisplayOrder)
-            .ToListAsync();
+        var categories = await _categoryRepository.GetAllWithProductsAsync();
 
         return _mapper.Map<List<ResultCategoryDto>>(categories);
     }
@@ -40,15 +46,17 @@ public class CategoryService : ICategoryService
     /// <summary>Müşteri menüsü: sadece aktif kategoriler ve içlerindeki aktif ürünler.</summary>
     public async Task<List<ResultCategoryDto>> GetActiveAsync()
     {
-        var categories = await _categoryRepository.GetQueryable()
-            .Where(c => c.IsActive)
-            .Include(c => c.Products.Where(p => p.IsActive))
-            .OrderBy(c => c.DisplayOrder)
-            .ToListAsync();
+        var categories = await _categoryRepository.GetActiveWithActiveProductsAsync();
 
         return _mapper.Map<List<ResultCategoryDto>>(categories);
     }
 
+
+    /// <summary>Kategori sayısı (SQL COUNT; admin menüsündeki rozet).</summary>
+    public async Task<int> CountAsync()
+    {
+        return await _categoryRepository.CountAsync();
+    }
 
     /// <summary>Ana sayfa: aktif kategorilerden içinde en az bir aktif ürün olanları döndürür.</summary>
     public async Task<List<ResultCategoryDto>> GetActiveWithProductsAsync()
@@ -102,12 +110,13 @@ public class CategoryService : ICategoryService
 
         category.Slug = await MakeSlugAsync(category.Name, 0);
         category.Icon = "bi-tag";
-        category.CreatedAt = DateTime.Today;
-        await _categoryRepository.CreateAsync(category);
+        category.CreatedAt = _time.GetLocalNow().Date;
+        await _categoryRepository.AddAsync(category);
+        await _unitOfWork.SaveChangesAsync();
 
-        // Kod, veritabanının verdiği Id ile oluşur: CAT-009 gibi.
+        // Kod, veritabanının verdiği Id ile oluşur: CAT-009 gibi. (Id ilk kayıttan sonra dolduğu için iki kayıt gerekir.)
         category.Code = "CAT-" + category.Id.ToString("000");
-        await _categoryRepository.UpdateAsync(category);
+        await _unitOfWork.SaveChangesAsync();
     }
 
     /// <summary>Formdan gelen değerleri veritabanındaki kayda kopyalar ve kaydeder.</summary>
@@ -126,7 +135,7 @@ public class CategoryService : ICategoryService
         await CheckAsync(category);
         category.Slug = await MakeSlugAsync(category.Name, category.Id);
 
-        await _categoryRepository.UpdateAsync(category);
+        await _unitOfWork.SaveChangesAsync();
     }
 
     /// <summary>Kategorinin aktif/pasif durumunu değiştirip kaydeder.</summary>
@@ -134,7 +143,7 @@ public class CategoryService : ICategoryService
     {
         var category = await GetEntityAsync(id);
         category.IsActive = isActive;
-        await _categoryRepository.UpdateAsync(category);
+        await _unitOfWork.SaveChangesAsync();
     }
 
     /// <summary>Ürünü olan kategori silinemez.</summary>
@@ -148,7 +157,8 @@ public class CategoryService : ICategoryService
             throw new BusinessException(category.Name + " kategorisinde hâlâ ürün var. Önce ürünleri taşıyın veya silin.");
         }
 
-        await _categoryRepository.DeleteAsync(category);
+        _categoryRepository.Remove(category);
+        await _unitOfWork.SaveChangesAsync();
     }
 
     /// <summary>Veritabanındaki kaydı getirir; yoksa hata verir.</summary>

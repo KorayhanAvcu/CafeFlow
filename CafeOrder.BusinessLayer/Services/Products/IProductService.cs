@@ -20,6 +20,8 @@ public interface IProductService
     // Admin
     /// <summary>Admin listesi: bütün ürünler (pasifler dahil).</summary>
     Task<List<ResultProductDto>> GetAllAsync();
+    /// <summary>Kayıt sayısı (SQL COUNT).</summary>
+    Task<int> CountAsync();
     /// <summary>Admin listesi, kategori Id'si ve ada göre aramayla filtrelenmiş.</summary>
     Task<List<ResultProductDto>> GetAdminListAsync(int? categoryId, string? search);
     /// <summary>Admin formu: id null ise boş "yeni ürün" formu, değilse o ürünün dolu formu.</summary>

@@ -6,12 +6,13 @@ using CafeOrder.BusinessLayer.Services.Tables;
 using CafeOrder.DtoLayer.Dtos.OrderDtos;
 using CafeOrder.DtoLayer.Dtos.ProductDtos;
 using CafeOrder.EntityLayer.Enums;
+using Microsoft.Extensions.Options;
 
 namespace CafeOrder.BusinessLayer.Services.Cart;
 
 /// <summary>
 /// Sepet kuralları: ekleme, adet değiştirme, sepet sayfasını hazırlama ve sipariş verme.
-/// Fiyat burada da tutulmaz; her seferinde OrderService hesaplar.
+/// Fiyat burada da tutulmaz; her seferinde OrderPricingService hesaplar.
 /// </summary>
 public class CartService : ICartService
 {
@@ -19,15 +20,22 @@ public class CartService : ICartService
 
     private readonly IProductService _productService;
     private readonly IOrderService _orderService;
+    private readonly IOrderPricingService _orderPricingService;
     private readonly ITableService _tableService;
     private readonly PricingOptions _pricing;
 
-    public CartService(IProductService productService, IOrderService orderService, ITableService tableService, PricingOptions pricing)
+    public CartService(
+        IProductService productService,
+        IOrderService orderService,
+        IOrderPricingService orderPricingService,
+        ITableService tableService,
+        IOptions<PricingOptions> pricing)
     {
         _productService = productService;
         _orderService = orderService;
+        _orderPricingService = orderPricingService;
         _tableService = tableService;
-        _pricing = pricing;
+        _pricing = pricing.Value;
     }
 
     /// <summary>
@@ -98,7 +106,7 @@ public class CartService : ICartService
     public async Task<ResultCartDto> GetCartAsync(List<CartItemDto> cart, OrderChannel? channel, string? qrToken, CreateOrderDto? form, string? error)
     {
         ResultCartDto result = new ResultCartDto();
-        result.Order = await _orderService.CalculateAsync(channel ?? OrderChannel.Pickup, cart);
+        result.Order = await _orderPricingService.CalculateAsync(channel ?? OrderChannel.Pickup, cart);
         result.Items = cart.Where(item => result.Order.Details.Any(d => d.ProductId == item.ProductId)).ToList();
         result.Channel = channel;
         result.Table = await _tableService.GetByQrAsync(qrToken);

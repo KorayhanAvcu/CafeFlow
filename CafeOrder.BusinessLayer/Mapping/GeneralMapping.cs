@@ -17,7 +17,7 @@ namespace CafeOrder.BusinessLayer.Mapping;
 /// "CategoryName" gibi birleşik isimler de kendiliğinden bulunur (Category.Name → CategoryName; flattening).
 /// İsmi tutmayan ya da hesaplanan alanlar .Map(...) ile elle yazılır.
 /// Burada sadece özel kuralı olan eşlemeler yazılır; kuralı olmayanları (ör. Product → ResultProductDto) Mapster kendisi çıkarır.
-/// Program.cs'te TypeAdapterConfig taranarak (Scan) tanıtılır.
+/// BusinessServiceRegistration'da TypeAdapterConfig taranarak (Scan) tanıtılır.
 /// </summary>
 public class GeneralMapping : IRegister
 {

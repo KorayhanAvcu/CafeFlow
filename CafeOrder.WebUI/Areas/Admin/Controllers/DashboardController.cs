@@ -1,23 +1,23 @@
-using CafeOrder.BusinessLayer.Services.Orders;
+using CafeOrder.BusinessLayer.Services.Dashboard;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CafeOrder.WebUI.Areas.Admin.Controllers;
 
-/// <summary>Admin ana sayfası (panel). Bütün rakamları OrderService hesaplar; controller sadece DTO'yu sayfaya verir.</summary>
+/// <summary>Admin ana sayfası (panel). Bütün rakamları DashboardService hesaplar; controller sadece DTO'yu sayfaya verir.</summary>
 [Route("admin")]
 public class DashboardController : AdminControllerBase
 {
-    private readonly IOrderService _orderService;
+    private readonly IDashboardService _dashboardService;
 
-    public DashboardController(IOrderService orderService)
+    public DashboardController(IDashboardService dashboardService)
     {
-        _orderService = orderService;
+        _dashboardService = dashboardService;
     }
 
     /// <summary>Panel sayfası. Model: ResultDashboardDto (bugünkü sipariş/ciro, açık siparişler, son 7 gün, durum sayıları, en çok satanlar, son 6 sipariş).</summary>
     [HttpGet("")]
     public async Task<IActionResult> Index()
     {
-        return View(await _orderService.GetDashboardAsync());
+        return View(await _dashboardService.GetDashboardAsync());
     }
 }

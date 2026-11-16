@@ -1,3 +1,6 @@
+using CafeOrder.EntityLayer.Enums;
+using Microsoft.Extensions.Options;
+
 namespace CafeOrder.BusinessLayer.Pricing.Fees;
 
 /// <summary>Eve teslimat: 30 ₺; sipariş 600 ₺ ve üstüyse bedava (rakamlar appsettings.json'dan).</summary>
@@ -5,10 +8,12 @@ public class DeliveryFeeStrategy : IDeliveryFeeStrategy
 {
     private readonly PricingOptions _options;
 
-    public DeliveryFeeStrategy(PricingOptions options)
+    public DeliveryFeeStrategy(IOptions<PricingOptions> options)
     {
-        _options = options;
+        _options = options.Value;
     }
+
+    public OrderChannel Channel => OrderChannel.Delivery;
 
     /// <summary>Ara toplam ücretsiz teslimat sınırının (600 ₺) üstündeyse 0, değilse teslimat ücretini (30 ₺) döndürür. Rakamlar appsettings.json'dan gelir.</summary>
     public decimal Calculate(decimal orderAmount)

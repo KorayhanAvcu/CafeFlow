@@ -70,8 +70,8 @@ public string? ProductCategoryName { get; set; }   // ← detail.Product.Categor
 public string? ProductCategorySlug { get; set; }
 ```
 DTO'daki yorum önemli: *"sadece sepette dolu gelir"*. Neden?
-- Sepet hesaplanırken (`CalculateOrderAsync`) `detail.Product = product` atanıyor ve ürün `Category` ile Include edilmiş. Flattening bu yüzden çalışıyor ve sepet sayfası resmi gösterebiliyor.
-- Kayıtlı siparişi okurken (`OrdersWithDetails()`) `Details.Product` Include **edilmiyor**. Bu alanlar null gelir. Admin sipariş detayında resim yok, sadece kopyalanmış `ProductName` var.
+- Sepet hesaplanırken (`OrderPricingService.ApplyPricesAsync`) `detail.Product = product` atanıyor ve ürün `Category` ile Include edilmiş. Flattening bu yüzden çalışıyor ve sepet sayfası resmi gösterebiliyor.
+- Kayıtlı siparişi okurken (`OrderRepository.WithDetails()`) `Details.Product` Include **edilmiyor**. Bu alanlar null gelir. Admin sipariş detayında resim yok, sadece kopyalanmış `ProductName` var.
 
 ### `ResultCustomerDto`: hesaplanan alanlar
 ```csharp
@@ -94,13 +94,14 @@ public class GeneralMapping : IRegister
 - `IRegister` arayüzünü uygulayan sınıfın `Register` metodunda kurallar yazılır.
 - **Sadece özel kuralı olan eşlemeler yazılır.** AutoMapper'da her eşleme için `CreateMap` yazmak gerekiyordu; Mapster ise kuralı olmayan eşlemeyi (ör. `Product → ResultProductDto`) ilk kullanımda isimlerden kendisi çıkarıyor. Bu yüzden dosya 23 satırdan 5 kurala indi.
 
-### Program.cs'teki kayıt
+### DI kaydı (`BusinessServiceRegistration`)
 ```csharp
 TypeAdapterConfig mapsterConfig = TypeAdapterConfig.GlobalSettings;
 mapsterConfig.Scan(typeof(GeneralMapping).Assembly);   // IRegister sınıflarını bulup Register'ı çağırır
-builder.Services.AddSingleton(mapsterConfig);
-builder.Services.AddScoped<IMapper, ServiceMapper>();   // servislere IMapper verilir
+services.AddSingleton(mapsterConfig);
+services.AddScoped<IMapper, ServiceMapper>();           // servislere IMapper verilir
 ```
+Eskiden bu satırlar Program.cs'teydi; artık BusinessLayer kendi kaydını yapıyor (Bölüm 01).
 `IMapper` ve `ServiceMapper`, `Mapster.DependencyInjection` paketinden (`using MapsterMapper;`). Servislerin kodu AutoMapper'dakiyle aynı: constructor'da `IMapper mapper` alıp `_mapper.Map<ResultCategoryDto>(...)` çağırıyorlar.
 
 ### Kategori
@@ -110,9 +111,9 @@ config.NewConfig<Category, ResultCategoryDto>()
 ```
 `ProductCount` adı hiçbir alanla eşleşmiyor (flattening `Product.Count` diye bir şey arar ve bulamaz). Bu yüzden `.Map(...)` ile elle yazılmış. (AutoMapper'daki karşılığı `ForMember(d => d.ProductCount, o => o.MapFrom(s => s.Products.Count))` idi.)
 
-**Tuzak:** `src.Products.Count` sadece Products **Include edildiyse** doğru olur. `CategoryService.GetAllAsync` `.Include(c => c.Products)` yapıyor → doğru. Kategoriyi `FindAsync` ile (Include olmadan) yükleyip `ResultCategoryDto`'ya çevirseydik `ProductCount` 0 gelirdi; bunu bilmeden kullanan biri yanlış sonuç alırdı.
+**Tuzak:** `src.Products.Count` sadece Products **Include edildiyse** doğru olur. `CategoryService.GetAllAsync` → `CategoryRepository.GetAllWithProductsAsync` `.Include(c => c.Products)` yapıyor → doğru. Kategoriyi `FindAsync` ile (Include olmadan) yükleyip `ResultCategoryDto`'ya çevirseydik `ProductCount` 0 gelirdi; bunu bilmeden kullanan biri yanlış sonuç alırdı.
 
-`GetActiveAsync`'te `.Include(c => c.Products.Where(p => p.IsActive))` var. Bu **filtered include** (EF Core 5+) ile `ProductCount` aktif ürün sayısı olur. Ana sayfadaki kategori kartları "ürünü olmayan kategoriyi gösterme" kararını bu sayıya göre veriyor.
+`GetActiveAsync`'in kullandığı `GetActiveWithActiveProductsAsync`'te `.Include(c => c.Products.Where(p => p.IsActive))` var. Bu **filtered include** (EF Core 5+) ile `ProductCount` aktif ürün sayısı olur. Ana sayfadaki kategori kartları "ürünü olmayan kategoriyi gösterme" kararını bu sayıya göre veriyor.
 
 Kuralsız eşlemeler (yazılmadı, Mapster kendisi çıkarıyor):
 ```text
@@ -171,7 +172,7 @@ warning NU1903: 'AutoMapper' 13.0.1 ... yüksek önem dereceli bilinen bir güve
 - Açık: çok derin iç içe nesneler eşlenirken AutoMapper derinlik sınırı koymadan kendini çağırıyor; saldırgan özel bir nesne grafiği verirse `StackOverflowException` ile uygulama çöküyor (DoS).
 - Açığı kapatan sürümler (15.1.1 ve sonrası) **ücretli lisansa** geçti; son ücretsiz (MIT) sürüm 14.0.0 ise hâlâ açıklı.
 - Mapster 10.0.14: MIT lisanslı, ücretsiz, .NET 8 destekli, bilinen açığı yok. `dotnet list package --vulnerable --include-transitive` artık hiçbir projede açık göstermiyor ve derleme **0 uyarı** veriyor.
-- Değişiklik küçük oldu: servislerde sadece `using AutoMapper;` → `using MapsterMapper;`; `GeneralMapping` yeniden yazıldı; Program.cs'teki kayıt değişti. Bütün uçtan uca testler (170) değişiklikten sonra da geçti.
+- Değişiklik küçük oldu: servislerde sadece `using AutoMapper;` → `using MapsterMapper;`; `GeneralMapping` yeniden yazıldı; DI kaydı değişti. Bütün uçtan uca testler (170) değişiklikten sonra da geçti.
 
 ---
 

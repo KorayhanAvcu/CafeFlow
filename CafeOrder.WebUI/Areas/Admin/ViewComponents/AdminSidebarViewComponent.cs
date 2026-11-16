@@ -16,18 +16,18 @@ public class AdminSidebarViewComponent : ViewComponent
 {
     private readonly ICategoryService _categoryService;
     private readonly IProductService _productService;
-    private readonly IOrderService _orderService;
+    private readonly IOrderQueryService _orderQueryService;
     private readonly INotificationService _notificationService;
 
     public AdminSidebarViewComponent(
         ICategoryService categoryService,
         IProductService productService,
-        IOrderService orderService,
+        IOrderQueryService orderQueryService,
         INotificationService notificationService)
     {
         _categoryService = categoryService;
         _productService = productService;
-        _orderService = orderService;
+        _orderQueryService = orderQueryService;
         _notificationService = notificationService;
     }
 
@@ -35,9 +35,10 @@ public class AdminSidebarViewComponent : ViewComponent
     public async Task<IViewComponentResult> InvokeAsync(string activePage)
     {
         ViewBag.ActivePage = activePage;
-        ViewBag.CategoryCount = (await _categoryService.GetAllAsync()).Count;
-        ViewBag.ProductCount = (await _productService.GetAllAsync()).Count;
-        ViewBag.NewOrderCount = await _orderService.CountByStatusAsync(OrderStatus.Received);
+        // Sayılar SQL COUNT ile alınır; listeler belleğe çekilmez.
+        ViewBag.CategoryCount = await _categoryService.CountAsync();
+        ViewBag.ProductCount = await _productService.CountAsync();
+        ViewBag.NewOrderCount = await _orderQueryService.CountByStatusAsync(OrderStatus.Received);
         ViewBag.UnreadCount = await _notificationService.CountUnreadAsync(NotificationTarget.Admin);
 
         // Kullanıcının adı giriş çerezinde (claim) durur; veritabanına gitmeye gerek yok.

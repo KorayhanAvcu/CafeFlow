@@ -7,6 +7,13 @@ namespace CafeOrder.BusinessLayer.Validation;
 /// <summary>Halka 3: sipariş türüne göre gereken bilgiler girilmiş mi?</summary>
 public class ChannelInfoHandler : OrderValidationHandler
 {
+    private readonly TimeProvider _time;
+
+    public ChannelInfoHandler(TimeProvider time)
+    {
+        _time = time;
+    }
+
     /// <summary>Halka 3: kanala göre gereken bilgileri kontrol eder. Masa: geçerli QR. Teslimat ve gel-al: ad ve telefon. Teslimat: adres. Gel-al: ileri bir teslim alma saati.</summary>
     protected override void Check(Order order)
     {
@@ -39,7 +46,7 @@ public class ChannelInfoHandler : OrderValidationHandler
             {
                 throw new BusinessException("Lütfen teslim alma saatini seçin.");
             }
-            if (order.PickupTime < DateTime.Now)
+            if (order.PickupTime < _time.GetLocalNow().DateTime)
             {
                 throw new BusinessException("Teslim alma saati geçmişte olamaz.");
             }

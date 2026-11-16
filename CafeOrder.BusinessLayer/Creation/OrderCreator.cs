@@ -7,9 +7,20 @@ namespace CafeOrder.BusinessLayer.Creation;
 /// FACTORY METHOD deseni.
 /// Her sipariş türü (teslimat, gel-al, masa) kendi alanlarını CreateForChannel metodunda doldurur.
 /// Bütün türlerde ortak olan kısım (numara, durum, tarih, ilk geçmiş kaydı) Create metodunda bir kez yazılır.
+/// Creator'lar DI'a kayıtlıdır; OrderService hepsini IEnumerable olarak alır ve Channel'a göre seçer.
 /// </summary>
 public abstract class OrderCreator
 {
+    private readonly TimeProvider _time;
+
+    protected OrderCreator(TimeProvider time)
+    {
+        _time = time;
+    }
+
+    /// <summary>Bu sınıfın kurduğu sipariş türü.</summary>
+    public abstract OrderChannel Channel { get; }
+
     /// <summary>Siparişi kurar: önce kanala özgü kısmı alt sınıfa yaptırır (CreateForChannel), sonra bütün kanallarda ortak olan sipariş numarası, "Alındı" durumu, tarih, not ve ilk durum geçmişi kaydını ekler. Adımların sırası burada sabittir (Template Method).</summary>
     public Order Create(Order form, Table? table)
     {
@@ -20,7 +31,7 @@ public abstract class OrderCreator
         order.OrderNo = CreateOrderNo();
         order.Status = OrderStatus.Received;
         order.Note = form.Note;
-        order.CreatedAt = DateTime.Now;
+        order.CreatedAt = _time.GetLocalNow().DateTime;
 
         // 3) İlk durum kaydı: "Alındı"
         OrderStatusHistory history = new OrderStatusHistory();
@@ -35,7 +46,7 @@ public abstract class OrderCreator
     protected abstract Order CreateForChannel(Order form, Table? table);
 
     /// <summary>CF-1A2B3C4D gibi rastgele bir sipariş numarası üretir.</summary>
-    private string CreateOrderNo()
+    private static string CreateOrderNo()
     {
         string guid = Guid.NewGuid().ToString("N");   // 32 karakter, tiresiz
         return "CF-" + guid.Substring(0, 8).ToUpper();

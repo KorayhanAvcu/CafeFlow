@@ -24,7 +24,7 @@
 EntityLayer        → (hiçbir projeyi tanımaz)  + Microsoft.Extensions.Identity.Stores
 DtoLayer           → EntityLayer                (sadece enum'lar için)
 DataAccessLayer    → EntityLayer                + EF Core SqlServer + Identity.EntityFrameworkCore
-BusinessLayer      → DataAccessLayer, DtoLayer, EntityLayer + Mapster
+BusinessLayer      → DataAccessLayer, DtoLayer, EntityLayer + Mapster + Microsoft.AspNetCore.App (FrameworkReference)
 WebUI              → hepsi                      + EF Core Design (migration komutları için)
 ```
 
@@ -33,7 +33,8 @@ Bu tablonun neden önemli olduğuna dair üç nokta:
 - **EntityLayer en altta, hiçbir şey bilmiyor.** `Order`, `Product` gibi sınıflar saf C# sınıfları (POCO). Tek istisna `AppUser : IdentityUser`; bu yüzden EntityLayer'a `Microsoft.Extensions.Identity.Stores` paketi eklenmiş (`IdentityUser` sınıfı o pakette).
 - **DtoLayer neden EntityLayer'ı tanıyor?** DTO'larda `OrderChannel`, `OrderStatus` gibi enum'lar kullanılıyor ve enum'lar EntityLayer'da. DTO'lar entity *sınıflarını* kullanmıyor, sadece enum'ları.
 - **DataAccessLayer, BusinessLayer'ı tanımıyor.** Repository iş kuralı bilmez, sadece veri okur ve yazar.
-- **WebUI neden DataAccessLayer'ı tanıyor?** `Program.cs`'te `CafeOrderDbContext` ve repository'ler DI'a kaydediliyor. Kayıt yapabilmek için sınıfları görmesi gerekiyor. Controller'lar ise repository'yi hiç kullanmıyor, sadece servisleri kullanıyor.
+- **WebUI neden DataAccessLayer'ı tanıyor?** `Program.cs` `AddDataAccessLayer(...)` çağırıyor ve Identity için `CafeOrderDbContext`'i görmesi gerekiyor. Repository'lerin kaydı ise DataAccessLayer'ın içinde yapılıyor (4.7). Controller'lar repository'yi hiç kullanmıyor, sadece servisleri kullanıyor.
+- **BusinessLayer'daki `FrameworkReference`:** `IOptions<T>`, `IConfiguration` ve `IServiceCollection` extension'ları için. Ayrı NuGet paketi indirmek yerine SDK'da zaten var olan ASP.NET Core paylaşımlı çerçevesine bağlanıyor.
 
 Bütün projelerde şu ayarlar var:
 ```xml
@@ -60,7 +61,7 @@ WebUI'daki `<UserSecretsId>216c75ab-...</UserSecretsId>` satırı User Secrets'�
 ```
 - `Trusted_Connection=True`: Windows oturumunla bağlan (SQL kullanıcı adı ve şifresi yok).
 - `TrustServerCertificate=True`: SQL Express'in kendi imzalı sertifikasını kabul et. EF Core 8 / SqlClient 5 varsayılan olarak şifreli bağlantı istiyor; bu satır olmazsa "certificate chain" hatası alırsın.
-- `Pricing`: Strategy ve Chain'in kullandığı rakamlar (Bölüm 05).
+- `Pricing`: Strategy ve Chain'in kullandığı rakamlar (Bölüm 05). `PricingOptions` sınıfına bağlanır ve açılışta doğrulanır (4.9).
 
 ### `appsettings.Development.json`
 ```json
@@ -113,12 +114,8 @@ builder.Services.AddControllersWithViews(options =>
 ```
 `CreateBuilder` ayarları, loglamayı ve DI kabını hazırlar. `AddControllersWithViews` MVC'yi (controller + Razor view) ekler. Razor Pages veya API-only değil, klasik MVC. İçine verilen ayar, decimal binder'ı ekliyor (4.1).
 
-### 4.3 DbContext
-```csharp
-builder.Services.AddDbContext<CafeOrderDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
-```
-`AddDbContext` DbContext'i **Scoped** olarak kaydeder: her HTTP isteği için bir tane oluşur ve istek bitince atılır. Aynı istekte `OrderRepository`, `ProductRepository` ve `NotificationRepository` **aynı DbContext nesnesini** paylaşır. Bu ayrıntı çok önemli, Bölüm 05'te bu sayede çalışan bir şey göreceğiz.
+### 4.3 Katman kayıtları
+Session ve Identity'den önce iki satır var: veri katmanı ve iş katmanı kendi kayıtlarını yapıyor. Ayrıntısı 4.7–4.9'da.
 
 ### 4.4 Session
 ```csharp
@@ -166,52 +163,125 @@ builder.Services.ConfigureApplicationCookie(options =>
 - `LoginPath`: `[Authorize]` olan bir sayfaya girişsiz gelinirse buraya `?ReturnUrl=` ile yönlendirilir. Testte `/admin/orders` → `302 /admin/login?ReturnUrl=%2Fadmin%2Forders` gördük; o davranış buradan geliyor.
 - `AccessDeniedPath`: giriş yapmış ama Admin rolü olmayan kullanıcının gönderildiği yer.
 
-### 4.7 PricingOptions: Options deseninin basit hali
+### 4.7 Katman kayıtları: `AddDataAccessLayer` ve `AddBusinessLayer`
 ```csharp
-builder.Services.AddSingleton(builder.Configuration.GetSection("Pricing").Get<PricingOptions>() ?? new PricingOptions());
+string connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("appsettings.json içinde ConnectionStrings:DefaultConnection yok.");
+builder.Services.AddDataAccessLayer(connectionString);        // DbContext, Unit of Work, repository'ler
+builder.Services.AddBusinessLayer(builder.Configuration);     // ayarlar, Mapster, desenler, servisler
 ```
-`GetSection("Pricing").Get<PricingOptions>()` JSON'u bir C# nesnesine çevirir (configuration binding). `?? new PricingOptions()` ise bölüm yoksa sınıftaki varsayılanları (30/600/100) kullanır. **Singleton** olarak kaydedilir: uygulama boyunca tek nesne vardır.
+Eskiden Program.cs'te 30'dan fazla `AddScoped` satırı vardı. Artık **her katman kendi kayıtlarını kendisi yapıyor**:
 
-Not: Microsoft'un önerdiği yol `builder.Services.Configure<PricingOptions>(...)` ve `IOptions<PricingOptions>` kullanmaktır. Burada sade olsun diye nesnenin kendisi kaydediliyor. Bunun sonucu: `appsettings.json` uygulama çalışırken değiştirilirse yeni değerler okunmaz, uygulamayı yeniden başlatmak gerekir.
+- `DataAccessLayer/DataAccessServiceRegistration.cs` → `AddDataAccessLayer(...)`
+- `BusinessLayer/BusinessServiceRegistration.cs` → `AddBusinessLayer(...)`
 
-### 4.8 Mapster
+İkisi de `IServiceCollection` için yazılmış **extension method** (`this IServiceCollection services`). Bu yüzden `builder.Services.AddBusinessLayer(...)` diye, sanki ASP.NET Core'un kendi metodu gibi çağrılıyor.
+
+Neden böyle?
+- Yeni bir strateji, doğrulama halkası veya observer eklendiğinde kaydı **o sınıfın kendi katmanında** yazılıyor. WebUI'nin BusinessLayer'ın iç yapısını (hangi desen sınıfı var) bilmesi gerekmiyor.
+- Program.cs kısa kaldı; sadece web'e özgü şeyler (MVC, Session, Identity, çerez) orada.
+- Bağlantı adresi boşsa uygulama açılışta anlaşılır bir hatayla duruyor. Eskiden `null` adres sessizce EF Core'a gidiyor, hata ancak ilk sorguda çıkıyordu.
+
+### 4.8 `AddDataAccessLayer`
+```csharp
+services.AddDbContext<CafeOrderDbContext>(options => options.UseSqlServer(connectionString));
+services.AddScoped<IUnitOfWork, EfUnitOfWork>();
+services.AddScoped<ICategoryRepository, CategoryRepository>();
+...
+services.AddScoped<INotificationRepository, NotificationRepository>();
+```
+`AddDbContext` DbContext'i **Scoped** olarak kaydeder: her HTTP isteği için bir tane oluşur ve istek bitince atılır. Aynı istekte `OrderRepository`, `ProductRepository`, `NotificationRepository` ve `EfUnitOfWork` **aynı DbContext nesnesini** paylaşır. Unit of Work bu sayede çalışıyor: repository'lerin işaretlediği bütün değişiklikler tek bir `SaveChanges` ile yazılıyor (Bölüm 02).
+
+### 4.9 `AddBusinessLayer`
+#### Ayarlar: Options pattern
+```csharp
+services.AddOptions<PricingOptions>()
+    .Bind(configuration.GetSection(PricingOptions.SectionName))   // "Pricing"
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+```
+- `Bind`: `appsettings.json` → `"Pricing"` bölümünü `PricingOptions` nesnesine bağlar.
+- Sınıflar ayarı `IOptions<PricingOptions>` olarak alır ve `.Value` ile okur:
+  ```csharp
+  public DeliveryFeeStrategy(IOptions<PricingOptions> options) { _options = options.Value; }
+  ```
+- `ValidateDataAnnotations` + `ValidateOnStart`: `PricingOptions` alanlarındaki `[Range(0, 10000)]` gibi kurallar **uygulama açılırken** kontrol edilir. `"DeliveryFee": -5` yazılırsa uygulama hiç açılmaz ve hata mesajı hangi alanın yanlış olduğunu söyler. Eskiden yanlış değer sessizce kabul ediliyordu.
+- `IOptions<T>` Microsoft'un önerdiği yol. İleride `IOptionsMonitor<T>`'ye geçilirse `appsettings.json` uygulama çalışırken değiştirildiğinde yeni değerler yeniden başlatmadan okunabilir.
+
+#### Zaman: `TimeProvider`
+```csharp
+services.TryAddSingleton(TimeProvider.System);
+```
+Kodda hiçbir yerde `DateTime.Now` yok. Saate ihtiyaç duyan sınıflar (`OrderCreator`, observer'lar, `ChannelInfoHandler`, `OrderService`, `DashboardService`, `CategoryService`) constructor'da `TimeProvider` alıyor ve `_time.GetLocalNow()` çağırıyor.
+
+Neden? `DateTime.Now` statik bir çağrıdır; test edilemez. "Geçmiş bir teslim alma saati reddedilir" kuralını test etmek için saati sabitlemek gerekir. `TimeProvider` .NET 8'in hazır soyutlaması: uygulamada `TimeProvider.System` gerçek saati verir, testte `FakeTimeProvider` istenen saati verir. `TryAdd...`: başka biri (ör. bir test) önceden kayıt yaptıysa onun kaydını ezmez.
+
+#### Mapster
 ```csharp
 TypeAdapterConfig mapsterConfig = TypeAdapterConfig.GlobalSettings;
 mapsterConfig.Scan(typeof(GeneralMapping).Assembly);
-builder.Services.AddSingleton(mapsterConfig);
-builder.Services.AddScoped<IMapper, ServiceMapper>();
+services.AddSingleton(mapsterConfig);
+services.AddScoped<IMapper, ServiceMapper>();
 ```
 "`GeneralMapping`'in bulunduğu assembly'deki bütün `IRegister` sınıflarını tara, kurallarını ayarlara ekle ve `IMapper`'ı DI'a ekle." Bölüm 03'te ayrıntısı var (AutoMapper'dan neden geçildiği dahil).
 
-### 4.9 Repository ve servis kayıtları
+#### Desen sınıfları da DI'da
 ```csharp
-builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
-...
-builder.Services.AddScoped<IOrderService, OrderService>();
+// STRATEGY: kanal başına bir ücret kuralı
+services.AddSingleton<IDeliveryFeeStrategy, DeliveryFeeStrategy>();
+services.AddSingleton<IDeliveryFeeStrategy, PickupFeeStrategy>();
+services.AddSingleton<IDeliveryFeeStrategy, TableFeeStrategy>();
+
+// FACTORY METHOD: kanal başına bir sipariş kurucu
+services.AddSingleton<OrderCreator, DeliveryOrderCreator>();
+services.AddSingleton<OrderCreator, PickupOrderCreator>();
+services.AddSingleton<OrderCreator, TableOrderCreator>();
+
+// CHAIN OF RESPONSIBILITY: KAYIT SIRASI = ZİNCİR SIRASI
+services.AddTransient<OrderValidationHandler, ProductHandler>();
+services.AddTransient<OrderValidationHandler, QuantityHandler>();
+services.AddTransient<OrderValidationHandler, ChannelInfoHandler>();
+services.AddTransient<OrderValidationHandler, OrderAmountHandler>();
+services.AddScoped<IOrderValidationChain, OrderValidationChain>();
+
+// OBSERVER
+services.AddScoped<IOrderObserver, KitchenObserver>();
+services.AddScoped<IOrderObserver, CashierObserver>();
+services.AddScoped<IOrderObserver, AdminObserver>();
+services.AddScoped<IOrderEventPublisher, OrderEventPublisher>();
 ```
-Hepsi **Scoped**. Neden? Repository'ler `DbContext`'e bağımlı ve DbContext scoped. Bir singleton servis scoped bir DbContext tutarsa DbContext istekler arasında paylaşılır ve thread-safe olmadığı için çöker ("captive dependency" hatası).
+**Aynı arayüze birden fazla kayıt** bu projenin en önemli DI tekniği:
+- `IOrderObserver` istersen **son kayıt** gelir (`AdminObserver`).
+- `IEnumerable<IOrderObserver>` istersen **hepsi**, kayıt sırasıyla gelir.
+
+Dört desen de bunu kullanıyor: `OrderEventPublisher` bütün observer'ları, `OrderPricingService` bütün ücret stratejilerini, `OrderService` bütün creator'ları, `OrderValidationChain` bütün halkaları liste olarak alıyor. Yeni bir kanal, kural veya dinleyici = **yeni bir sınıf + buraya bir satır**. Servislerin koduna dokunulmuyor (Open/Closed). Bölüm 05'te her birini ayrıntılı görüyoruz.
+
+**Ömür seçimleri neden farklı?**
+- Stratejiler ve creator'lar **Singleton**: içlerinde değişen bir durum yok ve sadece singleton şeylere bağımlılar (`IOptions`, `TimeProvider`). Uygulama boyunca bir tane yeterli.
+- Doğrulama halkaları **Transient**: `SetNext` halkanın içindeki `_next` alanını değiştiriyor. Halkalar paylaşılsaydı iki istek aynı anda zinciri kurarken birbirinin bağlantısını bozabilirdi. Transient ile her zincir kendi halkalarını alıyor.
+- Observer'lar ve servisler **Scoped**: repository'ye, dolayısıyla DbContext'e bağımlılar.
+
+#### Servisler
+```csharp
+services.AddScoped<IOrderPricingService, OrderPricingService>();
+services.AddScoped<IOrderQueryService, OrderQueryService>();
+services.AddScoped<IOrderService, OrderService>();
+services.AddScoped<IDashboardService, DashboardService>();
+services.AddScoped<ICartService, CartService>();
+...
+```
+Hepsi **Scoped**. Neden? Repository'lere bağımlılar ve repository'ler scoped DbContext'e bağımlı. Bir singleton servis scoped bir DbContext tutarsa DbContext istekler arasında paylaşılır ve thread-safe olmadığı için çöker ("captive dependency" hatası). Development ortamında ASP.NET Core bunu açılışta kontrol ediyor (`ValidateScopes`, `ValidateOnBuild`): yanlış bir ömür seçilirse uygulama hiç açılmaz.
 
 Üç ömür tipi:
 | Ömür | Ne zaman oluşur | Örnek |
 |---|---|---|
-| Transient | Her istendiğinde yeni | (projede yok) |
-| Scoped | Her HTTP isteğinde bir tane | DbContext, repository'ler, servisler, observer'lar |
-| Singleton | Uygulama boyunca tek | `PricingOptions`, `IMapper` |
+| Transient | Her istendiğinde yeni | Doğrulama halkaları |
+| Scoped | Her HTTP isteğinde bir tane | DbContext, Unit of Work, repository'ler, servisler, observer'lar, `IMapper` |
+| Singleton | Uygulama boyunca tek | `TimeProvider`, `TypeAdapterConfig`, ücret stratejileri, creator'lar, `IOptions<PricingOptions>` |
 
-### 4.10 Observer kayıtları: aynı interface'e üç sınıf
-```csharp
-builder.Services.AddScoped<IOrderObserver, KitchenObserver>();
-builder.Services.AddScoped<IOrderObserver, CashierObserver>();
-builder.Services.AddScoped<IOrderObserver, AdminObserver>();
-builder.Services.AddScoped<OrderEventPublisher>();
-```
-Bir interface'e birden fazla kayıt yapınca:
-- `IOrderObserver` istersen **son kayıt** gelir (`AdminObserver`).
-- `IEnumerable<IOrderObserver>` istersen **hepsi**, kayıt sırasıyla gelir.
+**Kural:** Bir sınıf kendinden **kısa** ömürlü bir şeye bağımlı olamaz. Singleton → Scoped yasak; Scoped → Singleton serbest; Transient her şeye bağımlı olabilir.
 
-`OrderEventPublisher` constructor'da `IEnumerable<IOrderObserver>` istiyor. Observer deseninin "abone listesi" DI kabının ta kendisi oluyor. `OrderEventPublisher` interface'siz, doğrudan sınıf olarak kaydedilmiş; bu da geçerli bir kullanım.
-
-### 4.11 Build ve açılış işleri
+### 4.10 Build ve açılış işleri
 ```csharp
 var app = builder.Build();
 
@@ -231,7 +301,7 @@ using (var scope = app.Services.CreateScope())
 
 > Üretim notu: Uygulama açılışında otomatik migration ders ve geliştirme ortamı için çok pratik. Gerçek üretimde genelde migration'lar ayrı bir adımda (`dotnet ef database update` veya SQL scripti) çalıştırılır. Bugün ürettiğimiz `database/CafeOrderDb_schema.sql` bunun için.
 
-### 4.12 Middleware hattı (sıra önemli!)
+### 4.11 Middleware hattı (sıra önemli!)
 ```csharp
 if (!app.Environment.IsDevelopment())
 {
@@ -263,7 +333,7 @@ Her istek bu boru hattından yukarıdan aşağı geçer; cevap ise aşağıdan y
 | `UseAuthorization` | Seçilen action'da `[Authorize(Roles="Admin")]` varsa kontrol eder: giriş yoksa 302 → login, rol yoksa → access-denied. Routing'den **sonra** olmalı, çünkü hangi action'ın seçildiğini bilmesi gerekiyor. |
 | `MapControllers` | Seçilen action'ı çalıştırır. |
 
-### 4.13 `MapControllers`: projede klasik route yok!
+### 4.12 `MapControllers`: projede klasik route yok!
 Çoğu MVC projesinde şunu görürsün:
 ```csharp
 app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Index}/{id?}");
@@ -287,8 +357,8 @@ Kestrel (web sunucusu) isteği alır
  → Middleware: StaticFiles (dosya değil, geç) → Routing (ProductsController.Detail seçildi, id=2)
  → Session → Authentication (giriş yok, sorun değil) → Authorization ([Authorize] yok, geç)
  → DI: yeni scope açılır. ProductsController oluşturulurken constructor'ı IProductService ve ICategoryService ister
-       → ProductService oluşturulur; o da IProductRepository, ICategoryRepository... ister
-       → repository'ler oluşturulur; onlar CafeOrderDbContext ister → bu istek için TEK bir DbContext
+       → ProductService oluşturulur; o da IProductRepository, ICategoryRepository, IUnitOfWork... ister
+       → repository'ler ve Unit of Work oluşturulur; onlar CafeOrderDbContext ister → bu istek için TEK bir DbContext
  → Detail(2) çalışır → servis → repository → EF Core → SQL → entity → Mapster → DTO
  → return View(product) → Razor, Views/Products/Detail.cshtml'i HTML'e çevirir
  → cevap middleware'lerden geri çıkar → tarayıcı
@@ -296,4 +366,9 @@ Kestrel (web sunucusu) isteği alır
 ```
 Bu zincirdeki **constructor injection** her katmanda aynı. Hiçbir sınıf `new ProductRepository()` demiyor; ihtiyacını constructor'da istiyor, DI kabı veriyor. **Dependency Inversion** (SOLID'deki D) budur: üst katman somut sınıfa değil, interface'e bağımlı.
 
-İstisna: desen sınıfları (`new DeliveryFeeStrategy(...)`, `new ProductHandler()`, `new OptionPriceDecorator(...)`) `OrderService` içinde `new` ile oluşturuluyor. Bu bilinçli bir sadelik tercihi; Bölüm 05'te tartışıyoruz.
+Desen sınıfları da bu kurala uyuyor: ücret stratejileri, creator'lar, doğrulama halkaları ve observer'lar DI'dan geliyor. Kodda kalan `new`'ler bilinçli:
+- **Entity ve DTO'lar** (`new Order()`, `new Notification()`): veri nesneleri, servis değil.
+- **Decorator** (`new OptionPriceDecorator(price, delta)`): çalışma anında gelen değerleri (fiyat, seçenek) sarıyor. DI'dan gelemez, çünkü kaç kat olacağı ve değerleri her kalemde farklı.
+- **State** (`OrderState.For(status)`): durumsuz, bağımlılığı olmayan küçük sınıflar; statik factory yeterli.
+
+Kaba bir kural: **bağımlılığı olan ve davranış taşıyan** sınıf DI'dan gelir; **veri taşıyan** veya çalışma anındaki değerlerden kurulan nesne `new` ile oluşturulur.

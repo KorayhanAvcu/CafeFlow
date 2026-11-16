@@ -18,13 +18,13 @@ namespace CafeOrder.WebUI.Controllers;
 public class CartController : Controller
 {
     private readonly ICartService _cartService;
-    private readonly IOrderService _orderService;
+    private readonly IOrderQueryService _orderQueryService;
     private readonly ITableService _tableService;
 
-    public CartController(ICartService cartService, IOrderService orderService, ITableService tableService)
+    public CartController(ICartService cartService, IOrderQueryService orderQueryService, ITableService tableService)
     {
         _cartService = cartService;
-        _orderService = orderService;
+        _orderQueryService = orderQueryService;
         _tableService = tableService;
     }
 
@@ -125,7 +125,7 @@ public class CartController : Controller
     [HttpGet("confirmation/{orderNo}")]
     public async Task<IActionResult> Confirmation(string orderNo)
     {
-        var order = await _orderService.GetByOrderNoAsync(orderNo.ToUpper());
+        var order = await _orderQueryService.GetByOrderNoAsync(orderNo.ToUpper());
         if (order == null)
         {
             return NotFound();

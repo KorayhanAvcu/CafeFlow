@@ -8,7 +8,7 @@ namespace CafeOrder.DtoLayer.Dtos.OrderDtos;
 /// </summary>
 public class ResultCartDto
 {
-    /// <summary>Fiyatlandırılmış sepet: kalemler, ara toplam, ücret, toplam (OrderService hesaplar).</summary>
+    /// <summary>Fiyatlandırılmış sepet: kalemler, ara toplam, ücret, toplam (OrderPricingService hesaplar).</summary>
     public ResultOrderDto Order { get; set; } = new ResultOrderDto();
 
     /// <summary>Silinmiş ürünlerden temizlenmiş sepet; controller bunu Session'a geri yazar.</summary>

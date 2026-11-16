@@ -17,21 +17,21 @@ public class CartCountViewComponent : ViewComponent
     }
 }
 
-/// <summary>Sağdan açılan sepet paneli. Fiyatları OrderService hesaplar. View: Components/CartDrawer/Default.cshtml</summary>
+/// <summary>Sağdan açılan sepet paneli. Fiyatları OrderPricingService hesaplar. View: Components/CartDrawer/Default.cshtml</summary>
 public class CartDrawerViewComponent : ViewComponent
 {
-    private readonly IOrderService _orderService;
+    private readonly IOrderPricingService _orderPricingService;
 
-    public CartDrawerViewComponent(IOrderService orderService)
+    public CartDrawerViewComponent(IOrderPricingService orderPricingService)
     {
-        _orderService = orderService;
+        _orderPricingService = orderPricingService;
     }
 
-    /// <summary>Sağdan açılan sepet panelini çizer; fiyatları OrderService hesaplar (ücretsiz kanal gibi).</summary>
+    /// <summary>Sağdan açılan sepet panelini çizer; fiyatları OrderPricingService hesaplar (ücretsiz kanal gibi).</summary>
     public async Task<IViewComponentResult> InvokeAsync()
     {
         // Panelde teslimat ücreti gösterilmez; bu yüzden gel-al gibi hesaplanır.
-        var cart = await _orderService.CalculateAsync(OrderChannel.Pickup, HttpContext.Session.GetCart());
+        var cart = await _orderPricingService.CalculateAsync(OrderChannel.Pickup, HttpContext.Session.GetCart());
         return View(cart);
     }
 }

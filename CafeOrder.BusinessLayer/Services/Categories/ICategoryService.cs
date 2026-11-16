@@ -6,6 +6,8 @@ public interface ICategoryService
 {
     /// <summary>Admin listesi: bütün kategoriler (pasifler dahil), ürün sayılarıyla.</summary>
     Task<List<ResultCategoryDto>> GetAllAsync();
+    /// <summary>Kayıt sayısı (SQL COUNT).</summary>
+    Task<int> CountAsync();
     /// <summary>Müşteri menüsü: sadece aktif kategoriler, aktif ürün sayılarıyla.</summary>
     Task<List<ResultCategoryDto>> GetActiveAsync();
     /// <summary>Ana sayfa: aktif ve içinde en az bir aktif ürün olan kategoriler.</summary>

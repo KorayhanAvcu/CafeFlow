@@ -58,13 +58,15 @@ Klasik N katmanlı yapı kullanılır. Bağımlılıklar yukarıdan aşağı aka
 
 ```text
 CafeOrder.WebUI           Controller'lar, Razor sayfaları, Session sepeti (CartSession),
-                          Identity ayarları, servis kayıtları (Program.cs)
+                          Identity ayarları; Program.cs katmanların kayıt metotlarını çağırır
        ↓
 CafeOrder.BusinessLayer   Services (ICategoryService / CategoryService ...), 6 tasarım deseni,
-                          Mapster eşlemeleri (Mapping/GeneralMapping), BusinessException
+                          Mapster eşlemeleri (Mapping/GeneralMapping), BusinessException,
+                          DI kayıtları (BusinessServiceRegistration → AddBusinessLayer)
        ↓
-CafeOrder.DataAccessLayer GenericRepository<T> + tablo başına bir repository, DbContext,
-                          tablo ayarları, migration, başlangıç verileri
+CafeOrder.DataAccessLayer GenericRepository<T> + tablo başına bir repository, Unit of Work,
+                          DbContext, tablo ayarları, migration, başlangıç verileri,
+                          DI kayıtları (DataAccessServiceRegistration → AddDataAccessLayer)
        ↓
 CafeOrder.EntityLayer     Entity sınıfları (AppUser dahil) ve enum'lar
 
@@ -75,11 +77,11 @@ CafeOrder.DtoLayer        Ekran ile servis arasında taşınan veri: Result / Cr
 Akış her yerde aynı:
 
 1. Controller servisi çağırır; formdan gelen veri **Create/Update DTO** olarak gider.
-2. Servis DTO'yu Mapster ile **entity**'ye çevirir, kuralları uygular (hata varsa `BusinessException`), repository ile kaydeder.
-3. Okurken servis repository'den entity'yi alır, Mapster ile **Result DTO**'ya çevirip döner.
+2. Servis DTO'yu Mapster ile **entity**'ye çevirir, kuralları uygular (hata varsa `BusinessException`), repository'ye ekler ve `IUnitOfWork.SaveChangesAsync()` ile kaydeder.
+3. Okurken servis repository'nin isimli bir metodunu çağırır (`GetMenuAsync`, `GetWithDetailsAsync` ...), gelen entity'yi Mapster ile **Result DTO**'ya çevirip döner. Sorgular (Include, Where, sayfalama) repository'de, SQL'de çalışır.
 4. Controller DTO'yu view'a verir (`return View(products)`); view `@model List<ResultProductDto>` ile çizer.
 
-Entity'ler WebUI'a hiç çıkmaz (Identity'deki `AppUser` hariç). Tasarım desenleri BusinessLayer içinde entity üzerinde çalışır.
+Entity'ler WebUI'a hiç çıkmaz (Identity'deki `AppUser` hariç). Tasarım desenleri BusinessLayer içinde entity üzerinde çalışır. Servisler ve desen sınıfları birbirini `new` ile oluşturmaz; hepsi constructor'dan, DI ile gelir.
 
 | DTO | Ne zaman |
 |---|---|
@@ -93,21 +95,21 @@ Entity'ler WebUI'a hiç çıkmaz (Identity'deki `AppUser` hariç). Tasarım dese
 
 | Sıra | Dosya | Neden |
 |---|---|---|
-| 1 | `CafeOrder.WebUI/Program.cs` | Hangi interface için hangi sınıfın kullanıldığı (DI kayıtları) |
-| 2 | `CafeOrder.DataAccessLayer/Repositories/GenericRepositories/GenericRepository.cs` | Bütün tabloların ortak veritabanı işlemleri |
+| 1 | `CafeOrder.WebUI/Program.cs` → `BusinessLayer/BusinessServiceRegistration.cs`, `DataAccessLayer/DataAccessServiceRegistration.cs` | Hangi interface için hangi sınıfın kullanıldığı (DI kayıtları) |
+| 2 | `CafeOrder.DataAccessLayer/Repositories/GenericRepositories/GenericRepository.cs` + `UnitOfWork/` | Bütün tabloların ortak veritabanı işlemleri ve tek kayıt |
 | 3 | `CafeOrder.BusinessLayer/Mapping/GeneralMapping.cs` | Hangi entity hangi DTO'ya nasıl çevrilir |
 | 4 | `CafeOrder.BusinessLayer/Services/Products/ProductService.cs` | Basit bir servis: DTO alır/döner, kurallar, kaydetme |
 | 5 | `CafeOrder.WebUI/Controllers/ProductsController.cs` + `Views/Products/Index.cshtml` | Verinin sayfaya gelişi |
 | 6 | `CafeOrder.WebUI/Controllers/CartController.cs` | Session sepeti ve sipariş verme |
-| 7 | `CafeOrder.BusinessLayer/Services/Orders/OrderService.cs` | 6 desenin sırayla çalıştığı yer |
+| 7 | `CafeOrder.BusinessLayer/Services/Orders/OrderService.cs` + `OrderPricingService.cs` | 6 desenin sırayla çalıştığı yer |
 
 ### Klasörler
 
 ```text
 CafeOrder.EntityLayer/       Entities (Product, Order ...), Enums (OrderStatus, OrderChannel ...)
-CafeOrder.DataAccessLayer/   Context (DbContext, SeedData), Repositories/<Tablo>, Migrations
+CafeOrder.DataAccessLayer/   Context (DbContext, SeedData), Repositories/<Tablo>, UnitOfWork, Migrations
 CafeOrder.DtoLayer/          Dtos/<Tablo>Dtos (ResultXDto, CreateXDto, UpdateXDto, CartItemDto, CreateOrderDto)
-CafeOrder.BusinessLayer/     Services/<Tablo>, Mapping (Mapster), Exceptions
+CafeOrder.BusinessLayer/     Services/<Tablo>, Services/Dashboard, Mapping (Mapster), Exceptions
                              Pricing (Decorator), Pricing/Fees (Strategy), Validation (Chain),
                              Creation (Factory Method), States (State), Events (Observer)
 CafeOrder.WebUI/             Controllers, Views, Cart (Session), ViewComponents,
@@ -123,21 +125,21 @@ Views/Cart/Index.cshtml            form → POST /cart/checkout (CreateOrderDto)
   ↓
 CartController.Checkout            sipariş türünü ve sepeti Session'dan okur
   ↓
-OrderService.PlaceOrderAsync
+CartService.CheckoutAsync → OrderService.PlaceOrderAsync
   1. Mapster                       CreateOrderDto → Order
   2. Masa / müşteri                QR koduyla masa, telefonla kayıtlı müşteri bulunur
   3. Factory Method                Delivery / Pickup / TableOrderCreator siparişi kurar
-  4. Decorator + Strategy          birim fiyatlar, ara toplam, teslimat ücreti hesaplanır
+  4. Decorator + Strategy          OrderPricingService: birim fiyatlar, ara toplam, teslimat ücreti
   5. Chain of Responsibility       Product → Quantity → ChannelInfo → OrderAmount kontrolleri
-  6. OrderRepository               sipariş + kalemler + ilk durum tek transaction'da kaydedilir
-  7. Observer                      Kitchen / Cashier / AdminObserver bildirim yazar
+  6. Observer                      Kitchen / Cashier / AdminObserver bildirimleri ekler
+  7. Unit of Work                  sipariş + kalemler + ilk durum + bildirimler tek transaction'da kaydedilir
   ↓
 CartController                     sepeti boşaltır → /cart/confirmation/{orderNo}
 ```
 
 Kurallardan biri tutmazsa servis `BusinessException` fırlatır, sipariş kaydedilmez ve sepet sayfası yazılanlar kaybolmadan hata mesajıyla tekrar açılır.
 
-Admin sipariş detayında bir durum düğmesine bastığında: `OrdersController.ChangeStatus` → `OrderService.ChangeStatusAsync` → **State** (geçiş izinli mi?) → durum geçmişine kayıt → **Observer** (bildirim).
+Admin sipariş detayında bir durum düğmesine bastığında: `OrdersController.ChangeStatus` → `OrderService.ChangeStatusAsync` → **State** (geçiş izinli mi?) → durum geçmişi → **Observer** (bildirim) → tek kayıt.
 
 ## Tasarım Desenleri
 
@@ -163,7 +165,7 @@ Her desenin amacı, kullanılan sınıflar, tetiklendiği iş akışı ve test e
 - QR kodu veritabanındaki **aktif** bir masayla eşleşmelidir; müşteri masa numarası yazamaz.
 - Aynı ürünün farklı seçenekleri ayrı sipariş kalemi olarak saklanır.
 - Sipariş kalemleri ürün adı ve fiyatının o anki kopyasını tutar; ürün sonradan değişse de eski sipariş bozulmaz.
-- Sipariş, kalemleri ve ilk durum kaydı tek transaction'da yazılır.
+- Sipariş, kalemleri, ilk durum kaydı ve bildirimleri tek transaction'da yazılır (ya hepsi ya hiçbiri).
 - Durum akışı: Alındı → Hazırlanıyor → Hazır → Teslim Edildi. İptal yalnızca Alındı ve Hazırlanıyor durumlarından yapılabilir.
 
 **Yönetim**

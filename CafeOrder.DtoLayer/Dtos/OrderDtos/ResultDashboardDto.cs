@@ -2,7 +2,7 @@ using CafeOrder.EntityLayer.Enums;
 
 namespace CafeOrder.DtoLayer.Dtos.OrderDtos;
 
-/// <summary>Admin panel (dashboard) sayfasının bütün verisi. OrderService.GetDashboardAsync hesaplar.</summary>
+/// <summary>Admin panel (dashboard) sayfasının bütün verisi. DashboardService.GetDashboardAsync hesaplar.</summary>
 public class ResultDashboardDto
 {
     public int TodayOrders { get; set; }

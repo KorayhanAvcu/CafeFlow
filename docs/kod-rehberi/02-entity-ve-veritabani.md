@@ -268,7 +268,7 @@ context.Products.Add(CreateProduct(hot, "Klasik Cappuccino", 145, "1572442388796
 
 Seed edilen Id'ler (bugün sorguladık): ürünler 1–20, seçenekler 1=Küçük, 2=Orta(+15, varsayılan), 3=Büyük(+30), 4=Normal Süt(varsayılan), 5=Yulaf Sütü(+15), 6=Badem Sütü(+15), 7=Ekstra shot "Evet"(+20), 8=Vanilya Şurubu(+10), 9=Karamel Şurubu(+10).
 
-## 7. Repository'ler
+## 7. Repository'ler ve Unit of Work
 
 ### `IRepository<TEntity>`: generic arayüz
 ```csharp
@@ -276,14 +276,13 @@ public interface IRepository<TEntity> where TEntity : class
 {
     Task<List<TEntity>> GetAllAsync();
     Task<TEntity?> GetByIdAsync(int id);
-    Task CreateAsync(TEntity entity);
-    Task UpdateAsync(TEntity entity);
-    Task DeleteAsync(TEntity entity);
+    Task AddAsync(TEntity entity);   // sadece "eklenecek" işaretler
+    void Update(TEntity entity);     // sadece "değişti" işaretler
+    void Remove(TEntity entity);     // sadece "silinecek" işaretler
     Task<List<TEntity>> GetWhereAsync(Expression<Func<TEntity, bool>> predicate);
     Task<TEntity?> GetFirstAsync(Expression<Func<TEntity, bool>> predicate);
     Task<bool> AnyAsync(Expression<Func<TEntity, bool>> predicate);
     Task<int> CountAsync(Expression<Func<TEntity, bool>>? predicate = null);
-    IQueryable<TEntity> GetQueryable();
 }
 ```
 - `where TEntity : class`: generic kısıt; sadece referans tipleri (`Order`, `Product`...) kullanılabilir.
@@ -291,53 +290,132 @@ public interface IRepository<TEntity> where TEntity : class
   - `Func<Order,bool>` derlenmiş bir koddur. EF Core içine bakamaz; bütün tabloyu çekip RAM'de filtrelemek zorunda kalır.
   - `Expression<Func<Order,bool>>` bir **kod ağacıdır** (veri olarak kod). EF Core bu ağacı okuyup SQL `WHERE` cümlesine çevirir.
   - `GetFirstAsync(t => t.QrToken == token && t.IsActive)` → `SELECT TOP(1) ... WHERE QrToken = @token AND IsActive = 1`.
-- `GetQueryable()`: sorguyu **çalıştırmadan** döndürür. Servis üzerine `.Include(...).Where(...).OrderBy(...)` ekler, `ToListAsync()` denince tek bir SQL üretilir (**deferred execution**, ertelenmiş çalışma).
+- **Ekleme, güncelleme ve silme kaydetmez.** Bu metotlar sadece change tracker'a "bunu ekle/güncelle/sil" der. Veritabanına yazmak `IUnitOfWork.SaveChangesAsync()`'in işidir (aşağıda).
+- **`IQueryable` dışarı verilmez.** Eskiden arayüzde `GetQueryable()` vardı ve servisler üstüne `.Include(...).Where(...)` yazıyordu. Bu, BusinessLayer'ı EF Core'a bağlıyordu (repository soyutlaması "sızıyordu"). Artık her sorgu kendi repository metodunda yazılı (aşağıda "Tabloya özel repository'ler").
 
 ### `GenericRepository<TEntity>`
 ```csharp
 protected readonly CafeOrderDbContext _context;
-public async Task<List<TEntity>> GetAllAsync() => await _context.Set<TEntity>().ToListAsync();
-public async Task<TEntity?> GetByIdAsync(int id) => await _context.Set<TEntity>().FindAsync(id);
-public async Task CreateAsync(TEntity entity) { await _context.AddAsync(entity); await _context.SaveChangesAsync(); }
-public async Task UpdateAsync(TEntity entity) { _context.Update(entity); await _context.SaveChangesAsync(); }
-public async Task DeleteAsync(TEntity entity) { _context.Remove(entity); await _context.SaveChangesAsync(); }
+protected DbSet<TEntity> Set => _context.Set<TEntity>();
+
+public async Task<List<TEntity>> GetAllAsync() => await Set.ToListAsync();
+public async Task<TEntity?> GetByIdAsync(int id) => await Set.FindAsync(id);
+public async Task AddAsync(TEntity entity) => await Set.AddAsync(entity);
+public void Update(TEntity entity) => Set.Update(entity);
+public void Remove(TEntity entity) => Set.Remove(entity);
 ```
-- `_context.Set<TEntity>()`: generic olarak `DbSet`'e ulaşmanın yolu (`_context.Orders` yazamayız, çünkü T'nin ne olduğunu bilmiyoruz).
+- `_context.Set<TEntity>()`: generic olarak `DbSet`'e ulaşmanın yolu (`_context.Orders` yazamayız, çünkü T'nin ne olduğunu bilmiyoruz). `Set` property'si `protected`: sadece alt sınıflar (tabloya özel repository'ler) sorgu yazmak için kullanır.
 - `FindAsync(id)`: önce DbContext'in **hafızasına** (change tracker) bakar; bu istekte o kayıt zaten yüklendiyse SQL'e gitmez.
-- **Her metot kendi `SaveChangesAsync`'ini çağırıyor.** Basit ama bir sonucu var: bir iş birden fazla repository çağrısından oluşuyorsa her biri ayrı ayrı kaydedilir. Örnek: sipariş kaydedildikten sonra 3 observer 3 ayrı `CreateAsync` → 3 ayrı `SaveChanges` → 3 ayrı veritabanı turu. Alternatifi **Unit of Work** desenidir: repository'ler sadece ekler, en sonda tek bir `SaveChanges` çağrılır.
-- `protected` `_context`: alt sınıflar (`OrderRepository`) kullanabilsin diye.
+- `Update` ve `Remove` neden `async` değil? Veritabanına gitmiyorlar, sadece bellekteki durumu değiştiriyorlar. `AddAsync` ise EF Core'da async (bazı Id üreticileri için), o yüzden `Task` döndürüyor.
+
+### `IUnitOfWork`: bir iş = bir SaveChanges
+```csharp
+public interface IUnitOfWork
+{
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+}
+
+public class EfUnitOfWork : IUnitOfWork
+{
+    private readonly CafeOrderDbContext _context;
+    public EfUnitOfWork(CafeOrderDbContext context) { _context = context; }
+    public Task<int> SaveChangesAsync(CancellationToken ct = default) => _context.SaveChangesAsync(ct);
+}
+```
+(`DataAccessLayer/UnitOfWork/`.) Neden bu kadar basit bir sınıf var?
+
+- **Bütün repository'ler aynı DbContext'i paylaşıyor** (DbContext scoped, Bölüm 01). Bu yüzden `OrderRepository.AddAsync` ile `NotificationRepository.AddAsync`'in işaretledikleri aynı change tracker'da toplanıyor. `SaveChangesAsync` hepsini **tek seferde, tek transaction'da** yazıyor.
+- **Eskiden** her repository metodu kendi `SaveChangesAsync`'ini çağırıyordu. Sipariş verilince 1 kayıt sipariş için, sonra 3 observer için 3 ayrı kayıt daha yapılıyordu: 4 veritabanı turu ve bildirimler sipariş transaction'ının dışındaydı. Şimdi sipariş, kalemler, ilk durum kaydı, yeni müşteri ve 3 bildirim **tek** `SaveChanges` ile yazılıyor: ya hepsi ya hiçbiri.
+- **Servis ne zaman kaydedileceğine karar veriyor**, repository değil. Repository "veriye nasıl erişilir" bilir; "bu iş nerede bitiyor" iş kuralıdır.
+- Servis kodu EF Core'u görmüyor: `IUnitOfWork` arayüzü DataAccessLayer'da duruyor ama içinde EF Core tipi yok. Testte sahte bir `IUnitOfWork` vermek kolay.
+
+Kullanım (her servis aynı kalıbı izliyor):
+```csharp
+await _productRepository.AddAsync(product);   // işaretle
+await _unitOfWork.SaveChangesAsync();         // yaz
+```
 
 ### Change Tracker'ı anlamak (EF Core'un kalbi)
 DbContext yüklediği her entity'yi izler ve durumunu tutar: `Unchanged`, `Modified`, `Added`, `Deleted`. `SaveChanges` bu durumlara bakarak INSERT/UPDATE/DELETE üretir.
-- `GetByIdAsync` ile yüklenen kategori `Unchanged` durumundadır. `category.IsActive = false` yazdığında EF Core bunu fark eder ve `Modified` yapar.
-- `_context.Update(entity)` ise grafikteki **her şeyi** `Modified` işaretler; Id'si 0 olan yeni nesneleri ise `Added` yapar. Bölüm 05'te `ChangeStatusAsync`'te yeni `OrderStatusHistory` (Id=0) tam olarak bu sayede INSERT ediliyor.
+- `GetByIdAsync` ile yüklenen kategori `Unchanged` durumundadır. `category.IsActive = false` yazdığında EF Core bunu fark eder ve `Modified` yapar. **`Update` çağırmaya gerek yok**; servisler izlenen bir kaydı değiştirdikten sonra sadece `SaveChangesAsync` çağırıyor. Bu yüzden EF Core sadece değişen kolonu UPDATE ediyor.
+- İzlenen bir nesnenin listesine yeni bir nesne eklenirse (`order.StatusHistories.Add(history)`, Id = 0) EF Core onu `Added` yapar. Bölüm 05'te `ChangeStatusAsync` yeni durum kaydını bu sayede INSERT ediyor.
+- `Update(entity)` ise grafikteki **her şeyi** `Modified` işaretler; Id'si 0 olan yeni nesneleri `Added` yapar. Sadece izlenmeyen (başka bir yerden gelmiş) bir nesneyi kaydetmek için gerekir. Projede şu an kullanılmıyor ama generic arayüzde duruyor.
 
 ### Tabloya özel repository'ler
 ```csharp
-public interface ICategoryRepository : IRepository<Category> { }
-public class CategoryRepository : GenericRepository<Category>, ICategoryRepository
+public interface ITableRepository : IRepository<Table>
 {
-    public CategoryRepository(CafeOrderDbContext context) : base(context) { }
+    Task<List<Table>> GetAllWithOrdersAsync();
+    Task<Table?> GetWithOrdersAsync(int id);
+    Task<int> GetMaxNumberAsync();
 }
-```
-Boş görünüyorlar, neden varlar? İki sebebi var:
-1. DI'a `ICategoryRepository` olarak kaydediliyorlar. Servis "kategori repository'si istiyorum" diyor, "generic repository of Category" değil. Okunması daha net.
-2. Tabloya özel bir metot gerekince yeri hazır: `IOrderRepository` buna örnek.
 
-### `OrderRepository.CreateWithTransactionAsync`
-```csharp
-public async Task CreateWithTransactionAsync(Order order)
+public class TableRepository : GenericRepository<Table>, ITableRepository
 {
-    await using var transaction = await _context.Database.BeginTransactionAsync();
-    await _context.Orders.AddAsync(order);
-    await _context.SaveChangesAsync();
-    await transaction.CommitAsync();
+    public TableRepository(CafeOrderDbContext context) : base(context) { }
+
+    public async Task<List<Table>> GetAllWithOrdersAsync()
+        => await Set.Include(t => t.Orders).OrderBy(t => t.Number).ToListAsync();
+
+    public async Task<int> GetMaxNumberAsync()
+        => await Set.MaxAsync(t => (int?)t.Number) ?? 0;   // tablo boşsa 0
 }
 ```
-- `AddAsync(order)`: sadece siparişi değil, **bütün grafiği** `Added` yapar: `order.Details`, her kalemin `Options`'ı, `order.StatusHistories` ve yeni bir müşteriyse `order.Customer`.
-- `SaveChangesAsync`: EF Core sırayı çözer. Önce Customer INSERT edilir (Id alınır), sonra Order (CustomerId ile), sonra OrderDetails (OrderId ile), sonra OrderDetailOptions, sonra OrderStatusHistories.
-- `await using`: blok bitince transaction dispose edilir. `CommitAsync` çağrılmadan bir exception olursa dispose sırasında **rollback** yapılır.
-- **Dürüst not:** EF Core tek bir `SaveChanges`'i zaten otomatik olarak bir transaction içinde çalıştırır. Yani buradaki açık transaction teknik olarak aynı garantiyi verir. Açık yazılmış olması niyeti belli ediyor (case "transaction yaklaşımı" istiyor) ve ileride araya ikinci bir `SaveChanges` eklenirse (örneğin bildirimleri de aynı transaction'a almak) hazır olması açısından değerli.
+Her tablonun repository'si, o tablonun servislerinin ihtiyaç duyduğu sorguları **isimli metotlar** olarak sunuyor:
+
+| Repository | Özel metotlar |
+|---|---|
+| `ICategoryRepository` | `GetAllWithProductsAsync`, `GetActiveWithActiveProductsAsync` |
+| `IProductRepository` | `GetMenuAsync`, `GetFeaturedAsync`, `GetActiveByIdAsync`, `GetRelatedAsync`, `GetAdminListAsync`, `GetByIdsWithCategoryAsync` |
+| `ITableRepository` | `GetAllWithOrdersAsync`, `GetWithOrdersAsync`, `GetMaxNumberAsync` |
+| `ICustomerRepository` | `SearchWithOrdersAsync` |
+| `INotificationRepository` | `GetFilteredAsync`, `GetLatestAsync` |
+| `IOrderRepository` | `GetWithDetailsAsync`, `GetWithDetailsByOrderNoAsync`, `GetStatusCountsAsync`, `CountFilteredAsync`, `GetFilteredPageAsync`, `GetLatestAsync`, `CountSinceAsync`, `GetRevenueSinceAsync`, `GetBestSellersAsync`, `AnyContainingProductAsync` |
+
+Bunun üç faydası var:
+1. **`Include`, `Where`, `OrderBy` gibi EF Core kodu sadece DataAccessLayer'da.** BusinessLayer'da tek bir `using Microsoft.EntityFrameworkCore;` yok.
+2. Metot adı sorgunun ne yaptığını söylüyor (`GetActiveWithActiveProductsAsync`). Servis okunurken SQL ayrıntısı akışı bölmüyor.
+3. Aynı sorgu iki serviste tekrar yazılmıyor.
+
+`ProductOptionRepository` hâlâ boş: ihtiyacı olan tek şey `GetAllAsync`, o da generic sınıftan geliyor.
+
+### `OrderRepository`: rakamlar SQL'de hesaplanıyor
+Admin listesi ve paneldeki rakamlar eskiden bütün siparişler belleğe çekilerek C#'ta hesaplanıyordu. Artık her rakam ayrı, küçük bir SQL sorgusu:
+```csharp
+// Durumlara göre sayılar: tek GROUP BY
+var rows = await Set.GroupBy(o => o.Status)
+                    .Select(g => new { Status = g.Key, Count = g.Count() })
+                    .ToListAsync();
+
+// Ciro: iptaller hariç SUM
+await Set.Where(o => o.CreatedAt >= from && o.Status != OrderStatus.Cancelled)
+         .SumAsync(o => o.Total);
+
+// En çok satanlar: kalemler ürün adına göre gruplanır
+var rows = await _context.OrderDetails
+    .Where(d => d.Order.Status != OrderStatus.Cancelled)
+    .GroupBy(d => d.ProductName)
+    .Select(g => new { Name = g.Key, Quantity = g.Sum(d => d.Quantity), Revenue = g.Sum(d => d.LineTotal) })
+    .OrderByDescending(r => r.Quantity)
+    .Take(count)
+    .ToListAsync();
+return rows.Select(r => new ProductSales(r.Name, r.Quantity, r.Revenue)).ToList();
+```
+- En çok satanlar önce **anonim tipe** projeksiyon yapıp sıralanıyor, `ProductSales` kaydına (record) ancak liste belleğe geldikten sonra çevriliyor. Doğrudan `new ProductSales(...)` ile projeksiyon yapıp sonra `OrderBy` yazsaydık EF Core bir constructor çağrısının içine bakıp onu SQL'e çeviremeyebilirdi.
+- `ProductSales` DataAccessLayer'da duran küçük bir `record`. Repository DTO döndürmüyor (DataAccessLayer DtoLayer'ı tanımıyor); servis bunu `ResultBestSellerDto`'ya çeviriyor.
+- Liste sayfası iki sorgu kullanıyor: `CountFilteredAsync` (toplam, sayfa sayısı için) ve `GetFilteredPageAsync(..., skip, take)` (SQL `OFFSET ... FETCH`). İkisi de aynı özel `Filter(...)` metodunu kullanıyor, filtre bir kez yazılı.
+
+### Eski `CreateWithTransactionAsync` neden kaldırıldı?
+Eskiden sipariş şu metotla kaydediliyordu:
+```csharp
+await using var transaction = await _context.Database.BeginTransactionAsync();
+await _context.Orders.AddAsync(order);
+await _context.SaveChangesAsync();
+await transaction.CommitAsync();
+```
+İçinde **tek** bir `SaveChangesAsync` vardı ve EF Core tek bir `SaveChanges`'i zaten otomatik olarak bir transaction içinde çalıştırır. Yani açık transaction yeni bir garanti eklemiyordu. Asıl sorun, bildirimlerin bu transaction'ın **dışında** ayrı kayıtlarla yazılmasıydı. Unit of Work bunu çözüyor: sipariş ve bildirimler aynı `SaveChanges`'te.
+
+`AddAsync(order)` hâlâ **bütün grafiği** `Added` yapar: `order.Details`, her kalemin `Options`'ı, `order.StatusHistories` ve yeni bir müşteriyse `order.Customer`. `SaveChangesAsync` sırayı kendisi çözer: önce Customer (Id alınır), sonra Order, sonra OrderDetails, OrderDetailOptions, OrderStatusHistories ve Notifications.
 
 ---
 
@@ -346,4 +424,6 @@ public async Task CreateWithTransactionAsync(Order order)
 2. `DeleteBehavior.Restrict` olmasaydı kategori silindiğinde ne olurdu?
 3. `GetFirstAsync(x => ...)` neden `Expression<Func<...>>` alıyor? `Func` alsaydı ne değişirdi?
 4. Seed'de `product.Category = hot` atanırken `hot.Id` sıfır. Bu neden sorun değil?
-5. `CreateWithTransactionAsync` içindeki `SaveChangesAsync` kaç INSERT üretir? (İpucu: 3 kalemli, ilk kalemi 3 seçenekli, yeni müşterili bir teslimat siparişini düşün.)
+5. Sipariş verildiğinde tek `SaveChangesAsync` kaç INSERT üretir? (İpucu: 3 kalemli, ilk kalemi 3 seçenekli, yeni müşterili bir teslimat siparişini düşün; 3 bildirimi de unutma.)
+6. Repository'deki `AddAsync` neden kaydetmiyor? Kaydetseydi sipariş ve bildirimler neden aynı transaction'da olamazdı?
+7. `GetQueryable()` servislere verilseydi BusinessLayer'ın hangi pakete bağımlı olması gerekirdi?

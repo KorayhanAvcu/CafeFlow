@@ -8,16 +8,18 @@ namespace CafeOrder.WebUI.Areas.Admin.Controllers;
 
 /// <summary>
 /// Sipariş yönetimi: liste, detay, durum güncelleme.
-/// Filtreleme, sayfalama ve izinli durumların hesabı OrderService'te; controller sadece DTO alıp verir.
+/// Filtreleme, sayfalama ve izinli durumların hesabı OrderQueryService'te, durum değiştirme OrderService'te; controller sadece DTO alıp verir.
 /// </summary>
 [Route("admin/orders")]
 public class OrdersController : AdminControllerBase
 {
     private readonly IOrderService _orderService;
+    private readonly IOrderQueryService _orderQueryService;
 
-    public OrdersController(IOrderService orderService)
+    public OrdersController(IOrderService orderService, IOrderQueryService orderQueryService)
     {
         _orderService = orderService;
+        _orderQueryService = orderQueryService;
     }
 
     /// <summary>
@@ -27,14 +29,14 @@ public class OrdersController : AdminControllerBase
     [HttpGet("")]
     public async Task<IActionResult> Index(OrderFilterDto filter)
     {
-        return View(await _orderService.GetAdminListAsync(filter));
+        return View(await _orderQueryService.GetAdminListAsync(filter));
     }
 
     /// <summary>Sipariş detayı. ResultOrderDto.AllowedNextStatuses sayesinde sayfa sadece izinli durum düğmelerini gösterir.</summary>
     [HttpGet("{id:int}")]
     public async Task<IActionResult> Detail(int id)
     {
-        var order = await _orderService.GetByIdAsync(id);
+        var order = await _orderQueryService.GetByIdAsync(id);
         if (order == null)
         {
             return NotFound();
@@ -55,7 +57,7 @@ public class OrdersController : AdminControllerBase
         catch (BusinessException ex)
         {
             // Kural hatası (ör. izinsiz geçiş): detay sayfasını hata mesajıyla doğrudan göster.
-            var order = await _orderService.GetByIdAsync(id);
+            var order = await _orderQueryService.GetByIdAsync(id);
             if (order == null)
             {
                 return NotFound();

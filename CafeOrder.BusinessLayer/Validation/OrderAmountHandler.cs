@@ -2,6 +2,7 @@ using CafeOrder.BusinessLayer.Exceptions;
 using CafeOrder.BusinessLayer.Pricing;
 using CafeOrder.EntityLayer.Entities;
 using CafeOrder.EntityLayer.Enums;
+using Microsoft.Extensions.Options;
 
 namespace CafeOrder.BusinessLayer.Validation;
 
@@ -10,9 +11,9 @@ public class OrderAmountHandler : OrderValidationHandler
 {
     private readonly PricingOptions _options;
 
-    public OrderAmountHandler(PricingOptions options)
+    public OrderAmountHandler(IOptions<PricingOptions> options)
     {
-        _options = options;
+        _options = options.Value;
     }
 
     /// <summary>Halka 4: teslimat siparişinde ara toplamın en az sipariş tutarına (100 ₺) ulaştığını kontrol eder.</summary>

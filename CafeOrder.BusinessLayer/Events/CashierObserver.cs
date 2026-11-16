@@ -11,10 +11,12 @@ public class CashierObserver : IOrderObserver
     private static readonly CultureInfo Turkish = CultureInfo.GetCultureInfo("tr-TR");
 
     private readonly INotificationRepository _notificationRepository;
+    private readonly TimeProvider _time;
 
-    public CashierObserver(INotificationRepository notificationRepository)
+    public CashierObserver(INotificationRepository notificationRepository, TimeProvider time)
     {
         _notificationRepository = notificationRepository;
+        _time = time;
     }
 
     /// <summary>Yeni siparişte kasaya siparişin toplam tutarını bildirir.</summary>
@@ -32,14 +34,14 @@ public class CashierObserver : IOrderObserver
         }
     }
 
-    /// <summary>Notifications tablosuna bir kayıt ekler.</summary>
+    /// <summary>Bildirimi "eklenecek" işaretler; servis siparişle birlikte tek SaveChanges ile yazar.</summary>
     private async Task SendAsync(Order order, string message)
     {
         Notification notification = new Notification();
-        notification.OrderId = order.Id;
+        notification.Order = order;   // Id yeni siparişte henüz yok; EF kayıtta bağlar
         notification.Target = NotificationTarget.Cashier;
         notification.Message = message;
-        notification.CreatedAt = DateTime.Now;
-        await _notificationRepository.CreateAsync(notification);
+        notification.CreatedAt = _time.GetLocalNow().DateTime;
+        await _notificationRepository.AddAsync(notification);   // kayıt, siparişle aynı SaveChanges'te
     }
 }

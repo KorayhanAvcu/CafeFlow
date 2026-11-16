@@ -1,13 +1,15 @@
 # CafeFlow: Tasarım Desenleri
 
-Case'te listelenen 10 desenden **6 tanesi** uygulanmıştır: Strategy, Factory Method, Observer, State, Decorator ve Chain of Responsibility. Hepsi `CafeOrder.BusinessLayer` içindedir. Sipariş verme ve durum değiştirme akışlarında `OrderService` (`Services/Orders/OrderService.cs`) tarafından çalıştırılır.
+Case'te listelenen 10 desenden **6 tanesi** uygulanmıştır: Strategy, Factory Method, Observer, State, Decorator ve Chain of Responsibility. Hepsi `CafeOrder.BusinessLayer` içindedir. Sipariş verme ve durum değiştirme akışlarında `OrderService` (`Services/Orders/OrderService.cs`) tarafından çalıştırılır; fiyat hesabı `OrderPricingService`'tedir.
+
+Decorator ve State dışındaki desen sınıfları **Dependency Injection** ile bağlanır (`BusinessLayer/BusinessServiceRegistration.cs`). Servisler bu sınıfları `new` ile oluşturmaz; aynı arayüze yapılmış bütün kayıtları `IEnumerable<T>` olarak alır. Yeni bir kanal, kural veya dinleyici eklemek için yeni bir sınıf yazıp tek satırlık bir kayıt eklemek yeterlidir; servis kodu değişmez.
 
 ```text
 Sipariş verilirken (POST /cart/checkout → OrderService.PlaceOrderAsync)
-  Factory Method → Decorator → Strategy → Chain of Responsibility → kayıt (transaction) → Observer
+  Factory Method → Decorator → Strategy → Chain of Responsibility → Observer → tek kayıt (Unit of Work)
 
 Durum değişirken (POST /admin/orders/{id}/status → OrderService.ChangeStatusAsync)
-  State → durum geçmişi + kayıt → Observer
+  State → durum geçmişi → Observer → tek kayıt (Unit of Work)
 ```
 
 ---
@@ -22,7 +24,7 @@ Durum değişirken (POST /admin/orders/{id}/status → OrderService.ChangeStatus
 | `Pricing/BaseProductPrice` | En içteki katman: ürünün seçeneksiz fiyatı (`Product.BasePrice`) |
 | `Pricing/OptionPriceDecorator` | İçteki fiyatı sarar ve seçeneğin farkını (`ProductOption.PriceDelta`) ekler |
 
-**Tetiklendiği akış:** Sepet sayfası, sepet paneli ve sipariş kaydı. Hepsi `OrderService.CalculateOrderAsync` → `CalculateUnitPrice` üzerinden çalışır. Fiyatlar her seferinde veritabanından okunur; tarayıcıdan gelen fiyat kullanılmaz.
+**Tetiklendiği akış:** Sepet sayfası, sepet paneli ve sipariş kaydı. Hepsi `OrderPricingService.ApplyPricesAsync` → `CalculateUnitPrice` üzerinden çalışır. Decorator'lar `new` ile kurulur; bu doğrudur, çünkü servis değil, çalışma anındaki değerleri (fiyat, seçenek) saran nesnelerdir. Fiyatlar her seferinde veritabanından okunur; tarayıcıdan gelen fiyat kullanılmaz.
 
 ```text
 Vanilyalı Latte 160 → Büyük +30 → Yulaf Sütü +15 → Ekstra shot +20 → Krema +15 = 240 ₺
@@ -35,12 +37,14 @@ new OptionPriceDecorator(new OptionPriceDecorator(new OptionPriceDecorator(new O
 
 | Sınıf | Kural |
 |---|---|
-| `Pricing/Fees/IDeliveryFeeStrategy` | `decimal Calculate(decimal orderAmount)` |
-| `Pricing/Fees/DeliveryFeeStrategy` | 30 ₺; ara toplam 600 ₺ ve üzerindeyse ücretsiz (değerler `appsettings.json` → `Pricing`, `PricingOptions`) |
+| `Pricing/Fees/IDeliveryFeeStrategy` | `OrderChannel Channel { get; }`, `decimal Calculate(decimal orderAmount)` |
+| `Pricing/Fees/DeliveryFeeStrategy` | 30 ₺; ara toplam 600 ₺ ve üzerindeyse ücretsiz (değerler `appsettings.json` → `Pricing`, `IOptions<PricingOptions>` ile) |
 | `Pricing/Fees/PickupFeeStrategy` | 0 ₺ |
 | `Pricing/Fees/TableFeeStrategy` | 0 ₺ |
 
-**Tetiklendiği akış:** `OrderService.CalculateOrderAsync` içinde ara toplam hesaplandıktan sonra `GetFeeStrategy(order.Channel)` doğru stratejiyi seçer ve `DeliveryFee` ile `Total` hesaplanır. Müşteri sepette sipariş türünü değiştirdiğinde özet bu stratejiyle yeniden hesaplanır.
+**DI:** Üç strateji `IDeliveryFeeStrategy` olarak (Singleton) kayıtlıdır. `OrderPricingService` hepsini `IEnumerable<IDeliveryFeeStrategy>` olarak alır ve `Channel`'a göre bir sözlüğe koyar.
+
+**Tetiklendiği akış:** `OrderPricingService.ApplyPricesAsync` içinde ara toplam hesaplandıktan sonra `GetFeeStrategy(order.Channel)` sözlükten doğru stratejiyi seçer ve `DeliveryFee` ile `Total` hesaplanır. Müşteri sepette sipariş türünü değiştirdiğinde özet bu stratejiyle yeniden hesaplanır.
 
 ## 3. Factory Method: kanala göre sipariş nesnesi
 
@@ -48,10 +52,12 @@ new OptionPriceDecorator(new OptionPriceDecorator(new OptionPriceDecorator(new O
 
 | Sınıf | Görevi |
 |---|---|
-| `Creation/OrderCreator` (abstract) | `Create(form, table)`: ortak kısım + `CreateForChannel` (factory method) çağrısı |
+| `Creation/OrderCreator` (abstract) | `Channel`, `Create(form, table)`: ortak kısım + `CreateForChannel` (factory method) çağrısı. Saat `TimeProvider`'dan |
 | `Creation/DeliveryOrderCreator` | Müşteri, adres ve adres notu |
 | `Creation/PickupOrderCreator` | Müşteri ve alma saati |
 | `Creation/TableOrderCreator` | QR koduyla bulunan masa (`TableId`) |
+
+**DI:** Üç creator `OrderCreator` olarak (Singleton) kayıtlıdır. `OrderService` hepsini `IEnumerable<OrderCreator>` olarak alıp `Channel`'a göre seçer.
 
 **Tetiklendiği akış:** `OrderService.PlaceOrderAsync` → `GetCreator(form.Channel).Create(form, table)`. Kanal Session'dan gelir; masa siparişinde masa, veritabanındaki **aktif** bir masanın QR koduyla bulunur.
 
@@ -62,10 +68,13 @@ new OptionPriceDecorator(new OptionPriceDecorator(new OptionPriceDecorator(new O
 | Halka | Kontrol |
 |---|---|
 | `Validation/OrderValidationHandler` (abstract) | `SetNext`, `Handle`, `Check` |
+| `Validation/OrderValidationChain` | DI'dan gelen halkaları kayıt sırasıyla birbirine bağlar; `Validate(order)` |
 | 1. `ProductHandler` | Sepet boş mu, ürün ve kategorisi aktif mi, özelleştirilemeyen ürüne seçenek var mı, aynı gruptan iki seçenek var mı |
 | 2. `QuantityHandler` | Her satırda adet 1 ile 20 arasında mı |
 | 3. `ChannelInfoHandler` | Masa: geçerli QR. Teslimat ve gel-al: ad ve telefon. Teslimat: adres. Gel-al: ileri bir saat |
 | 4. `OrderAmountHandler` | Teslimatta ara toplam en az 100 ₺ mi |
+
+**DI:** Halkalar `OrderValidationHandler` olarak (Transient) kayıtlıdır; **kayıt sırası zincir sırasıdır**. `OrderService` sadece `IOrderValidationChain.Validate(order)` çağırır.
 
 **Tetiklendiği akış:** `OrderService.PlaceOrderAsync` içinde fiyat hesabından sonra, kayıttan önce. Hata olursa sipariş kaydedilmez; `CartController.Checkout` sepet sayfasını, girilen bilgiler kaybolmadan hata mesajıyla tekrar gösterir.
 
@@ -87,21 +96,21 @@ Cancelled   Cancelled            (Delivered ve Cancelled son durumdur)
 | `ReadyState` | Delivered |
 | `DeliveredState`, `CancelledState` | (yok) |
 
-**Tetiklendiği akış:** Admin sipariş detayındaki durum düğmeleri → `OrdersController.ChangeStatus` → `OrderService.ChangeStatusAsync`. İzinsiz geçiş `BusinessException` ile reddedilir. İzinli geçişte `OrderStatusHistories` tablosuna "önceki → yeni" kaydı (isteğe bağlı notla) eklenir. Detay sayfası düğmeleri de `GetAllowedNext()` sonucuna göre gösterir.
+**Tetiklendiği akış:** Admin sipariş detayındaki durum düğmeleri → `OrdersController.ChangeStatus` → `OrderService.ChangeStatusAsync`. İzinsiz geçiş `BusinessException` ile reddedilir. İzinli geçişte `OrderStatusHistories` tablosuna "önceki → yeni" kaydı (isteğe bağlı notla) eklenir. Detay sayfası düğmeleri de `GetAllowedNext()` sonucuna göre gösterir (`OrderQueryService.GetByIdAsync` bunu DTO'ya koyar). Durum sınıfları bağımlılıksız olduğu için DI yerine `OrderState.For(status)` statik factory'si ile alınır.
 
 ## 6. Observer: mutfak, kasa ve admin bildirimleri
 
-**Amaç:** Sipariş verildiğinde veya durumu değiştiğinde ilgili bileşenleri, `OrderService` onları tek tek tanımadan haberdar etmek. Yeni bir dinleyici (örneğin SMS) yalnızca `Program.cs`'e kayıt eklenerek bağlanır.
+**Amaç:** Sipariş verildiğinde veya durumu değiştiğinde ilgili bileşenleri, `OrderService` onları tek tek tanımadan haberdar etmek. Yeni bir dinleyici (örneğin SMS) yalnızca `BusinessServiceRegistration`'a kayıt eklenerek bağlanır.
 
 | Sınıf | Görevi |
 |---|---|
 | `Events/IOrderObserver` | `OrderPlacedAsync`, `StatusChangedAsync` |
-| `Events/OrderEventPublisher` | DI'dan gelen bütün dinleyicilere olayı iletir; bir dinleyici hata verirse loglar, diğerleri yine haber alır |
+| `Events/IOrderEventPublisher`, `OrderEventPublisher` | DI'dan gelen bütün dinleyicilere olayı iletir; bir dinleyici hata verirse loglar, diğerleri yine haber alır |
 | `Events/KitchenObserver` | Yeni siparişte hazırlanacak ürün sayısı; iptalde "hazırlamayı durdur" |
 | `Events/CashierObserver` | Yeni siparişte toplam tutar; teslimde "teslim edildi" |
 | `Events/AdminObserver` | Her yeni sipariş ve her durum değişikliği. Panelin zil simgesinde ve Bildirimler sayfasında görünür |
 
-**Tetiklendiği akış:** `PlaceOrderAsync` sonunda `OrderPlacedAsync`, `ChangeStatusAsync` sonunda `StatusChangedAsync`. Bildirimler `Notifications` tablosuna yazılır (gerçek SMS/e-posta yerine simülasyon).
+**Tetiklendiği akış:** `PlaceOrderAsync` içinde `OrderPlacedAsync`, `ChangeStatusAsync` içinde `StatusChangedAsync`. Dinleyiciler bildirimleri sadece "eklenecek" işaretler; servis siparişle birlikte **tek `SaveChanges`** ile (Unit of Work) `Notifications` tablosuna yazar. Sipariş ve bildirimleri ya birlikte kaydedilir ya hiçbiri (gerçek SMS/e-posta yerine simülasyon).
 
 ---
 

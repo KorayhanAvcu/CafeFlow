@@ -1,9 +1,9 @@
 using MapsterMapper;
 using CafeOrder.DataAccessLayer.Repositories.Notifications;
+using CafeOrder.DataAccessLayer.UnitOfWork;
 using CafeOrder.DtoLayer.Dtos.NotificationDtos;
 using CafeOrder.EntityLayer.Entities;
 using CafeOrder.EntityLayer.Enums;
-using Microsoft.EntityFrameworkCore;
 
 namespace CafeOrder.BusinessLayer.Services.Notifications;
 
@@ -13,29 +13,20 @@ namespace CafeOrder.BusinessLayer.Services.Notifications;
 public class NotificationService : INotificationService
 {
     private readonly INotificationRepository _notificationRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
 
-    public NotificationService(INotificationRepository notificationRepository, IMapper mapper)
+    public NotificationService(INotificationRepository notificationRepository, IUnitOfWork unitOfWork, IMapper mapper)
     {
         _notificationRepository = notificationRepository;
+        _unitOfWork = unitOfWork;
         _mapper = mapper;
     }
 
     /// <summary>Bildirimler sayfası. target null ise hepsi; unreadOnly true ise sadece okunmamışlar.</summary>
     public async Task<List<ResultNotificationDto>> GetAllAsync(NotificationTarget? target, bool unreadOnly)
     {
-        IQueryable<Notification> query = _notificationRepository.GetQueryable().Include(n => n.Order);
-
-        if (target != null)
-        {
-            query = query.Where(n => n.Target == target);
-        }
-        if (unreadOnly)
-        {
-            query = query.Where(n => !n.IsRead);
-        }
-
-        var notifications = await query.OrderByDescending(n => n.Id).ToListAsync();
+        var notifications = await _notificationRepository.GetFilteredAsync(target, unreadOnly);
         return _mapper.Map<List<ResultNotificationDto>>(notifications);
     }
 
@@ -59,12 +50,7 @@ public class NotificationService : INotificationService
     /// <summary>Üst çubuktaki zil için son birkaç bildirim.</summary>
     public async Task<List<ResultNotificationDto>> GetLatestAsync(NotificationTarget target, int count)
     {
-        var notifications = await _notificationRepository.GetQueryable()
-            .Include(n => n.Order)
-            .Where(n => n.Target == target)
-            .OrderByDescending(n => n.Id)
-            .Take(count)
-            .ToListAsync();
+        var notifications = await _notificationRepository.GetLatestAsync(target, count);
 
         return _mapper.Map<List<ResultNotificationDto>>(notifications);
     }
@@ -95,7 +81,8 @@ public class NotificationService : INotificationService
         foreach (Notification notification in unread)
         {
             notification.IsRead = true;
-            await _notificationRepository.UpdateAsync(notification);
         }
+        // Hepsi tek SaveChanges ile (eskiden her bildirim için ayrı bir kayıt yapılıyordu).
+        await _unitOfWork.SaveChangesAsync();
     }
 }

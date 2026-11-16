@@ -6,10 +6,11 @@ namespace CafeOrder.BusinessLayer.Events;
 
 /// <summary>
 /// OBSERVER deseni: olayı bütün dinleyicilere (mutfak, kasa, admin) iletir.
-/// Dinleyiciler Program.cs'te kayıtlıdır; DI hepsini liste olarak verir.
+/// Dinleyiciler BusinessServiceRegistration'da kayıtlıdır; DI hepsini liste olarak verir.
+/// Dinleyiciler bildirimleri sadece "eklenecek" işaretler; servis siparişle birlikte tek SaveChanges ile yazar.
 /// Bir dinleyici hata verirse loglanır, diğerleri yine haber alır.
 /// </summary>
-public class OrderEventPublisher
+public class OrderEventPublisher : IOrderEventPublisher
 {
     private readonly IEnumerable<IOrderObserver> _observers;
     private readonly ILogger<OrderEventPublisher> _logger;
@@ -47,7 +48,7 @@ public class OrderEventPublisher
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Notification failed for order {OrderNo}", order.OrderNo);
+                _logger.LogError(ex, "{OrderNo} siparişi için bildirim yazılamadı", order.OrderNo);
             }
         }
     }

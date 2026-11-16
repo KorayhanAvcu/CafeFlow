@@ -7,6 +7,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- IOptions, IConfiguration, DI extension'ları ve Options doğrulaması (indirme gerektirmez, SDK'da var). -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Mapster" Version="10.0.14" />
     <PackageReference Include="Mapster.DependencyInjection" Version="10.0.14" />
   </ItemGroup>

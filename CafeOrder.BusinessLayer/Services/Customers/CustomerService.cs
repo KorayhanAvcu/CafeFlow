@@ -1,8 +1,6 @@
 using MapsterMapper;
 using CafeOrder.DataAccessLayer.Repositories.Customers;
 using CafeOrder.DtoLayer.Dtos.CustomerDtos;
-using CafeOrder.EntityLayer.Entities;
-using Microsoft.EntityFrameworkCore;
 
 namespace CafeOrder.BusinessLayer.Services.Customers;
 
@@ -21,14 +19,7 @@ public class CustomerService : ICustomerService
     /// <summary>Sipariş sayısı, toplam harcama ve son sipariş tarihi GeneralMapping'de hesaplanır.</summary>
     public async Task<List<ResultCustomerDto>> GetAllAsync(string? search)
     {
-        IQueryable<Customer> query = _customerRepository.GetQueryable().Include(c => c.Orders);
-
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            query = query.Where(c => c.FullName.Contains(search) || c.Phone.Contains(search));
-        }
-
-        var customers = await query.OrderBy(c => c.FullName).ToListAsync();
+        var customers = await _customerRepository.SearchWithOrdersAsync(search);
         return _mapper.Map<List<ResultCustomerDto>>(customers);
     }
 }

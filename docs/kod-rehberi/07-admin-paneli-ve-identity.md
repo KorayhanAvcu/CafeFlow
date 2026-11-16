@@ -244,30 +244,30 @@ public async Task<IActionResult> ChangePassword([Bind(Prefix = "Password")] Chan
 [HttpGet("")]
 public async Task<IActionResult> Index()
 {
-    return View(await _orderService.GetDashboardAsync());
+    return View(await _dashboardService.GetDashboardAsync());
 }
 ```
-Controller tek satır. Bütün rakamlar `OrderService.GetDashboardAsync` içinde hesaplanıp `ResultDashboardDto` olarak dönüyor:
+Controller tek satır ve sadece `IDashboardService` istiyor. Bütün rakamlar `DashboardService.GetDashboardAsync` içinde hesaplanıp `ResultDashboardDto` olarak dönüyor:
 ```csharp
-dashboard.TodayOrders  = orders.Count(o => o.CreatedAt >= today);
-dashboard.TodayRevenue = notCancelled.Where(o => o.CreatedAt >= today).Sum(o => o.Total);
-dashboard.WeekRevenue  = notCancelled.Where(o => o.CreatedAt >= weekStart).Sum(o => o.Total);   // bugün dahil son 7 gün
-dashboard.OpenOrders   = orders.Count(o => o.Status == Received || o.Status == Preparing || o.Status == Ready);
-foreach (OrderStatus status in Enum.GetValues<OrderStatus>())
-    dashboard.StatusCounts[status] = orders.Count(o => o.Status == status);
-dashboard.BestSellers = notCancelled
-    .SelectMany(o => o.Details)          // bütün siparişlerin bütün kalemleri tek liste
-    .GroupBy(d => d.ProductName)         // ürün adına göre grupla
-    .Select(g => new ResultBestSellerDto { Name = g.Key, Quantity = g.Sum(d => d.Quantity), Revenue = g.Sum(d => d.LineTotal) })
-    .OrderByDescending(r => r.Quantity)
-    .Take(5)
-    .ToList();
-dashboard.LatestOrders = orders.Take(6).ToList();
+DateTime today = _time.GetLocalNow().Date;
+DateTime weekStart = today.AddDays(-6);                                              // bugün dahil son 7 gün
+
+dashboard.TodayOrders  = await _orderRepository.CountSinceAsync(today);              // SQL COUNT
+dashboard.TodayRevenue = await _orderRepository.GetRevenueSinceAsync(today);         // SQL SUM, iptaller hariç
+dashboard.WeekRevenue  = await _orderRepository.GetRevenueSinceAsync(weekStart);
+dashboard.StatusCounts = await _orderQueryService.GetStatusCountsAsync();            // SQL GROUP BY
+dashboard.OpenOrders   = dashboard.StatusCounts[OrderStatus.Received]
+                       + dashboard.StatusCounts[OrderStatus.Preparing]
+                       + dashboard.StatusCounts[OrderStatus.Ready];
+var bestSellers = await _orderRepository.GetBestSellersAsync(5);                    // SQL GROUP BY + TOP 5
+dashboard.BestSellers = bestSellers.Select(b => new ResultBestSellerDto { Name = b.ProductName, ... }).ToList();
+dashboard.LatestOrders = _mapper.Map<List<ResultOrderDto>>(await _orderRepository.GetLatestAsync(6));
 ```
-- İptal edilen siparişler sayılıyor ama **ciroya katılmıyor**.
-- `Enum.GetValues<T>()`: enum'un bütün değerleri; yeni bir durum eklenirse panele kendiliğinden gelir.
-- En çok satanlar LINQ ile tek ifadede: `SelectMany` (düzleştir) → `GroupBy` (grupla) → `Select` (her grup için bir satır) → sırala → ilk 5.
-- Hesaplar RAM'de yapılıyor. Az veride sorun değil; çok veride SQL'e taşınmalı.
+- İptal edilen siparişler sayılıyor ama **ciroya ve en çok satanlara katılmıyor** (repository sorgularında `Status != Cancelled`).
+- `OpenOrders` ayrı bir sorgu değil: zaten gelen durum sayılarından toplanıyor.
+- En çok satanların sorgusu `OrderRepository.GetBestSellersAsync`'te (Bölüm 02): `OrderDetails` → `GroupBy(ProductName)` → `Sum` → sırala → ilk 5, hepsi SQL'de.
+- **Eskiden** bütün siparişler kalemleriyle birlikte belleğe çekilip bu rakamlar LINQ ile C#'ta hesaplanıyordu. Şimdi veritabanından sadece rakamlar ve son 6 sipariş geliyor. Sipariş sayısı arttıkça panel yavaşlamıyor.
+- `await`'ler sırayla yazılmış; `Task.WhenAll` ile paralel çalıştırılmamış. Bilinçli: hepsi aynı DbContext'i kullanıyor ve DbContext aynı anda iki sorguyu kaldırmaz (thread-safe değil).
 
 View'ın modeli `ResultDashboardDto`; `ViewBag` kullanılmıyor.
 
@@ -280,26 +280,27 @@ View'ın modeli `ResultDashboardDto`; `ViewBag` kullanılmıyor.
 [HttpGet("")]
 public async Task<IActionResult> Index(OrderFilterDto filter)
 {
-    return View(await _orderService.GetAdminListAsync(filter));
+    return View(await _orderQueryService.GetAdminListAsync(filter));
 }
 ```
 - `?status=Received&channel=Table&q=CF-12&page=2` adres çubuğundan **`OrderFilterDto`'ya** doluyor (model binding metni enum'a da çeviriyor; geçersiz değer `null` olur).
-- `OrderService.GetAdminListAsync`:
-  1. Üstteki kartlar için her durumdaki sipariş sayısı (**filtreden önce**).
-  2. Durum, kanal ve arama filtresi. Arama sipariş no, müşteri adı veya telefonda; büyük/küçük harf fark etmez.
-  3. **Sayfalama:** `TotalPages = Math.Max(1, (int)Math.Ceiling(count / 10.0))`; 23 sipariş → 3 sayfa. `(double)` dönüşümü önemli: `23 / 10` tam sayı bölmesi olup 2 verirdi. Sayfa numarası `Math.Clamp` ile 1 ile son sayfa arasına sıkıştırılır (`?page=99` son sayfayı gösterir). `Skip((page - 1) * 10).Take(10)`.
+- `OrderQueryService.GetAdminListAsync` (Bölüm 05):
+  1. Üstteki kartlar için her durumdaki sipariş sayısı (**filtreden önce**, SQL `GROUP BY`).
+  2. Durum, kanal ve arama filtresi. Arama sipariş no, müşteri adı veya telefonda; büyük/küçük harf fark etmez (SQL Server collation). Filtre `OrderRepository.Filter(...)` içinde, SQL'de uygulanıyor.
+  3. **Sayfalama:** `TotalPages = Math.Max(1, (int)Math.Ceiling(total / (double)10))`; 23 sipariş → 3 sayfa. `(double)` dönüşümü önemli: `23 / 10` tam sayı bölmesi olup 2 verirdi. Sayfa numarası `Math.Clamp` ile 1 ile son sayfa arasına sıkıştırılır (`?page=99` son sayfayı gösterir). `Skip((page - 1) * 10).Take(10)` SQL'de `OFFSET ... FETCH` olur; veritabanından sadece bu sayfanın 10 siparişi gelir.
   4. Sonuç `ResultOrderListDto`: bu sayfanın siparişleri, durum sayıları, filtre, toplam ve sayfa sayısı.
 - **Specification deseni ile ilişkisi:** Case'teki "tarih, durum, tutar ve kanala göre tekrar kullanılabilir filtre kuralları" maddesinin karşılığı bu filtreler. Specification uygulansaydı her biri bir sınıf olur, birleştirilebilir olur ve SQL'e çevrilirdi.
 
 ### Detail: State'in arayüz tarafı
 ```csharp
-var order = await _orderService.GetByIdAsync(id);
+var order = await _orderQueryService.GetByIdAsync(id);
 if (order == null) return NotFound();
 return View(order);
 ```
+`OrdersController` iki servis istiyor: okuma için `IOrderQueryService`, durum değiştirmek için `IOrderService`.
 İzinli sonraki durumları artık **servis** hesaplıyor ve DTO'ya koyuyor:
 ```csharp
-// OrderService.GetByIdAsync
+// OrderQueryService.GetByIdAsync
 dto.AllowedNextStatuses = OrderState.For(order.Status).GetAllowedNext();
 ```
 View sadece bu listedeki durumların düğmesini çiziyor:
@@ -323,7 +324,7 @@ try
 }
 catch (BusinessException ex)
 {
-    var order = await _orderService.GetByIdAsync(id);
+    var order = await _orderQueryService.GetByIdAsync(id);
     if (order == null) return NotFound();
     ViewBag.Error = ex.Message;
     return View("Detail", order);
@@ -436,9 +437,9 @@ public async Task SaveAsync(UpdateCategoryDto dto)
 public async Task<IViewComponentResult> InvokeAsync(string activePage)
 {
     ViewBag.ActivePage = activePage;
-    ViewBag.CategoryCount = (await _categoryService.GetAllAsync()).Count;
-    ViewBag.ProductCount  = (await _productService.GetAllAsync()).Count;
-    ViewBag.NewOrderCount = await _orderService.CountByStatusAsync(OrderStatus.Received);
+    ViewBag.CategoryCount = await _categoryService.CountAsync();                          // SELECT COUNT(*)
+    ViewBag.ProductCount  = await _productService.CountAsync();                           // SELECT COUNT(*)
+    ViewBag.NewOrderCount = await _orderQueryService.CountByStatusAsync(OrderStatus.Received);
     ViewBag.UnreadCount   = await _notificationService.CountUnreadAsync(NotificationTarget.Admin);
     string? fullName = UserClaimsPrincipal.FindFirst(AppClaimsPrincipalFactory.FullNameClaim)?.Value;
     ViewBag.UserName = fullName ?? "Admin";
@@ -447,7 +448,7 @@ public async Task<IViewComponentResult> InvokeAsync(string activePage)
 ```
 Ekran görüntüsündeki rozetler: Categories **8**, Products **20**, Orders **1** (yeni), Notifications **18**.
 
-**Verimsizlik:** Sadece sayıları göstermek için bütün kategoriler (ürünleriyle birlikte!) ve bütün ürünler çekiliyor. Bu her admin sayfasında oluyor. `_categoryRepository.CountAsync()` gibi bir `CountAsync` metodu servise eklenirse tek bir `SELECT COUNT(*)` yeterli olurdu. Bu, "çalışıyor ama ölçeklenmez" kodu fark etmek için güzel bir örnek.
+**Eskiden burada bir verimsizlik vardı:** Sadece sayıları göstermek için `GetAllAsync()` ile bütün kategoriler (ürünleriyle birlikte!) ve bütün ürünler çekilip `.Count` alınıyordu, hem de her admin sayfasında. Servislere `CountAsync()` eklendi; artık her sayı tek bir `SELECT COUNT(*)`. Bu, "çalışıyor ama ölçeklenmez" kodu fark etmek için güzel bir örnek.
 
 ### AdminNotificationsViewComponent
 ```csharp
@@ -483,5 +484,5 @@ Neden view içinde `@if` zincirleri değil de statik bir sınıf? Aynı eşleme 
 3. Logout ve Delete neden GET değil?
 4. User Secrets'taki admin şifresini değiştirmek mevcut admin'in şifresini neden değiştirmiyor?
 5. `[Bind(Prefix = "Password")]` olmasaydı `ChangePassword` action'ı formdaki değerleri neden alamazdı?
-6. Sidebar'daki sayılar her sayfada kaç SQL sorgusu üretiyor? Nasıl azaltırdın?
+6. Sidebar'daki sayılar her sayfada kaç SQL sorgusu üretiyor? Eskiden ne kadar veri çekiliyordu? Daha da azaltmak için ne yapardın (ipucu: önbellek)?
 7. Admin sipariş listesindeki filtreleri Specification deseniyle nasıl yazardın?

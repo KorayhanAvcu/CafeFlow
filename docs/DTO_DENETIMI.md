@@ -14,7 +14,7 @@ WebUI (controller, view)  ──DTO──►  BusinessLayer (servis, desenler)  
 | Kontrol | Sonuç |
 |---|---|
 | WebUI'da `EntityLayer.Entities` kullanan dosyalar | Sadece 4 dosya ve hepsi `AppUser` için: `Program.cs` (Identity kaydı), `AccountController` (giriş), `AdminAccountSeeder` (ilk admin), `AppClaimsPrincipalFactory` (çereze ad yazma). Başka hiçbir entity WebUI'da kullanılmıyor. |
-| WebUI'da repository veya `DbContext` isteyen sınıf | **Yok.** Controller'lar ve view component'ler sadece servis arayüzlerini (`IOrderService` vb.) istiyor. DataAccessLayer sadece `Program.cs`'te kayıt için görünüyor. |
+| WebUI'da repository veya `DbContext` isteyen sınıf | **Yok.** Controller'lar ve view component'ler sadece servis arayüzlerini (`IOrderService`, `IOrderQueryService` vb.) istiyor. DataAccessLayer sadece `Program.cs`'te `AddDataAccessLayer(...)` çağrısı ve Identity'nin `CafeOrderDbContext`'i için görünüyor. |
 | Servis arayüzlerinin aldığı ve döndürdüğü tipler | Hepsi DTO (`CreateXDto`, `UpdateXDto`, `ResultXDto`, `CartItemDto`, `CreateOrderDto`), enum (`OrderStatus` vb.) veya basit tip (`int`, `bool`, `string`). **Hiçbir servis entity almıyor veya döndürmüyor.** |
 | View'ların modelleri (`@model`) | Hepsi DTO veya basit tip: `ResultOrderDto`, `List<ResultProductDto>`, `UpdateCategoryDto`, `LoginUserDto`, `ResultAccountDto`, `int`, `ErrorViewModel`. |
 | `ViewBag` ile view'a giden veriler | DTO listeleri, enum'lar, sayılar ve metinler. `ViewBag.Category` ve `ViewBag.Table` sadece değişken adı: içlerinde kategori slug'ı/Id'si ve `ResultTableDto` var. |
@@ -22,10 +22,10 @@ WebUI (controller, view)  ──DTO──►  BusinessLayer (servis, desenler)  
 | Sayfa DTO'ları | Birden fazla veri gösteren sayfaların tek bir DTO'su var: `ResultCartDto` (sepet), `ResultDashboardDto` (panel), `ResultOrderListDto` (sipariş listesi), `ResultNotificationPageDto` (bildirimler). |
 
 ### Entity'lerin kullanıldığı yer neden doğru?
-Desenler (Factory Method, Decorator, Strategy, Chain, State, Observer) BusinessLayer içinde `Order`, `OrderDetail`, `Product` entity'leri üzerinde çalışır. Bu bilinçli bir tercih: EF Core sadece entity'leri tanır ve izler (change tracking). Sipariş tek transaction'da kaydedilirken müşteri, kalemler ve seçeneklerle birlikte bütün nesne grafiği entity olmak zorunda. Servis işini entity'lerle yapar, dışarıya sonucu Mapster ile DTO'ya çevirip verir.
+Desenler (Factory Method, Decorator, Strategy, Chain, State, Observer) BusinessLayer içinde `Order`, `OrderDetail`, `Product` entity'leri üzerinde çalışır. Bu bilinçli bir tercih: EF Core sadece entity'leri tanır ve izler (change tracking). Sipariş tek transaction'da (Unit of Work) kaydedilirken müşteri, kalemler, seçenekler ve bildirimlerle birlikte bütün nesne grafiği entity olmak zorunda. Servis işini entity'lerle yapar, dışarıya sonucu Mapster ile DTO'ya çevirip verir.
 
 ### State ve arayüz
-Admin sipariş detayındaki izinli durum düğmeleri için gereken liste `OrderService.GetByIdAsync` içinde hesaplanıp `ResultOrderDto.AllowedNextStatuses` olarak geliyor. WebUI State sınıfını hiç tanımıyor.
+Admin sipariş detayındaki izinli durum düğmeleri için gereken liste `OrderQueryService.GetByIdAsync` içinde hesaplanıp `ResultOrderDto.AllowedNextStatuses` olarak geliyor. WebUI State sınıfını hiç tanımıyor.
 
 ---
 
@@ -37,6 +37,7 @@ Bütün metotların kodda da Türkçe `/// <summary>` açıklaması var (302 met
 | Metot | Ne yapar | Alır | Döndürür |
 |---|---|---|---|
 | `GetAllAsync` | Admin listesi: bütün kategoriler, ürün sayılarıyla | — | `List<ResultCategoryDto>` |
+| `CountAsync` | Kategori sayısı (admin menüsü rozeti) | — | `int` |
 | `GetActiveAsync` | Müşteri menüsü: aktif kategoriler, aktif ürün sayılarıyla | — | `List<ResultCategoryDto>` |
 | `GetActiveWithProductsAsync` | Ana sayfa: ürünü olan aktif kategoriler | — | `List<ResultCategoryDto>` |
 | `GetFormAsync` | Admin formu: id null → boş form (Id 0), değilse dolu form | `int?` | `UpdateCategoryDto` |
@@ -55,7 +56,8 @@ Bütün metotların kodda da Türkçe `/// <summary>` açıklaması var (302 met
 | `GetRelatedAsync` | Aynı kategoriden diğer ürünler | `int`, `int`, `int` | `List<ResultProductDto>` |
 | `GetOptionsAsync` | Boyut, süt, shot, krema, şurup seçenekleri | — | `List<ResultProductOptionDto>` |
 | `GetAllAsync` | Admin listesi: bütün ürünler | — | `List<ResultProductDto>` |
-| `GetAdminListAsync` | Admin listesi, kategori ve ada göre filtreli | `int?`, `string?` | `List<ResultProductDto>` |
+| `CountAsync` | Ürün sayısı (admin menüsü rozeti) | — | `int` |
+| `GetAdminListAsync` | Admin listesi, kategori ve ada göre filtreli (filtre SQL'de) | `int?`, `string?` | `List<ResultProductDto>` |
 | `GetFormAsync` | Admin formu: id null → boş form, değilse dolu form | `int?` | `UpdateProductDto` |
 | `SaveAsync` | Kaydet: Id 0 → ekle, değilse güncelle | `UpdateProductDto` | — |
 | `CreateAsync` | Yeni ürün (fiyat, rozet, kategori, isim kuralları) | `CreateProductDto` | — |
@@ -90,23 +92,42 @@ Bütün metotların kodda da Türkçe `/// <summary>` açıklaması var (302 met
 | `CountUnreadAsync` | Okunmamış sayısı | `NotificationTarget?` | `int` |
 | `MarkAllReadAsync` | Okunmamışları okundu yapar | `NotificationTarget?` | — |
 
-### IOrderService / OrderService
+### Sipariş servisleri
+Sipariş işleri dört servise bölünmüştür (ayrıntı: kod rehberi Bölüm 05).
+
+**IOrderQueryService / OrderQueryService** (okuma)
+
 | Metot | Ne yapar | Alır | Döndürür |
 |---|---|---|---|
-| `GetAllAsync` | Bütün siparişler, en yeni en üstte | — | `List<ResultOrderDto>` |
-| `GetAdminListAsync` | Admin listesi: filtre, arama, 10'arlı sayfalama, durum sayıları | `OrderFilterDto` | `ResultOrderListDto` |
-| `GetDashboardAsync` | Panel: bugünkü sipariş/ciro, açık sipariş, son 7 gün, durum sayıları, en çok satanlar, son 6 sipariş | — | `ResultDashboardDto` |
+| `GetAdminListAsync` | Admin listesi: filtre, arama, 10'arlı sayfalama, durum sayıları (hepsi SQL'de) | `OrderFilterDto` | `ResultOrderListDto` |
 | `GetByIdAsync` | Sipariş; kalemleri, seçenekleri, geçmişi ve izinli sonraki durumlarıyla (State) | `int` | `ResultOrderDto?` |
 | `GetByOrderNoAsync` | Sipariş numarasıyla (onay sayfası) | `string` | `ResultOrderDto?` |
 | `CountByStatusAsync` | Bir durumdaki sipariş sayısı | `OrderStatus` | `int` |
+| `GetStatusCountsAsync` | Her durumun sipariş sayısı (siparişi olmayan durumlar 0) | — | `Dictionary<OrderStatus, int>` |
+
+**IOrderPricingService / OrderPricingService** (fiyat)
+
+| Metot | Ne yapar | Alır | Döndürür |
+|---|---|---|---|
 | `CalculateAsync` | Sepeti **kaydetmeden** fiyatlandırır (Decorator + Strategy) | `OrderChannel`, `List<CartItemDto>` | `ResultOrderDto` |
-| `PlaceOrderAsync` | Sipariş verir: Factory Method → Decorator + Strategy → Chain → transaction → Observer | `CreateOrderDto`, `List<CartItemDto>`, `string?` (QR) | `ResultOrderDto` |
-| `ChangeStatusAsync` | Durum değiştirir: State kontrolü → geçmiş kaydı → Observer | `int`, `OrderStatus`, `string?` | — |
-| `CalculateOrderAsync` *(private)* | Asıl hesap: fiyatları veritabanından okur, kalemleri kurar, ara toplam ve ücreti hesaplar | `Order`, `List<CartItemDto>` | — |
+| `ApplyPricesAsync` | Asıl hesap: fiyatları veritabanından okur, kalemleri kurar, ara toplam ve ücreti hesaplar | `Order`, `List<CartItemDto>` | — |
 | `CalculateUnitPrice` *(private)* | Decorator: taban fiyatı her seçenekle sarar | `Product`, `List<ProductOption>` | `decimal` |
-| `GetFeeStrategy` *(private)* | Strategy: kanala uygun ücret sınıfını seçer | `OrderChannel` | `IDeliveryFeeStrategy` |
-| `GetCreator` *(private)* | Factory Method: kanala uygun yaratıcıyı seçer | `OrderChannel` | `OrderCreator` |
-| `OrdersWithDetails` *(private)* | Siparişi bütün ilişkileriyle getiren ortak sorgu | — | `IQueryable<Order>` |
+| `GetFeeStrategy` *(private)* | Strategy: DI'dan gelen stratejilerden kanala uygun olanı seçer | `OrderChannel` | `IDeliveryFeeStrategy` |
+
+**IOrderService / OrderService** (değiştirme)
+
+| Metot | Ne yapar | Alır | Döndürür |
+|---|---|---|---|
+| `PlaceOrderAsync` | Sipariş verir: Factory Method → Decorator + Strategy → Chain → Observer → tek kayıt (Unit of Work) | `CreateOrderDto`, `List<CartItemDto>`, `string?` (QR) | `ResultOrderDto` |
+| `ChangeStatusAsync` | Durum değiştirir: State kontrolü → geçmiş kaydı → Observer → tek kayıt | `int`, `OrderStatus`, `string?` | — |
+| `GetCreator` *(private)* | Factory Method: DI'dan gelen creator'lardan kanala uygun olanı seçer | `OrderChannel` | `OrderCreator` |
+| `FindOrCreateCustomerAsync` *(private)* | Telefona göre var olan müşteriyi bulur, yoksa yeni müşteri nesnesi döner | `string?`, `string?` | `Customer` |
+
+**IDashboardService / DashboardService**
+
+| Metot | Ne yapar | Alır | Döndürür |
+|---|---|---|---|
+| `GetDashboardAsync` | Panel: bugünkü sipariş/ciro, açık sipariş, son 7 gün, durum sayıları, en çok satanlar, son 6 sipariş (hepsi SQL'de) | — | `ResultDashboardDto` |
 
 `private` metotlar entity kullanıyor, ama sınıfın dışına çıkmıyorlar. Dışarıya açık (`public`) olan her metot DTO alıp veriyor.
 
@@ -156,8 +177,8 @@ Giriş ve çıkış çerezle ilgili olduğu için `AccountController`'da (SignIn
 | `AccountController.AccessDenied` | GET `/admin/access-denied` | Yetkisiz kullanıcı sayfası | — |
 | `AccountController.Index` | GET `/admin/account` | Hesabım sayfası (`AccountService`) | `ResultAccountDto` |
 | `AccountController.ChangePassword` | POST `/admin/account/password` | Şifre değiştirme (`AccountService`) | `ChangePasswordDto` → `ResultAccountDto` |
-| `DashboardController.Index` | GET `/admin` | Panel (`OrderService.GetDashboardAsync`) | `ResultDashboardDto` |
-| `OrdersController.Index` | GET `/admin/orders` | Sipariş listesi (`OrderService.GetAdminListAsync`) | `OrderFilterDto` → `ResultOrderListDto` |
+| `DashboardController.Index` | GET `/admin` | Panel (`DashboardService.GetDashboardAsync`) | `ResultDashboardDto` |
+| `OrdersController.Index` | GET `/admin/orders` | Sipariş listesi (`OrderQueryService.GetAdminListAsync`) | `OrderFilterDto` → `ResultOrderListDto` |
 | `OrdersController.Detail` | GET `/admin/orders/{id}` | Sipariş detayı ve izinli durum düğmeleri (`AllowedNextStatuses`) | `ResultOrderDto` |
 | `OrdersController.ChangeStatus` | POST `/admin/orders/{id}/status` | Durum değiştirme | (enum + not) |
 | `CategoriesController.Index/Create/Edit/Save/ChangeStatus/Delete` | `/admin/categories...` | Kategori CRUD (`GetFormAsync`, `SaveAsync` ...) | `ResultCategoryDto`, `UpdateCategoryDto` |

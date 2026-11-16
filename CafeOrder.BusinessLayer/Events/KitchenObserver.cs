@@ -8,10 +8,12 @@ namespace CafeOrder.BusinessLayer.Events;
 public class KitchenObserver : IOrderObserver
 {
     private readonly INotificationRepository _notificationRepository;
+    private readonly TimeProvider _time;
 
-    public KitchenObserver(INotificationRepository notificationRepository)
+    public KitchenObserver(INotificationRepository notificationRepository, TimeProvider time)
     {
         _notificationRepository = notificationRepository;
+        _time = time;
     }
 
     /// <summary>Yeni siparişte mutfağa hazırlanacak toplam ürün adedini bildirir.</summary>
@@ -29,14 +31,14 @@ public class KitchenObserver : IOrderObserver
         }
     }
 
-    /// <summary>Notifications tablosuna bir kayıt ekler.</summary>
+    /// <summary>Bildirimi "eklenecek" işaretler; servis siparişle birlikte tek SaveChanges ile yazar.</summary>
     private async Task SendAsync(Order order, string message)
     {
         Notification notification = new Notification();
-        notification.OrderId = order.Id;
+        notification.Order = order;   // Id yeni siparişte henüz yok; EF kayıtta bağlar
         notification.Target = NotificationTarget.Kitchen;
         notification.Message = message;
-        notification.CreatedAt = DateTime.Now;
-        await _notificationRepository.CreateAsync(notification);
+        notification.CreatedAt = _time.GetLocalNow().DateTime;
+        await _notificationRepository.AddAsync(notification);   // kayıt, siparişle aynı SaveChanges'te
     }
 }

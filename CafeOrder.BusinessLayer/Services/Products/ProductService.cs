@@ -4,10 +4,10 @@ using CafeOrder.DataAccessLayer.Repositories.Categories;
 using CafeOrder.DataAccessLayer.Repositories.Orders;
 using CafeOrder.DataAccessLayer.Repositories.ProductOptions;
 using CafeOrder.DataAccessLayer.Repositories.Products;
+using CafeOrder.DataAccessLayer.UnitOfWork;
 using CafeOrder.DtoLayer.Dtos.ProductDtos;
 using CafeOrder.DtoLayer.Dtos.ProductOptionDtos;
 using CafeOrder.EntityLayer.Entities;
-using Microsoft.EntityFrameworkCore;
 
 namespace CafeOrder.BusinessLayer.Services.Products;
 
@@ -15,12 +15,13 @@ namespace CafeOrder.BusinessLayer.Services.Products;
 public class ProductService : IProductService
 {
     /// <summary>Ürüne verilebilecek rozetler (admin formundaki liste).</summary>
-    public static readonly List<string> Badges = new List<string> { "Çok Satan", "Yeni", "Popüler", "Şefin Seçimi" };
+    public static readonly IReadOnlyList<string> Badges = new[] { "Çok Satan", "Yeni", "Popüler", "Şefin Seçimi" };
 
     private readonly IProductRepository _productRepository;
     private readonly ICategoryRepository _categoryRepository;
     private readonly IProductOptionRepository _productOptionRepository;
     private readonly IOrderRepository _orderRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
 
     public ProductService(
@@ -28,44 +29,23 @@ public class ProductService : IProductService
         ICategoryRepository categoryRepository,
         IProductOptionRepository productOptionRepository,
         IOrderRepository orderRepository,
+        IUnitOfWork unitOfWork,
         IMapper mapper)
     {
         _productRepository = productRepository;
         _categoryRepository = categoryRepository;
         _productOptionRepository = productOptionRepository;
         _orderRepository = orderRepository;
+        _unitOfWork = unitOfWork;
         _mapper = mapper;
     }
 
     // ---------------- Müşteri sayfaları ----------------
 
-    /// <summary>Menüde görünen ürünler: ürün de kategorisi de aktif olmalı.</summary>
-    private IQueryable<Product> ActiveProducts()
-    {
-        return _productRepository.GetQueryable()
-            .Include(p => p.Category)
-            .Where(p => p.IsActive && p.Category.IsActive);
-    }
-
     /// <summary>Menü sayfası: kategori (slug) ve arama filtresi.</summary>
     public async Task<List<ResultProductDto>> GetMenuAsync(string? category, string? search)
     {
-        IQueryable<Product> query = ActiveProducts();
-
-        if (!string.IsNullOrEmpty(category))
-        {
-            query = query.Where(p => p.Category.Slug == category);
-        }
-
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            query = query.Where(p => p.Name.Contains(search) || p.Category.Name.Contains(search));
-        }
-
-        var products = await query
-            .OrderBy(p => p.Category.DisplayOrder)
-            .ThenBy(p => p.Id)
-            .ToListAsync();
+        var products = await _productRepository.GetMenuAsync(category, search);
 
         return _mapper.Map<List<ResultProductDto>>(products);
     }
@@ -73,12 +53,7 @@ public class ProductService : IProductService
     /// <summary>Ana sayfadaki öne çıkanlar: rozeti olan ürünler.</summary>
     public async Task<List<ResultProductDto>> GetFeaturedAsync(int count)
     {
-        var products = await ActiveProducts()
-            .Where(p => p.Badge != null)
-            .OrderBy(p => p.Category.DisplayOrder)
-            .ThenBy(p => p.Id)
-            .Take(count)
-            .ToListAsync();
+        var products = await _productRepository.GetFeaturedAsync(count);
 
         return _mapper.Map<List<ResultProductDto>>(products);
     }
@@ -86,7 +61,7 @@ public class ProductService : IProductService
     /// <summary>Menüde görünen bir ürün; pasifse veya yoksa null.</summary>
     public async Task<ResultProductDto?> GetActiveByIdAsync(int id)
     {
-        var product = await ActiveProducts().FirstOrDefaultAsync(p => p.Id == id);
+        var product = await _productRepository.GetActiveByIdAsync(id);
         if (product == null)
         {
             return null;
@@ -97,11 +72,7 @@ public class ProductService : IProductService
     /// <summary>Ürün detayındaki "Pair it with": aynı kategoriden diğer ürünler.</summary>
     public async Task<List<ResultProductDto>> GetRelatedAsync(int productId, int categoryId, int count)
     {
-        var products = await ActiveProducts()
-            .Where(p => p.CategoryId == categoryId && p.Id != productId)
-            .OrderBy(p => p.Id)
-            .Take(count)
-            .ToListAsync();
+        var products = await _productRepository.GetRelatedAsync(productId, categoryId, count);
 
         return _mapper.Map<List<ResultProductDto>>(products);
     }
@@ -118,28 +89,21 @@ public class ProductService : IProductService
     /// <summary>Admin listesi: bütün ürünleri kategorileriyle, kategori sırası ve ada göre getirir.</summary>
     public async Task<List<ResultProductDto>> GetAllAsync()
     {
-        var products = await _productRepository.GetQueryable()
-            .Include(p => p.Category)
-            .OrderBy(p => p.Category.DisplayOrder)
-            .ThenBy(p => p.Name)
-            .ToListAsync();
-
+        var products = await _productRepository.GetAdminListAsync(null, null);
         return _mapper.Map<List<ResultProductDto>>(products);
     }
 
-    /// <summary>Admin ürün listesi: bütün ürünleri getirir, kategori Id'si ve ada göre (büyük/küçük harf fark etmeden) filtreler.</summary>
+    /// <summary>Ürün sayısı (SQL COUNT; admin menüsündeki rozet).</summary>
+    public async Task<int> CountAsync()
+    {
+        return await _productRepository.CountAsync();
+    }
+
+    /// <summary>Admin ürün listesi: kategori Id'si ve ada göre filtreler (filtre SQL'de uygulanır).</summary>
     public async Task<List<ResultProductDto>> GetAdminListAsync(int? categoryId, string? search)
     {
-        var products = await GetAllAsync();
-        if (categoryId != null)
-        {
-            products = products.Where(p => p.CategoryId == categoryId).ToList();
-        }
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            products = products.Where(p => p.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase)).ToList();
-        }
-        return products;
+        var products = await _productRepository.GetAdminListAsync(categoryId, search);
+        return _mapper.Map<List<ResultProductDto>>(products);
     }
 
 
@@ -178,7 +142,8 @@ public class ProductService : IProductService
         // DTO → Entity
         Product product = _mapper.Map<Product>(dto);
         await CheckAsync(product);
-        await _productRepository.CreateAsync(product);
+        await _productRepository.AddAsync(product);
+        await _unitOfWork.SaveChangesAsync();
     }
 
     /// <summary>Formdan gelen değerleri veritabanındaki kayda kopyalar ve kaydeder.</summary>
@@ -190,7 +155,7 @@ public class ProductService : IProductService
         _mapper.Map(dto, product);
 
         await CheckAsync(product);
-        await _productRepository.UpdateAsync(product);
+        await _unitOfWork.SaveChangesAsync();
     }
 
     /// <summary>Ürünün aktif/pasif durumunu değiştirip kaydeder.</summary>
@@ -198,7 +163,7 @@ public class ProductService : IProductService
     {
         var product = await GetEntityAsync(id);
         product.IsActive = isActive;
-        await _productRepository.UpdateAsync(product);
+        await _unitOfWork.SaveChangesAsync();
     }
 
     /// <summary>Geçmiş siparişte geçen ürün silinmez; eski siparişler bozulmasın.</summary>
@@ -206,14 +171,14 @@ public class ProductService : IProductService
     {
         var product = await GetEntityAsync(id);
 
-        var usedInOrders = await _orderRepository.GetQueryable()
-            .AnyAsync(o => o.Details.Any(d => d.ProductId == id));
+        var usedInOrders = await _orderRepository.AnyContainingProductAsync(id);
         if (usedInOrders)
         {
             throw new BusinessException(product.Name + " geçmiş siparişlerde var, silinemez. Bunun yerine pasif yapın.");
         }
 
-        await _productRepository.DeleteAsync(product);
+        _productRepository.Remove(product);
+        await _unitOfWork.SaveChangesAsync();
     }
 
     /// <summary>Veritabanındaki kaydı getirir; yoksa hata verir.</summary>

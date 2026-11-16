@@ -8,10 +8,12 @@ namespace CafeOrder.BusinessLayer.Events;
 public class AdminObserver : IOrderObserver
 {
     private readonly INotificationRepository _notificationRepository;
+    private readonly TimeProvider _time;
 
-    public AdminObserver(INotificationRepository notificationRepository)
+    public AdminObserver(INotificationRepository notificationRepository, TimeProvider time)
     {
         _notificationRepository = notificationRepository;
+        _time = time;
     }
 
     /// <summary>Yeni siparişte yönetici bildirimi yazar: "Yeni Teslimat siparişi: CF-...". Paneldeki zilde görünür.</summary>
@@ -26,14 +28,14 @@ public class AdminObserver : IOrderObserver
         await SendAsync(order, $"Sipariş {order.OrderNo}: {previous.ToText()} → {order.Status.ToText()}.");
     }
 
-    /// <summary>Notifications tablosuna bir kayıt ekler.</summary>
+    /// <summary>Bildirimi "eklenecek" işaretler; servis siparişle birlikte tek SaveChanges ile yazar.</summary>
     private async Task SendAsync(Order order, string message)
     {
         Notification notification = new Notification();
-        notification.OrderId = order.Id;
+        notification.Order = order;   // Id yeni siparişte henüz yok; EF kayıtta bağlar
         notification.Target = NotificationTarget.Admin;
         notification.Message = message;
-        notification.CreatedAt = DateTime.Now;
-        await _notificationRepository.CreateAsync(notification);
+        notification.CreatedAt = _time.GetLocalNow().DateTime;
+        await _notificationRepository.AddAsync(notification);   // kayıt, siparişle aynı SaveChanges'te
     }
 }

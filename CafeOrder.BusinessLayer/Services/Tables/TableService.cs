@@ -1,9 +1,9 @@
 using MapsterMapper;
 using CafeOrder.BusinessLayer.Exceptions;
 using CafeOrder.DataAccessLayer.Repositories.Tables;
+using CafeOrder.DataAccessLayer.UnitOfWork;
 using CafeOrder.DtoLayer.Dtos.TableDtos;
 using CafeOrder.EntityLayer.Entities;
-using Microsoft.EntityFrameworkCore;
 
 namespace CafeOrder.BusinessLayer.Services.Tables;
 
@@ -11,21 +11,20 @@ namespace CafeOrder.BusinessLayer.Services.Tables;
 public class TableService : ITableService
 {
     private readonly ITableRepository _tableRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
 
-    public TableService(ITableRepository tableRepository, IMapper mapper)
+    public TableService(ITableRepository tableRepository, IUnitOfWork unitOfWork, IMapper mapper)
     {
         _tableRepository = tableRepository;
+        _unitOfWork = unitOfWork;
         _mapper = mapper;
     }
 
     /// <summary>Bütün masaları siparişleriyle (sayı için) masa numarasına göre getirir.</summary>
     public async Task<List<ResultTableDto>> GetAllAsync()
     {
-        var tables = await _tableRepository.GetQueryable()
-            .Include(t => t.Orders)
-            .OrderBy(t => t.Number)
-            .ToListAsync();
+        var tables = await _tableRepository.GetAllWithOrdersAsync();
 
         return _mapper.Map<List<ResultTableDto>>(tables);
     }
@@ -43,10 +42,9 @@ public class TableService : ITableService
             return _mapper.Map<UpdateTableDto>(table);
         }
 
-        var anyTable = await _tableRepository.AnyAsync(t => true);
         UpdateTableDto form = new UpdateTableDto();
         form.IsActive = true;
-        form.Number = anyTable ? await _tableRepository.GetQueryable().MaxAsync(t => t.Number) + 1 : 1;
+        form.Number = await _tableRepository.GetMaxNumberAsync() + 1;   // hiç masa yoksa 0 + 1 = 1
         return form;
     }
 
@@ -87,7 +85,8 @@ public class TableService : ITableService
         Table table = _mapper.Map<Table>(dto);
         await CheckAsync(table);
         table.QrToken = await NewQrAsync(table.Number);
-        await _tableRepository.CreateAsync(table);
+        await _tableRepository.AddAsync(table);
+        await _unitOfWork.SaveChangesAsync();
     }
 
     /// <summary>Masa numarası değişirse eski QR kart çalışmasın diye yeni kod üretilir.</summary>
@@ -105,7 +104,7 @@ public class TableService : ITableService
             table.QrToken = await NewQrAsync(table.Number);
         }
 
-        await _tableRepository.UpdateAsync(table);
+        await _unitOfWork.SaveChangesAsync();
     }
 
     /// <summary>Kart kaybolduğunda yeni QR kodu üretir.</summary>
@@ -113,7 +112,7 @@ public class TableService : ITableService
     {
         var table = await GetEntityAsync(id);
         table.QrToken = await NewQrAsync(table.Number);
-        await _tableRepository.UpdateAsync(table);
+        await _unitOfWork.SaveChangesAsync();
     }
 
     /// <summary>Masanın aktif/pasif durumunu değiştirip kaydeder.</summary>
@@ -121,15 +120,13 @@ public class TableService : ITableService
     {
         var table = await GetEntityAsync(id);
         table.IsActive = isActive;
-        await _tableRepository.UpdateAsync(table);
+        await _unitOfWork.SaveChangesAsync();
     }
 
     /// <summary>Siparişi olan masa silinemez.</summary>
     public async Task DeleteAsync(int id)
     {
-        var table = await _tableRepository.GetQueryable()
-            .Include(t => t.Orders)
-            .FirstOrDefaultAsync(t => t.Id == id);
+        var table = await _tableRepository.GetWithOrdersAsync(id);
         if (table == null)
         {
             throw new BusinessException("Masa bulunamadı.");
@@ -139,7 +136,8 @@ public class TableService : ITableService
             throw new BusinessException("Masa " + table.Number + " geçmiş siparişlerde var, silinemez. Bunun yerine pasif yapın.");
         }
 
-        await _tableRepository.DeleteAsync(table);
+        _tableRepository.Remove(table);
+        await _unitOfWork.SaveChangesAsync();
     }
 
     /// <summary>Veritabanındaki kaydı getirir; yoksa hata verir.</summary>
@@ -148,7 +146,7 @@ public class TableService : ITableService
         var table = await _tableRepository.GetByIdAsync(id);
         if (table == null)
         {
-            throw new BusinessException("Table not found.");
+            throw new BusinessException("Masa bulunamadı.");
         }
         return table;
     }

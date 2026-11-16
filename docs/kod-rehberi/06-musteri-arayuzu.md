@@ -187,7 +187,7 @@ private async Task<ResultCartDto> GetCartPageAsync(CreateOrderDto? form, string?
 }
 ```
 Servis tarafında (`CartService.GetCartAsync`):
-- Sepet seçilen türe göre fiyatlandırılır: `_orderService.CalculateAsync(channel ?? OrderChannel.Pickup, cart)`. Tür seçilmemişse ücretsiz kanal gibi hesaplanır; sayfa ücret satırına "—" yazar.
+- Sepet seçilen türe göre fiyatlandırılır: `_orderPricingService.CalculateAsync(channel ?? OrderChannel.Pickup, cart)`. Tür seçilmemişse ücretsiz kanal gibi hesaplanır; sayfa ücret satırına "—" yazar.
 - **Silinmiş ürünler sepetten çıkarılır:** fiyatlandırılmış siparişte karşılığı olmayan satırlar `Items` listesine girmez; controller bu temiz listeyi Session'a geri yazar.
 - QR kodu tekrar doğrulanır (masa sonradan pasif yapıldıysa kart gösterilmez).
 - Formda yazılanlar (`Form`) ve hata mesajı (`Error`) sayfaya geri verilir.
@@ -268,7 +268,7 @@ public async Task<IActionResult> Checkout(CreateOrderDto form)
 
 ### Confirmation
 ```csharp
-var order = await _orderService.GetByOrderNoAsync(orderNo.ToUpper());
+var order = await _orderQueryService.GetByOrderNoAsync(orderNo.ToUpper());
 if (order == null) return NotFound();
 return View(order);
 ```
@@ -300,15 +300,15 @@ Navbar'da `@await Component.InvokeAsync("CartCount")` ile çağrılıyor. İsimd
 ```csharp
 public class CartDrawerViewComponent : ViewComponent
 {
-    private readonly IOrderService _orderService;
+    private readonly IOrderPricingService _orderPricingService;
     public async Task<IViewComponentResult> InvokeAsync()
     {
-        var cart = await _orderService.CalculateAsync(OrderChannel.Pickup, HttpContext.Session.GetCart());
+        var cart = await _orderPricingService.CalculateAsync(OrderChannel.Pickup, HttpContext.Session.GetCart());
         return View(cart);
     }
 }
 ```
-Sağdan açılan sepet paneli (Bootstrap Offcanvas). Fiyatları yine `OrderService` hesaplıyor (Pickup = ücretsiz, çünkü panelde sadece ara toplam gösteriliyor). Layout bunu sadece ana sayfa, menü ve detay sayfasında çağırıyor.
+Sağdan açılan sepet paneli (Bootstrap Offcanvas). Fiyatları yine `OrderPricingService` hesaplıyor (Pickup = ücretsiz, çünkü panelde sadece ara toplam gösteriliyor). Layout bunu sadece ana sayfa, menü ve detay sayfasında çağırıyor.
 
 ### Sayfa parçaları: hepsi View Component
 
@@ -323,7 +323,7 @@ Projede **hiç partial view kalmadı**; sayfanın her parçası bir View Compone
 | `CategoryFilter` | `CategoryService.GetActiveAsync()` | Menü kategori düğmeleri | `<vc:category-filter selected="@selected" />` |
 | `ProductOptions` | `ProductService.GetOptionsAsync()` | Detaydaki boy/süt/ekstra (shot, krema)/şurup | `<vc:product-options product="@Model" />` |
 | `RelatedProducts` | `ProductService.GetRelatedAsync(id, kategori, 4)` | Detaydaki benzer ürünler | `<vc:related-products product-id="..." category-id="..." />` |
-| `CartCount`, `CartDrawer` | Session + `OrderService.CalculateAsync` | Navbar rozeti, sepet paneli | `@await Component.InvokeAsync("CartCount")` |
+| `CartCount`, `CartDrawer` | Session + `OrderPricingService.CalculateAsync` | Navbar rozeti, sepet paneli | `@await Component.InvokeAsync("CartCount")` |
 | `CartToast` | `TempData["CartToast"]` | Sepet bildirimi | `<vc:cart-toast />` |
 
 | Parametre alan VC (sınıf dosyası) | Parametre | Ne çizer |
